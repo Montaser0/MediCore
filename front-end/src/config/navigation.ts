@@ -1,0 +1,303 @@
+import {
+  Activity,
+  Ambulance,
+  BedDouble,
+  FileBarChart,
+  FileText,
+  FlaskConical,
+  Hospital,
+  LayoutGrid,
+  Package,
+  Pill,
+  Receipt,
+  Scan,
+  Settings,
+  Stethoscope,
+  UserRound,
+  Users,
+  CalendarDays,
+  Syringe,
+  NotebookPen,
+  Shield,
+  Bell,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+
+export type NavModule = {
+  id: string;
+  href: string;
+  labelKey: string;
+  icon: LucideIcon;
+  category: "medical" | "admin" | "finance" | "system";
+  permission?: string;
+  color?: string;
+};
+
+export const modules: NavModule[] = [
+  {
+    id: "home",
+    href: "/dashboard",
+    labelKey: "nav.home",
+    icon: LayoutGrid,
+    category: "medical",
+  },
+  {
+    id: "patients",
+    href: "/dashboard/patients",
+    labelKey: "nav.patients",
+    icon: UserRound,
+    category: "medical",
+    permission: "patients.view",
+  },
+  {
+    id: "appointments",
+    href: "/dashboard/appointments",
+    labelKey: "nav.appointments",
+    icon: CalendarDays,
+    category: "medical",
+    permission: "appointments.view",
+  },
+  {
+    id: "encounters",
+    href: "/dashboard/encounters",
+    labelKey: "nav.encounters",
+    icon: Stethoscope,
+    category: "medical",
+    permission: "encounters.view",
+  },
+  {
+    id: "laboratory",
+    href: "/dashboard/laboratory",
+    labelKey: "nav.laboratory",
+    icon: FlaskConical,
+    category: "medical",
+    permission: "laboratory.orders.view",
+    color: "#2E86C1",
+  },
+  {
+    id: "radiology",
+    href: "/dashboard/radiology",
+    labelKey: "nav.radiology",
+    icon: Scan,
+    category: "medical",
+    permission: "radiology.orders.view",
+  },
+  {
+    id: "pharmacy",
+    href: "/dashboard/pharmacy",
+    labelKey: "nav.pharmacy",
+    icon: Pill,
+    category: "medical",
+    permission: "pharmacy.prescriptions.view",
+    color: "#16A085",
+  },
+  {
+    id: "pharmacy-stock",
+    href: "/dashboard/pharmacy/stock",
+    labelKey: "nav.pharmacyStock",
+    icon: Package,
+    category: "medical",
+    permission: "inventory.stock.view",
+    color: "#16A085",
+  },
+  {
+    id: "inpatient",
+    href: "/dashboard/inpatient",
+    labelKey: "nav.inpatient",
+    icon: BedDouble,
+    category: "medical",
+    permission: "inpatient.view",
+  },
+  {
+    id: "emergency",
+    href: "/dashboard/encounters?type=emergency",
+    labelKey: "nav.emergency",
+    icon: Ambulance,
+    category: "medical",
+    permission: "encounters.view",
+  },
+  {
+    id: "operations",
+    href: "/dashboard/operations",
+    labelKey: "nav.operations",
+    icon: Syringe,
+    category: "medical",
+    permission: "operations.view",
+    color: "#27AE60",
+  },
+  {
+    id: "nursing",
+    href: "/dashboard/nursing",
+    labelKey: "nav.nursing",
+    icon: NotebookPen,
+    category: "medical",
+    permission: "nursing.view",
+  },
+  {
+    id: "inventory",
+    href: "/dashboard/inventory",
+    labelKey: "nav.inventory",
+    icon: Package,
+    category: "admin",
+    permission: "inventory.stock.view",
+  },
+  {
+    id: "staff",
+    href: "/dashboard/staff",
+    labelKey: "nav.staff",
+    icon: Users,
+    category: "admin",
+    permission: "staff.view",
+  },
+  {
+    id: "departments",
+    href: "/dashboard/departments",
+    labelKey: "nav.departments",
+    icon: Hospital,
+    category: "admin",
+  },
+  {
+    id: "billing",
+    href: "/dashboard/billing",
+    labelKey: "nav.billing",
+    icon: Receipt,
+    category: "finance",
+    permission: "billing.invoices.view",
+  },
+  {
+    id: "reports",
+    href: "/dashboard/reports",
+    labelKey: "nav.reports",
+    icon: FileBarChart,
+    category: "finance",
+    permission: "reports.view",
+  },
+  {
+    id: "documents",
+    href: "/dashboard/documents",
+    labelKey: "nav.documents",
+    icon: FileText,
+    category: "admin",
+  },
+  {
+    id: "notifications",
+    href: "/dashboard/notifications",
+    labelKey: "nav.notifications",
+    icon: Bell,
+    category: "system",
+  },
+  {
+    id: "audit",
+    href: "/dashboard/audit",
+    labelKey: "nav.audit",
+    icon: Shield,
+    category: "system",
+    permission: "audit.view",
+  },
+  {
+    id: "settings",
+    href: "/dashboard/settings",
+    labelKey: "nav.settings",
+    icon: Settings,
+    category: "system",
+  },
+];
+
+export type NavNode =
+  | { kind: "link"; id: string }
+  | { kind: "group"; id: string; labelKey: string; children: NavNode[] };
+
+export const navTree: NavNode[] = [
+  { kind: "link", id: "home" },
+  {
+    kind: "group",
+    id: "medical",
+    labelKey: "nav.medical",
+    children: [
+      {
+        kind: "group",
+        id: "reception",
+        labelKey: "nav.reception",
+        children: [
+          { kind: "link", id: "patients" },
+          { kind: "link", id: "appointments" },
+          { kind: "link", id: "encounters" },
+        ],
+      },
+      {
+        kind: "group",
+        id: "diagnostics",
+        labelKey: "nav.diagnostics",
+        children: [
+          { kind: "link", id: "laboratory" },
+          { kind: "link", id: "radiology" },
+          { kind: "link", id: "pharmacy" },
+          { kind: "link", id: "pharmacy-stock" },
+        ],
+      },
+      {
+        kind: "group",
+        id: "care",
+        labelKey: "nav.care",
+        children: [
+          { kind: "link", id: "inpatient" },
+          { kind: "link", id: "emergency" },
+          { kind: "link", id: "operations" },
+          { kind: "link", id: "nursing" },
+        ],
+      },
+    ],
+  },
+  {
+    kind: "group",
+    id: "admin",
+    labelKey: "nav.admin",
+    children: [
+      { kind: "link", id: "inventory" },
+      { kind: "link", id: "staff" },
+      { kind: "link", id: "departments" },
+      { kind: "link", id: "documents" },
+    ],
+  },
+  {
+    kind: "group",
+    id: "finance",
+    labelKey: "nav.finance",
+    children: [
+      { kind: "link", id: "billing" },
+      { kind: "link", id: "reports" },
+    ],
+  },
+  {
+    kind: "group",
+    id: "system",
+    labelKey: "nav.system",
+    children: [
+      { kind: "link", id: "notifications" },
+      { kind: "link", id: "audit" },
+      { kind: "link", id: "settings" },
+    ],
+  },
+];
+
+export const categoryLabels: Record<NavModule["category"], string> = {
+  medical: "الوحدات الطبية",
+  admin: "الوحدات الإدارية",
+  finance: "الوحدات المالية",
+  system: "النظام",
+};
+
+export const homeTiles = [
+  "patients",
+  "appointments",
+  "encounters",
+  "inpatient",
+  "emergency",
+  "laboratory",
+  "radiology",
+  "pharmacy",
+  "billing",
+  "inventory",
+  "operations",
+  "reports",
+] as const;

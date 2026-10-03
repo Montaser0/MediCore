@@ -1,0 +1,42 @@
+<?php
+
+declare(strict_types=1);
+
+use App\Core\Authorization\Permissions;
+use App\Modules\Laboratory\Presentation\Controllers\LabResultController;
+use App\Modules\Laboratory\Presentation\Controllers\LabSampleController;
+use App\Modules\Laboratory\Presentation\Controllers\LabTestController;
+use App\Modules\Laboratory\Presentation\Controllers\LabWorklistController;
+use Illuminate\Support\Facades\Route;
+
+Route::middleware('auth:sanctum')->prefix('laboratory')->group(function (): void {
+    // Catalogue: anyone who can raise an order needs to read it.
+    Route::middleware('permission:'.Permissions::ORDERS_VIEW)->group(function (): void {
+        Route::get('tests', [LabTestController::class, 'index']);
+        Route::get('tests/categories', [LabTestController::class, 'categories']);
+        Route::get('tests/{lab_test}', [LabTestController::class, 'show']);
+    });
+
+    Route::post('tests', [LabTestController::class, 'store']);
+    Route::patch('tests/{lab_test}', [LabTestController::class, 'update']);
+    Route::delete('tests/{lab_test}', [LabTestController::class, 'destroy']);
+
+    // Worklist and samples.
+    Route::middleware('permission:'.Permissions::LABORATORY_ORDERS_VIEW)->group(function (): void {
+        Route::get('worklist', [LabWorklistController::class, 'index']);
+        Route::get('items/{labItem}', [LabWorklistController::class, 'show']);
+        Route::get('results/{labResult}', [LabResultController::class, 'show']);
+    });
+
+    Route::post('items/{labItem}/samples', [LabSampleController::class, 'store']);
+    Route::post('samples/{sample}/receive', [LabSampleController::class, 'receive'])
+        ->middleware('permission:'.Permissions::LABORATORY_SAMPLES_MANAGE);
+    Route::post('samples/{sample}/reject', [LabSampleController::class, 'reject']);
+
+    Route::post('items/{labItem}/result', [LabResultController::class, 'store']);
+    Route::post('results/{labResult}/verify', [LabResultController::class, 'verify'])
+        ->middleware('permission:'.Permissions::LABORATORY_RESULTS_VERIFY);
+
+    Route::post('items/{labItem}/cancel', [LabWorklistController::class, 'cancel'])
+        ->middleware('permission:'.Permissions::ORDERS_CANCEL);
+});

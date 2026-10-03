@@ -1,0 +1,42 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Modules\Pharmacy\Presentation\Resources;
+
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
+
+/**
+ * @mixin \App\Modules\Pharmacy\Infrastructure\Persistence\Models\MedicationModel
+ */
+final class MedicationResource extends JsonResource
+{
+    /**
+     * @return array<string, mixed>
+     */
+    public function toArray(Request $request): array
+    {
+        return [
+            'id' => $this->id,
+            'name' => $this->name,
+            'display_name' => $this->displayName(),
+            'generic_name' => $this->generic_name,
+            'strength' => $this->strength,
+            'dosage_form' => $this->dosage_form,
+            'route' => $this->route,
+            'barcode' => $this->barcode,
+            'category' => $this->category,
+            'price' => $this->price,
+            'requires_prescription' => $this->requires_prescription,
+            'is_active' => $this->is_active,
+            'inventory_item_id' => $this->inventory_item_id,
+            'stock' => $this->whenLoaded('inventoryItem', fn () => $this->inventoryItem === null ? null : [
+                'inventory_item_id' => $this->inventoryItem->id,
+                'sku' => $this->inventoryItem->sku,
+                'unit' => $this->inventoryItem->unit,
+                'quantity_on_hand' => $this->inventoryItem->totalQuantity(),
+            ]),
+        ];
+    }
+}

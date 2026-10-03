@@ -1,0 +1,96 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Modules\Clinical\Application\Actions;
+
+use App\Core\Auth\CurrentUser;
+use App\Core\Exceptions\BusinessRuleException;
+use App\Core\Support\Contracts\EncounterContext;
+use App\Core\Support\Contracts\TimelineRecorder;
+use App\Modules\Clinical\Domain\Enums\DiagnosisType;
+use App\Modules\Clinical\Infrastructure\Persistence\Models\DiagnosisCodeModel;
+use App\Modules\Clinical\Infrastructure\Persistence\Models\DiagnosisModel;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+
+final class AddDiagnosisAction
+{
+    public function __construct(
+        private readonly EncounterContext $encounters,
+        private readonly CurrentUser $currentUser,
+        private readonly TimelineRecorder $timeline,
+    ) {}
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    public function execute(int $encounterId, array $data): DiagnosisModel
+    {
+        $encounter = $this->encounters->requireOpen($encounterId);
+        $type = DiagnosisType::from((string) ($data['type'] ?? DiagnosisType::Primary->value));
+
+        $doctorId = $data['doctor_id'] ?? $encounter->doctorId ?? $this->currentUser->doctorId();
+
+        if ($doctorId === null) {
+            throw BusinessRuleException::make('التشخيص يجب أن يُنسب إلى طبيب.');
+        }
+
+        $name = $this->resolveName($data);
+
+        return DB::transaction(function () use ($encounter, $data, $type, $doctorId, $name): DiagnosisModel {
+            // Only one primary diagnosis per visit; an earlier one is demoted.
+            if ($type === DiagnosisType::Primary) {
+                DiagnosisModel::query()
+                    ->where('encounter_id', $encounter->id)
+                    ->where('type', DiagnosisType::Primary->value)
+                    ->update(['type' => DiagnosisType::Secondary->value]);
+            }
+
+            $diagnosis = DiagnosisModel::query()->create([
+                'encounter_id' => $encounter->id,
+                'doctor_id' => $doctorId,
+                'diagnosis_code_id' => $data['diagnosis_code_id'] ?? null,
+                'diagnosis_name' => $name,
+                'type' => $type->value,
+                'notes' => $data['notes'] ?? null,
+                'diagnosed_at' => isset($data['diagnosed_at']) ? Carbon::parse((string) $data['diagnosed_at']) : now(),
+            ]);
+
+            $this->timeline->record(
+                patientId: $encounter->patientId,
+                encounterId: $encounter->id,
+                eventType: 'clinical.diagnosis_added',
+                title: 'تشخيص '.$type->label().': '.$name,
+                description: $data['notes'] ?? null,
+                departmentId: $encounter->departmentId,
+                payload: ['diagnosis_id' => $diagnosis->getKey()],
+            );
+
+            return $diagnosis->load(['code', 'doctor.staff']);
+        });
+    }
+
+    /**
+     * The doctor either picks a coded diagnosis or types a name; a coded pick
+     * fills in the name so reports never show a blank label.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function resolveName(array $data): string
+    {
+        if (! empty($data['diagnosis_name'])) {
+            return (string) $data['diagnosis_name'];
+        }
+
+        if (! empty($data['diagnosis_code_id'])) {
+            $code = DiagnosisCodeModel::query()->find($data['diagnosis_code_id']);
+
+            if ($code !== null) {
+                return (string) $code->title;
+            }
+        }
+
+        throw BusinessRuleException::make('أدخل اسم التشخيص أو رمزاً صحيحاً.');
+    }
+}

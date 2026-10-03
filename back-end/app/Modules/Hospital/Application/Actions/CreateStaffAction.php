@@ -1,0 +1,50 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Modules\Hospital\Application\Actions;
+
+use App\Core\Support\Numbering\NumberGenerator;
+use App\Modules\Hospital\Infrastructure\Persistence\Models\DoctorModel;
+use App\Modules\Hospital\Infrastructure\Persistence\Models\StaffModel;
+use Illuminate\Support\Facades\DB;
+
+/**
+ * Creates the employee record and, when the job title is clinical, the
+ * matching doctor row in the same transaction.
+ */
+final class CreateStaffAction
+{
+    public function __construct(private readonly NumberGenerator $numbers) {}
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    public function execute(array $data): StaffModel
+    {
+        return DB::transaction(function () use ($data): StaffModel {
+            $hospitalId = (int) $data['hospital_id'];
+
+            $staff = StaffModel::query()->create([
+                'hospital_id' => $hospitalId,
+                'employee_number' => $data['employee_number'] ?? $this->numbers->employeeNumber($hospitalId),
+                'first_name' => $data['first_name'],
+                'last_name' => $data['last_name'],
+                'phone' => $data['phone'] ?? null,
+                'job_title' => $data['job_title'] ?? null,
+                'department_id' => $data['department_id'] ?? null,
+                'is_active' => $data['is_active'] ?? true,
+            ]);
+
+            if (($data['is_doctor'] ?? false) === true) {
+                DoctorModel::query()->create([
+                    'staff_id' => $staff->getKey(),
+                    'license_number' => $data['license_number'] ?? null,
+                    'specialty' => $data['specialty'] ?? null,
+                ]);
+            }
+
+            return $staff->fresh(['department', 'doctor']);
+        });
+    }
+}
