@@ -1,7 +1,7 @@
 {
   "app": {
-    "name": "Hospital Management System",
-    "shortName": "HMS",
+    "name": "MediCore",
+    "shortName": "MediCore",
     "searchList": "Search in list",
     "favorites": "Favorites",
     "loading": "Loading...",
@@ -39,7 +39,8 @@
     "username": "Username / Email",
     "password": "Password",
     "submit": "Sign in",
-    "failed": "Login failed"
+    "failed": "Login failed",
+    "bookAppointment": "Book without an account"
   },
   "nav": {
     "home": "Home",
@@ -52,6 +53,7 @@
     "system": "System",
     "patients": "Patients",
     "appointments": "Appointments",
+    "bookingLink": "Booking link",
     "encounters": "Encounters",
     "laboratory": "Laboratory",
     "radiology": "Radiology",
@@ -128,7 +130,45 @@
     "arrived": "The patient arrived and the visit is now in the clinic",
     "confirm": "Confirm",
     "cancel": "Cancel",
-    "todayQueue": "Today"
+    "todayQueue": "Today",
+    "printSlip": "Slip",
+    "popupBlocked": "Allow pop-ups to print the appointment slip"
+  },
+  "booking": {
+    "title": "Book an appointment",
+    "choose": "Choose",
+    "submit": "Confirm booking",
+    "successTitle": "Appointment booked",
+    "successBody": "Your name will appear on the reception appointments list.",
+    "another": "Book another appointment",
+    "number": "Appointment number",
+    "reason": "Reason for visit",
+    "visitDate": "Visit date",
+    "slot": "Time",
+    "full": "Full",
+    "remaining": "Left",
+    "closed": "Booking is closed.",
+    "closedWindow": "Booking is closed. You can book from {from} to {to}.",
+    "reasonPlaceholder": "Example: pain, follow-up...",
+    "clinicsEmpty": "No clinics are available right now.",
+    "clinicsFailed": "Could not load clinics. Try again."
+  },
+  "bookingManage": {
+    "title": "Booking link",
+    "status": "Link status",
+    "clinics": "Available clinics",
+    "open": "Open",
+    "closed": "Closed",
+    "accepting": "Accepting bookings now",
+    "notAccepting": "Not accepting bookings now",
+    "hint": "Open or close the link directly, or set an opening time and a closing time. Each clinic has its doctors, daily capacity, and times, and closes automatically when full.",
+    "opensAt": "Opens at",
+    "closesAt": "Closes at",
+    "capacity": "Daily capacity",
+    "capacityHint": "Appointments allowed for the day. The clinic closes when this number is reached.",
+    "doctors": "Doctors",
+    "times": "Available times",
+    "addClinic": "Add clinic"
   },
   "encounters": {
     "title": "Encounters",

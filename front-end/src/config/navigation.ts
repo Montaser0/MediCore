@@ -16,6 +16,7 @@ import {
   UserRound,
   Users,
   CalendarDays,
+  CalendarClock,
   Syringe,
   NotebookPen,
   Shield,
@@ -56,6 +57,14 @@ export const modules: NavModule[] = [
     icon: CalendarDays,
     category: "medical",
     permission: "appointments.view",
+  },
+  {
+    id: "booking-link",
+    href: "/dashboard/booking-link",
+    labelKey: "nav.bookingLink",
+    icon: CalendarClock,
+    category: "medical",
+    permission: "appointments.create",
   },
   {
     id: "encounters",
@@ -221,6 +230,7 @@ export const navTree: NavNode[] = [
         children: [
           { kind: "link", id: "patients" },
           { kind: "link", id: "appointments" },
+          { kind: "link", id: "booking-link" },
           { kind: "link", id: "encounters" },
         ],
       },

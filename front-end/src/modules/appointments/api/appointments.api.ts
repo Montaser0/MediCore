@@ -7,7 +7,7 @@ export type AppointmentRow = {
   status_label?: string;
   scheduled_at?: string;
   reason?: string;
-  patient?: { id?: number; mrn?: string; full_name?: string };
+  patient?: { id?: number; mrn?: string; full_name?: string; phone?: string };
   doctor?: { id?: number; name?: string };
   clinic?: { id?: number; name?: string };
   department?: { id?: number; name?: string };

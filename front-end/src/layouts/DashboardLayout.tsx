@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { env } from "@/config/environment";
 import { formatDate } from "@/lib/utils";
 import { AppHeader } from "./AppHeader";
 import { AppSidebar } from "./AppSidebar";
@@ -19,7 +20,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
         className="flex h-6 shrink-0 items-center justify-between px-3 text-[11px] text-[#3a4a5a] border-t"
         style={{ background: "var(--his-footer)", borderColor: "var(--his-border)" }}
       >
-        <span>نظام إدارة المستشفى</span>
+        <span>{env.appName}</span>
         <span>{formatDate(new Date().toISOString())}</span>
       </footer>
     </div>

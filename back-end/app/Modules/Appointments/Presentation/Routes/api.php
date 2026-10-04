@@ -4,7 +4,18 @@ declare(strict_types=1);
 
 use App\Core\Authorization\Permissions;
 use App\Modules\Appointments\Presentation\Controllers\AppointmentController;
+use App\Modules\Appointments\Presentation\Controllers\PublicAppointmentController;
 use Illuminate\Support\Facades\Route;
+
+Route::prefix('public')->group(function (): void {
+    Route::get('clinics', [PublicAppointmentController::class, 'clinics'])->middleware('throttle:60,1');
+    Route::post('appointments', [PublicAppointmentController::class, 'store'])->middleware('throttle:8,1');
+});
+
+Route::middleware(['auth:sanctum', 'permission:'.Permissions::APPOINTMENTS_CREATE])->group(function (): void {
+    Route::get('booking-settings', [PublicAppointmentController::class, 'showSettings']);
+    Route::put('booking-settings', [PublicAppointmentController::class, 'updateSettings']);
+});
 
 Route::middleware(['auth:sanctum', 'permission:'.Permissions::APPOINTMENTS_VIEW])->group(function (): void {
     Route::get('appointments', [AppointmentController::class, 'index']);

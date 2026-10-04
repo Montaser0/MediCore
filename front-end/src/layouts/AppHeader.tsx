@@ -16,7 +16,7 @@ export function AppHeader() {
 
   return (
     <header
-      className="flex h-11 shrink-0 items-center justify-between px-3 text-white"
+      className="flex h-16 shrink-0 items-center justify-between px-3 text-white"
       style={{ background: "var(--his-header)" }}
     >
       <div className="flex items-center gap-3">
@@ -28,8 +28,8 @@ export function AppHeader() {
         >
           <Menu size={20} />
         </button>
-        <Link href={`/${locale}/dashboard`} className="text-[15px] font-semibold tracking-wide">
-          {env.appName}
+        <Link href={`/${locale}/dashboard`} className="flex items-center">
+          <img src="/logo.png?v=3" alt={env.appName} className="h-11 w-auto" />
         </Link>
       </div>
 

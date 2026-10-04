@@ -9,8 +9,9 @@ const arabic = Noto_Sans_Arabic({
 });
 
 export const metadata: Metadata = {
-  title: "نظام إدارة المستشفى",
-  description: "Hospital Management System",
+  title: "MediCore",
+  description: "MediCore",
+  icons: { icon: "/logo.png?v=3" },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

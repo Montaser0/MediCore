@@ -15,6 +15,7 @@ import { getErrorMessage } from "@/lib/api/client";
 import { arabicLabel } from "@/i18n/arabicLabels";
 import { dailyNo } from "@/lib/arabicText";
 import { useAuthStore } from "@/stores/auth-store";
+import { env } from "@/config/environment";
 import { isDoctorDesk } from "@/config/desk";
 import { useCatalogs } from "@/modules/patients/hooks/useJourney";
 import { usePatients } from "@/modules/patients/hooks/usePatients";
@@ -23,6 +24,7 @@ import {
   useAppointmentActions,
 } from "../hooks/useAppointments";
 import type { AppointmentRow } from "../api/appointments.api";
+import { printAppointmentSlip, type AppointmentSlip } from "../print/printAppointmentSlip";
 
 function statusTone(status?: string) {
   if (!status) return "default" as const;
@@ -76,7 +78,16 @@ export function AppointmentsPage() {
       {
         key: "patient",
         header: t("patients.fullName"),
-        cell: (r) => r.patient?.full_name ?? "—",
+        cell: (r) => (
+          <div>
+            <div>{r.patient?.full_name ?? "—"}</div>
+            {r.patient?.phone ? (
+              <div className="text-[11px] text-[var(--his-muted)]" dir="ltr">
+                {r.patient.phone}
+              </div>
+            ) : null}
+          </div>
+        ),
       },
       {
         key: "mrn",
@@ -115,44 +126,62 @@ export function AppointmentsPage() {
       {
         key: "actions",
         header: t("app.actions"),
-        width: 280,
+        width: 340,
         cell: (r) => {
           const waiting = r.status === "scheduled" || r.status === "confirmed";
-          if (!canUpdateAppointment || !waiting) return "—";
           return (
             <div className="flex flex-wrap gap-1">
-              <Button
-                variant="success"
-                disabled={checkIn.isPending}
-                onClick={() =>
-                  checkIn.mutate(r.id, {
-                    onSuccess: () => toast.success(t("appointments.arrived")),
-                    onError: (error) => toast.error(getErrorMessage(error)),
-                  })
-                }
-              >
-                {t("appointments.checkIn")}
-              </Button>
-              <Button
-                disabled={noShow.isPending}
-                onClick={() =>
-                  noShow.mutate(r.id, {
-                    onError: (error) => toast.error(getErrorMessage(error)),
-                  })
-                }
-              >
-                {t("appointments.noShow")}
-              </Button>
+              <Button onClick={() => printSlip(r)}>{t("appointments.printSlip")}</Button>
+              {canUpdateAppointment && waiting ? (
+                <>
+                  <Button
+                    variant="success"
+                    disabled={checkIn.isPending}
+                    onClick={() =>
+                      checkIn.mutate(r.id, {
+                        onSuccess: () => toast.success(t("appointments.arrived")),
+                        onError: (error) => toast.error(getErrorMessage(error)),
+                      })
+                    }
+                  >
+                    {t("appointments.checkIn")}
+                  </Button>
+                  <Button
+                    disabled={noShow.isPending}
+                    onClick={() =>
+                      noShow.mutate(r.id, {
+                        onError: (error) => toast.error(getErrorMessage(error)),
+                      })
+                    }
+                  >
+                    {t("appointments.noShow")}
+                  </Button>
+                </>
+              ) : null}
             </div>
           );
         },
       },
-    ].filter((column) => column.key !== "actions" || canUpdateAppointment),
+    ],
     [t, checkIn, noShow, canUpdateAppointment],
   );
 
+  function printSlip(appointment: AppointmentSlip) {
+    try {
+      printAppointmentSlip(appointment, env.appName);
+    } catch (error) {
+      toast.error(getErrorMessage(error, t("appointments.popupBlocked")));
+    }
+  }
+
   async function book(event: FormEvent) {
     event.preventDefault();
+    const preview = window.open("", "_blank", "width=420,height=720");
+    if (preview) {
+      preview.document.write(
+        "<p dir='rtl' style='font-family:Tahoma,sans-serif'>جارٍ تجهيز الوصل…</p>",
+      );
+    }
     const scheduled = draft.scheduled_at.includes("T")
       ? `${draft.scheduled_at.replace("T", " ")}:00`
       : draft.scheduled_at;
@@ -163,13 +192,45 @@ export function AppointmentsPage() {
         scheduled_at: scheduled,
         reason: draft.reason || undefined,
       };
-      await create.mutateAsync({
+      const saved = await create.mutateAsync({
         patient_id: Number(draft.patient_id),
         ...payload,
       });
+      const patient = patientLookup?.rows.find((row) => String(row.id) === draft.patient_id);
+      const doctor = catalogs?.doctors.find((row) => String(row.id) === draft.doctor_id);
+      const department = catalogs?.departments.find(
+        (row) => String(row.id) === draft.department_id,
+      );
+      const slip: AppointmentSlip = {
+        ...saved.data,
+        scheduled_at: saved.data?.scheduled_at || scheduled,
+        reason: saved.data?.reason || draft.reason || undefined,
+        patient: {
+          full_name: saved.data?.patient?.full_name ?? patient?.full_name,
+          mrn: saved.data?.patient?.mrn ?? patient?.mrn,
+          phone: saved.data?.patient?.phone ?? patient?.phone ?? undefined,
+        },
+        doctor: saved.data?.doctor?.name
+          ? saved.data.doctor
+          : doctor
+            ? { name: doctor.name }
+            : undefined,
+        department: saved.data?.department?.name
+          ? saved.data.department
+          : department
+            ? { name: department.name }
+            : undefined,
+        clinic: saved.data?.clinic,
+      };
+      if (preview) {
+        printAppointmentSlip(slip, env.appName, preview);
+      } else {
+        toast.error(t("appointments.popupBlocked"));
+      }
       toast.success(t("workspace.saved"));
       setBooking(false);
     } catch (error) {
+      preview?.close();
       toast.error(getErrorMessage(error));
     }
   }

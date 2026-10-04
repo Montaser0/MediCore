@@ -1,10 +1,10 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { Hospital } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useAuthStore } from "@/stores/auth-store";
@@ -38,25 +38,22 @@ export function LoginPage() {
 
   return (
     <div
-      className="flex min-h-screen items-center justify-center p-4"
+      className="flex min-h-screen flex-col items-center justify-center gap-5 p-4"
       style={{
         background:
           "linear-gradient(135deg, #143a68 0%, #1b4f8c 45%, #2a6fbb 100%)",
       }}
     >
+      <img src="/logo.png?v=3" alt={env.appName} className="h-28 w-auto" />
       <form
         onSubmit={onSubmit}
-        className="w-full max-w-md border border-[#8fa0b0] bg-[#f3f6f9] shadow-lg"
+        className="w-full max-w-md overflow-hidden border border-[#8fa0b0] bg-[#f3f6f9] shadow-lg"
       >
         <div
-          className="flex items-center gap-2 px-4 py-3 text-white"
+          className="px-4 py-2 text-center text-[13px] font-semibold text-white"
           style={{ background: "var(--his-header)" }}
         >
-          <Hospital size={20} />
-          <div>
-            <div className="text-[15px] font-semibold">{env.appName}</div>
-            <div className="text-[11px] opacity-80">{t("auth.loginTitle")}</div>
-          </div>
+          {t("auth.loginTitle")}
         </div>
 
         <div className="space-y-3 p-5">
@@ -90,6 +87,13 @@ export function LoginPage() {
           >
             {loading ? t("app.loading") : t("auth.submit")}
           </Button>
+          <Link
+            href={`/${locale}/book`}
+            className="block text-center text-[12px] underline"
+            style={{ color: "var(--his-header)" }}
+          >
+            {t("auth.bookAppointment")}
+          </Link>
         </div>
       </form>
     </div>
