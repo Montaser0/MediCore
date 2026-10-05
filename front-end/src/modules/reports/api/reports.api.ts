@@ -1,5 +1,26 @@
 import { apiGet } from "@/lib/api/client";
 
+export type PharmacyReport = {
+  sales_today?: number;
+  items_today?: number;
+  revenue_today?: number;
+  revenue_week?: number;
+  revenue_month?: number;
+  discount_today?: number;
+  discount_week?: number;
+  discount_month?: number;
+  payments_today?: number;
+  payments_week?: number;
+  payments_month?: number;
+  profit_today?: number;
+  profit_week?: number;
+  profit_month?: number;
+  returns_today?: number;
+  cash_today?: number;
+  debts_today?: number;
+  outstanding_debt?: number;
+};
+
 export type DashboardMetrics = {
   generated_at?: string;
   patients?: { total?: number; registered_today?: number };
@@ -19,9 +40,11 @@ export type DashboardMetrics = {
     outstanding_balance?: number;
     unpaid_invoices?: number;
   };
+  sales?: { today?: number; revenue_today?: number; items_today?: number };
   inventory_alerts?: Record<string, number>;
 };
 
 export const reportsApi = {
   dashboard: () => apiGet<DashboardMetrics>("/reports/dashboard"),
+  pharmacy: () => apiGet<PharmacyReport>("/reports/pharmacy"),
 };

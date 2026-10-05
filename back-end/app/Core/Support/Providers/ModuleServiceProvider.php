@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Core\Support\Providers;
 
+use App\Core\Modules\ModuleRegistry;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
@@ -45,8 +46,15 @@ abstract class ModuleServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        $this->loadRoutes();
+        // The schema stays the same on every server. A closed module simply
+        // does not publish routes, listeners or record sections.
         $this->loadMigrations();
+
+        if (! $this->app->make(ModuleRegistry::class)->enabled($this->moduleName())) {
+            return;
+        }
+
+        $this->loadRoutes();
         $this->registerListeners();
         $this->bootModule();
     }

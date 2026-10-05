@@ -28,6 +28,8 @@ final class MedicationResource extends JsonResource
             'barcode' => $this->barcode,
             'category' => $this->category,
             'price' => $this->price,
+            'quantity' => $this->quantity,
+            'hospital_id' => $this->hospital_id,
             'requires_prescription' => $this->requires_prescription,
             'is_active' => $this->is_active,
             'inventory_item_id' => $this->inventory_item_id,

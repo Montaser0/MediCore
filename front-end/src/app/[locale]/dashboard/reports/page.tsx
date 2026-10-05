@@ -18,6 +18,8 @@ import { PageToolbar } from "@/components/ui/PageToolbar";
 import { Panel } from "@/components/ui/Panel";
 import { formatMoney } from "@/lib/utils";
 import { arabicLabel } from "@/i18n/arabicLabels";
+import { useEditionStore } from "@/stores/edition-store";
+import { PharmacyReportsPage } from "@/modules/reports/pages/ReportsPage";
 
 type Dashboard = {
   patients?: { registered_today?: number };
@@ -84,6 +86,19 @@ function StatCard({
 }
 
 export default function Page() {
+  const ready = useEditionStore((state) => state.ready);
+  const edition = useEditionStore((state) => state.edition);
+  const t = useTranslations();
+
+  if (!ready) {
+    return <p className="p-3 text-[12px] text-[var(--his-muted)]">{t("app.loading")}</p>;
+  }
+
+  if (edition === "pharmacy") return <PharmacyReportsPage />;
+  return <HospitalReportsPage />;
+}
+
+function HospitalReportsPage() {
   const t = useTranslations();
   const dashboard = useQuery({
     queryKey: ["reports", "dashboard"],

@@ -3,10 +3,44 @@
 declare(strict_types=1);
 
 use App\Core\Authorization\Permissions;
+use App\Core\Modules\ModuleRegistry;
 use App\Modules\Pharmacy\Presentation\Controllers\DispenseController;
 use App\Modules\Pharmacy\Presentation\Controllers\MedicationController;
+use App\Modules\Pharmacy\Presentation\Controllers\PharmacyTillController;
+use App\Modules\Pharmacy\Presentation\Controllers\PosController;
 use App\Modules\Pharmacy\Presentation\Controllers\PrescriptionController;
 use Illuminate\Support\Facades\Route;
+
+$registry = app(ModuleRegistry::class);
+
+if ($registry->feature('pharmacy.pos')) {
+    $till = 'permission:'.Permissions::PHARMACY_MEDICATIONS_MANAGE.'|'.Permissions::PHARMACY_DISPENSING_CREATE;
+
+    Route::middleware(['auth:sanctum', $till])->prefix('pharmacy/pos')->group(function (): void {
+        Route::get('medications', [PosController::class, 'index']);
+        Route::post('medications', [PosController::class, 'store']);
+        Route::patch('medications/{medication}', [PosController::class, 'update']);
+        Route::get('barcode/{barcode}', [PosController::class, 'barcode']);
+        Route::post('sales', [PosController::class, 'sell']);
+        Route::get('sales', [PosController::class, 'sales']);
+        Route::get('sales/{saleNumber}', [PosController::class, 'sale']);
+        Route::get('customers', [PharmacyTillController::class, 'customers']);
+        Route::get('debts', [PharmacyTillController::class, 'debts']);
+        Route::post('debts/payments', [PharmacyTillController::class, 'collect']);
+        Route::get('purchases', [PharmacyTillController::class, 'purchases']);
+        Route::post('purchases', [PharmacyTillController::class, 'storePurchase']);
+        Route::post('purchases/payments', [PharmacyTillController::class, 'payPurchase']);
+        Route::post('returns', [PharmacyTillController::class, 'storeReturn']);
+        Route::get('stocktakes/open', [PharmacyTillController::class, 'currentStocktake']);
+        Route::post('stocktakes', [PharmacyTillController::class, 'openStocktake']);
+        Route::patch('stocktakes/{stocktake}/lines/{line}', [PharmacyTillController::class, 'countLine']);
+        Route::post('stocktakes/{stocktake}/post', [PharmacyTillController::class, 'postStocktake']);
+    });
+}
+
+if (! $registry->feature('pharmacy.prescriptions')) {
+    return;
+}
 
 Route::middleware('auth:sanctum')->prefix('pharmacy')->group(function (): void {
     // Formulary: the doctor prescribing from it needs to read it.

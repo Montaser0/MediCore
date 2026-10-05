@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
@@ -8,6 +8,7 @@ import { ChevronDown, ChevronLeft, Star } from "lucide-react";
 import { modules, navTree, type NavModule, type NavNode } from "@/config/navigation";
 import { visibleModules } from "@/config/desk";
 import { useAuthStore } from "@/stores/auth-store";
+import { useEditionStore } from "@/stores/edition-store";
 import { useUiStore } from "@/stores/ui-store";
 import { cn } from "@/lib/utils";
 
@@ -144,7 +145,14 @@ export function AppSidebar() {
   const [open, setOpen] = useState<Record<string, boolean>>({});
 
   const user = useAuthStore((state) => state.user);
-  const menu = visibleModules(user);
+  const ready = useEditionStore((state) => state.ready);
+  const editionName = useEditionStore((state) => state.edition);
+  const navigation = useEditionStore((state) => state.navigation);
+  const editionMenu = useMemo(
+    () => ({ ready, edition: editionName, navigation }),
+    [ready, editionName, navigation],
+  );
+  const menu = visibleModules(user, editionMenu);
   const byId = new Map(menu.map((item) => [item.id, item]));
   const allowed = new Set(menu.map((item) => item.id));
   const tree = navTree

@@ -15,8 +15,10 @@ import { OrderResultDialog, uploadResultFiles } from "@/components/shared/OrderR
 import { ResourceListPage, dateCell, statusBadge } from "@/components/shared/ResourceListPage";
 import { deskHrefs } from "@/config/desk";
 import { useAuthStore } from "@/stores/auth-store";
+import { useEditionStore } from "@/stores/edition-store";
 import { formatMoney } from "@/lib/utils";
 import { dailyNo } from "@/lib/arabicText";
+import { PharmacyCatalogPage } from "@/modules/pharmacy/pages/PharmacyCatalogPage";
 
 type Row = Record<string, unknown>;
 type RxItem = {
@@ -37,6 +39,14 @@ function prescriptionItems(row: Row): RxItem[] {
 }
 
 export default function Page() {
+  const ready = useEditionStore((state) => state.ready);
+  const pos = useEditionStore((state) => state.hasFeature("pharmacy.pos"));
+  if (!ready) return null;
+  if (pos) return <PharmacyCatalogPage />;
+  return <PharmacyDeskPage />;
+}
+
+function PharmacyDeskPage() {
   const t = useTranslations();
   const locale = useLocale();
   const qc = useQueryClient();

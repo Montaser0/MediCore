@@ -17,6 +17,7 @@ final class MedicationModel extends BaseModel
     {
         return [
             'price' => 'float',
+            'quantity' => 'float',
             'requires_prescription' => 'boolean',
             'is_active' => 'boolean',
         ];

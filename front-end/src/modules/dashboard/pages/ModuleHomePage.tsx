@@ -7,6 +7,7 @@ import { useMemo, useState } from "react";
 import { homeTiles } from "@/config/navigation";
 import { visibleModules } from "@/config/desk";
 import { useAuthStore } from "@/stores/auth-store";
+import { useEditionStore } from "@/stores/edition-store";
 import { useUiStore } from "@/stores/ui-store";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/Input";
@@ -19,14 +20,21 @@ export function ModuleHomePage() {
   const toggleFavorite = useUiStore((s) => s.toggleFavorite);
 
   const user = useAuthStore((state) => state.user);
+  const ready = useEditionStore((state) => state.ready);
+  const editionName = useEditionStore((state) => state.edition);
+  const navigation = useEditionStore((state) => state.navigation);
   const tiles = useMemo(() => {
-    const allowed = visibleModules(user);
-    const list = allowed.filter((m) =>
-      homeTiles.includes(m.id as (typeof homeTiles)[number]) || m.id === "pharmacy-stock",
-    );
+    const allowed = visibleModules(user, { ready, edition: editionName, navigation });
+    const list =
+      ready && editionName !== "hospital"
+        ? allowed.filter((item) => item.id !== "home")
+        : allowed.filter(
+            (item) =>
+              homeTiles.includes(item.id as (typeof homeTiles)[number]) || item.id === "pharmacy-stock",
+          );
     if (!q.trim()) return list;
-    return list.filter((m) => t(m.labelKey).includes(q.trim()));
-  }, [q, t, user]);
+    return list.filter((item) => t(item.labelKey).includes(q.trim()));
+  }, [q, t, user, ready, editionName, navigation]);
 
   return (
     <div className="p-3">

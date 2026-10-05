@@ -31,6 +31,7 @@ import { formatDate, formatMoney, latinDigits } from "@/lib/utils";
 import { apiDelete, getErrorMessage } from "@/lib/api/client";
 import { DocumentGallery } from "@/components/shared/DocumentGallery";
 import { useAuthStore } from "@/stores/auth-store";
+import { useEditionStore } from "@/stores/edition-store";
 import { isDoctorDesk } from "@/config/desk";
 import type { EncounterRow } from "@/modules/encounters/api/encounters.api";
 
@@ -95,6 +96,21 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
   const canCharge = can("billing.charges.create");
   const canPay = can("billing.payments.create");
   const canInstallment = can("billing.invoices.create");
+  const editionReady = useEditionStore((state) => state.ready);
+  const editionModules = useEditionStore((state) => state.modules);
+  const editionFeatures = useEditionStore((state) => state.features);
+  const editionNavigation = useEditionStore((state) => state.navigation);
+  const moduleOn = (name: string) =>
+    editionReady && (editionNavigation.includes("*") || editionModules.includes(name));
+  const featureOn = (name: string) => editionReady && editionFeatures.includes(name);
+  const showLab = canOrder && moduleOn("Laboratory");
+  const showRadiology = canOrder && moduleOn("Radiology");
+  const showPrescribe = canPrescribe && featureOn("pharmacy.prescriptions");
+  const showSurgery = canSurgery && moduleOn("Operations");
+  const showAdmit = canAdmit && moduleOn("Inpatient");
+  const showCharge = canCharge && moduleOn("Billing");
+  const showStay = canDischargeStay && moduleOn("Inpatient");
+  const showAccount = !doctorDesk && moduleOn("Billing");
   const qc = useQueryClient();
   const [tab, setTab] = useState<TabKey>("file");
   const [action, setAction] = useState<ActionKey | null>(null);
@@ -447,11 +463,11 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
   const tabs: Array<[TabKey, string]> = [
     ["file", t("workspace.fileInfo")],
     ["visit", t("workspace.treatment")],
-    ["orders", t("workspace.orders")],
-    ["pharmacy", t("workspace.pharmacy")],
-    ["nursing", t("workspace.nursing")],
-    ["stay", t("workspace.stay")],
-    ...(doctorDesk ? [] : [["billing", t("patients.billing")] as [TabKey, string]]),
+    ...(moduleOn("Orders") ? [["orders", t("workspace.orders")] as [TabKey, string]] : []),
+    ...(featureOn("pharmacy.prescriptions") ? [["pharmacy", t("workspace.pharmacy")] as [TabKey, string]] : []),
+    ...(moduleOn("Nursing") ? [["nursing", t("workspace.nursing")] as [TabKey, string]] : []),
+    ...(moduleOn("Inpatient") ? [["stay", t("workspace.stay")] as [TabKey, string]] : []),
+    ...(showAccount ? [["billing", t("patients.billing")] as [TabKey, string]] : []),
     ["docs", t("patients.docs")],
     ["timeline", t("patients.timeline")],
   ];
@@ -518,7 +534,7 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
                   {t("encounters.transfer")}
                 </Button>
               ) : null}
-              {activeStay && canDischargeStay ? (
+              {activeStay && showStay ? (
                 <Button variant="warning" onClick={() => openAction("dischargeStay")}>
                   {t("workspace.dischargeStay")}
                 </Button>
@@ -532,7 +548,11 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
           ) : canOpenVisit ? (
             <div className="grid gap-2 md:grid-cols-6">
               <Select value={visit.type} onChange={(e) => setVisit((v) => ({ ...v, type: e.target.value }))}>
-                {VISIT_TYPES.map((type) => (
+                {VISIT_TYPES.filter((type) => {
+                  if (type === "inpatient") return moduleOn("Inpatient");
+                  if (type === "operation") return moduleOn("Operations");
+                  return true;
+                }).map((type) => (
                   <option key={type} value={type}>
                     {visitLabel(type, tr)}
                   </option>
@@ -858,7 +878,7 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
           )}
         </div>
 
-        {canVitals || canNote || canDiagnosis || canOrder || canPrescribe || canSurgery || canAdmit || canBook || canCharge ? (
+        {canVitals || canNote || canDiagnosis || showLab || showRadiology || showPrescribe || showSurgery || showAdmit || canBook || showCharge ? (
         <div className="his-action-bar">
           {canVitals ? (
             <Button variant="danger" onClick={() => openAction("vitals")}>
@@ -877,31 +897,31 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
               {t("workspace.diagnosis")}
             </Button>
           ) : null}
-          {canOrder ? (
+          {showLab ? (
             <Button variant="info" onClick={() => openAction("lab")}>
               <FlaskConical size={13} />
               {t("workspace.labAction")}
             </Button>
           ) : null}
-          {canOrder ? (
+          {showRadiology ? (
             <Button variant="warning" onClick={() => openAction("radiology")}>
               <Scan size={13} />
               {t("nav.radiology")}
             </Button>
           ) : null}
-          {canPrescribe ? (
+          {showPrescribe ? (
             <Button variant="teal" onClick={() => openAction("medication")}>
               <Pill size={13} />
               {t("workspace.medAction")}
             </Button>
           ) : null}
-          {canSurgery ? (
+          {showSurgery ? (
             <Button variant="success" onClick={() => openAction("surgery")}>
               <Syringe size={13} />
               {t("workspace.surgeryAction")}
             </Button>
           ) : null}
-          {canAdmit ? (
+          {showAdmit ? (
             <Button onClick={() => openAction("admit")}>
               <BedDouble size={13} />
               {t("workspace.admit")}
@@ -913,7 +933,7 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
               {t("appointments.new")}
             </Button>
           ) : null}
-          {canCharge ? <Button onClick={() => openAction("charge")}>{t("workspace.charge")}</Button> : null}
+          {showCharge ? <Button onClick={() => openAction("charge")}>{t("workspace.charge")}</Button> : null}
         </div>
         ) : null}
       </div>

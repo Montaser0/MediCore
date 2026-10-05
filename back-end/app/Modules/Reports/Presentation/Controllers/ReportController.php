@@ -11,6 +11,7 @@ use App\Modules\Inventory\Application\Queries\StockAlertsQuery;
 use App\Modules\Reports\Application\Queries\ActivityReportQuery;
 use App\Modules\Reports\Application\Queries\DashboardQuery;
 use App\Modules\Reports\Application\Queries\FinancialReportQuery;
+use App\Modules\Reports\Application\Queries\PharmacyReportQuery;
 use App\Modules\Reports\Application\Services\ReportExportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -20,6 +21,11 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 final class ReportController extends ApiController
 {
     public function dashboard(DashboardQuery $query): JsonResponse
+    {
+        return ApiResponse::data($query->execute());
+    }
+
+    public function pharmacy(PharmacyReportQuery $query): JsonResponse
     {
         return ApiResponse::data($query->execute());
     }

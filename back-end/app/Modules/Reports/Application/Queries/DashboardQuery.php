@@ -18,8 +18,11 @@ use App\Modules\Operations\Domain\Enums\OperationStatus;
 use App\Modules\Operations\Infrastructure\Persistence\Models\OperationModel;
 use App\Modules\Orders\Infrastructure\Persistence\Models\OrderModel;
 use App\Modules\Patients\Infrastructure\Persistence\Models\PatientModel;
+use App\Modules\Pharmacy\Infrastructure\Persistence\Models\PharmacySaleItemModel;
+use App\Modules\Pharmacy\Infrastructure\Persistence\Models\PharmacySaleModel;
 use App\Modules\Radiology\Domain\Enums\RadiologyItemStatus;
 use App\Modules\Radiology\Infrastructure\Persistence\Models\RadiologyOrderItemModel;
+use Illuminate\Support\Carbon;
 
 /**
  * The single figures the management dashboard opens with. Deliberately made
@@ -75,7 +78,24 @@ final class DashboardQuery
                 'outstanding_balance' => round((float) InvoiceModel::query()->forCurrentHospital()->outstanding()->sum('balance'), 2),
                 'unpaid_invoices' => InvoiceModel::query()->forCurrentHospital()->outstanding()->count(),
             ],
+            'sales' => $this->sales($today),
             'inventory_alerts' => $this->stockAlerts->counts(),
+        ];
+    }
+
+    /**
+     * @return array{today: int, revenue_today: float, items_today: float}
+     */
+    private function sales(Carbon $today): array
+    {
+        $sales = PharmacySaleModel::query()->forCurrentHospital()->where('sold_at', '>=', $today);
+
+        return [
+            'today' => (clone $sales)->count(),
+            'revenue_today' => round((float) (clone $sales)->sum('total'), 2),
+            'items_today' => round((float) PharmacySaleItemModel::query()
+                ->whereIn('pharmacy_sale_id', (clone $sales)->select('id'))
+                ->sum('quantity'), 2),
         ];
     }
 
