@@ -6,8 +6,12 @@ namespace App\Core\Providers;
 
 use App\Core\Auth\CurrentUser;
 use App\Core\Authorization\PermissionChecker;
+use App\Core\Backup\BackupController;
+use App\Core\Backup\CreateBackupCommand;
+use App\Core\Backup\RestoreBackupCommand;
 use App\Core\Http\Controllers\SystemModulesController;
 use App\Core\Modules\ModuleRegistry;
+use App\Core\Setup\PharmacySetupController;
 use App\Core\Storage\FileStorage;
 use App\Core\Storage\StorageManager;
 use App\Core\Support\Numbering\NumberGenerator;
@@ -30,6 +34,11 @@ final class CoreServiceProvider extends ServiceProvider
         $this->app->singleton(PatientRecordRegistry::class);
         $this->app->singleton(OrderFulfillerRegistry::class);
         $this->app->singleton(FileStorage::class, StorageManager::class);
+
+        $this->commands([
+            CreateBackupCommand::class,
+            RestoreBackupCommand::class,
+        ]);
     }
 
     public function boot(): void
@@ -43,5 +52,19 @@ final class CoreServiceProvider extends ServiceProvider
 
         RateLimiter::for('login', fn (Request $request) => Limit::perMinute(5)
             ->by(strtolower((string) $request->input('username')).'|'.$request->ip()));
+
+        RateLimiter::for('setup', fn (Request $request) => Limit::perMinute(5)->by($request->ip()));
+
+        Route::middleware('api')->prefix('api')->group(function (): void {
+            Route::get('setup/status', [PharmacySetupController::class, 'status']);
+            Route::post('setup', [PharmacySetupController::class, 'store'])->middleware('throttle:setup');
+
+            Route::middleware(['auth:sanctum', 'role:admin'])->group(function (): void {
+                Route::get('system/backups', [BackupController::class, 'index']);
+                Route::get('system/backup-drives', [BackupController::class, 'drives']);
+                Route::post('system/backups', [BackupController::class, 'store']);
+                Route::post('system/backups/restore', [BackupController::class, 'restore']);
+            });
+        });
     }
 }

@@ -101,4 +101,23 @@ return [
         'enabled' => (bool) env('HMS_AUDIT_ENABLED', true),
         'queue' => (bool) env('HMS_AUDIT_QUEUE', false),
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Local pharmacy station
+    |--------------------------------------------------------------------------
+    |
+    | Used by the Windows package. Paths are empty in development, and the
+    | backup service falls back to storage/app/hms-backups.
+    |
+    */
+
+    'local' => [
+        'version' => env('HMS_APP_VERSION', '1.0.0'),
+        'backup_dir' => env('HMS_BACKUP_DIR'),
+        'mysqldump' => env('HMS_MYSQLDUMP'),
+        'mysql' => env('HMS_MYSQL'),
+        'control_script' => env('HMS_CONTROL_SCRIPT'),
+        'backup_timezone' => env('HMS_BACKUP_TIMEZONE', 'Asia/Damascus'),
+    ],
 ];

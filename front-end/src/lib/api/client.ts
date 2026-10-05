@@ -1,5 +1,5 @@
 import axios, { type AxiosError, type AxiosRequestConfig } from "axios";
-import { env } from "@/config/environment";
+import { resolveApiUrl } from "@/config/environment";
 import type { ApiResponse } from "@/types/api";
 
 const TOKEN_KEY = "hms_token";
@@ -16,7 +16,7 @@ export function setToken(token: string | null) {
 }
 
 export const apiClient = axios.create({
-  baseURL: env.apiUrl,
+  baseURL: resolveApiUrl(),
   headers: {
     Accept: "application/json",
     "Content-Type": "application/json",
@@ -24,6 +24,7 @@ export const apiClient = axios.create({
 });
 
 apiClient.interceptors.request.use((config) => {
+  config.baseURL = resolveApiUrl();
   const token = getToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -37,7 +38,7 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401 && typeof window !== "undefined") {
       setToken(null);
       const path = window.location.pathname;
-      if (!path.includes("/login")) {
+      if (!path.includes("/login") && !path.includes("/setup")) {
         window.location.href = "/ar/login";
       }
     }

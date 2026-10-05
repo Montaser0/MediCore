@@ -16,6 +16,27 @@ use Spatie\Permission\Middleware\RoleMiddleware;
 use Spatie\Permission\Middleware\RoleOrPermissionMiddleware;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
+if (! function_exists('arabicApiMessage')) {
+    function arabicApiMessage(string $message, int $status): string
+    {
+        if ($message !== '' && preg_match('/\p{Arabic}/u', $message) === 1) {
+            return $message;
+        }
+
+        return match ($status) {
+            401 => 'يلزم تسجيل الدخول.',
+            403 => 'ليست لديك صلاحية لهذا الإجراء.',
+            404 => 'السجل المطلوب غير موجود.',
+            405 => 'هذا الإجراء غير متاح.',
+            409 => 'هذا الإجراء يتعارض مع الحالة الحالية.',
+            419 => 'انتهت صلاحية الصفحة. حدّثها ثم أعد المحاولة.',
+            422 => 'البيانات المدخلة غير صالحة.',
+            429 => 'محاولات كثيرة. انتظر قليلاً ثم أعد المحاولة.',
+            default => $status >= 500 ? 'حدث خطأ في الخادم.' : 'تعذر تنفيذ الطلب.',
+        };
+    }
+}
+
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         api: __DIR__.'/../routes/api.php',
@@ -115,22 +136,3 @@ return Application::configure(basePath: dirname(__DIR__))
             ], 500);
         });
     })->create();
-
-function arabicApiMessage(string $message, int $status): string
-{
-    if ($message !== '' && preg_match('/\p{Arabic}/u', $message) === 1) {
-        return $message;
-    }
-
-    return match ($status) {
-        401 => 'يلزم تسجيل الدخول.',
-        403 => 'ليست لديك صلاحية لهذا الإجراء.',
-        404 => 'السجل المطلوب غير موجود.',
-        405 => 'هذا الإجراء غير متاح.',
-        409 => 'هذا الإجراء يتعارض مع الحالة الحالية.',
-        419 => 'انتهت صلاحية الصفحة. حدّثها ثم أعد المحاولة.',
-        422 => 'البيانات المدخلة غير صالحة.',
-        429 => 'محاولات كثيرة. انتظر قليلاً ثم أعد المحاولة.',
-        default => $status >= 500 ? 'حدث خطأ في الخادم.' : 'تعذر تنفيذ الطلب.',
-    };
-}

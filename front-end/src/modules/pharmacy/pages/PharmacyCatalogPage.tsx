@@ -1,14 +1,17 @@
 "use client";
 
 import { FormEvent, useMemo, useState } from "react";
+import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { PageToolbar } from "@/components/ui/PageToolbar";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { DataTable, type Column } from "@/components/data-table/DataTable";
 import { apiGet, apiPatch, apiPost, getErrorMessage } from "@/lib/api/client";
+import { roleNames } from "@/config/desk";
+import { useAuthStore } from "@/stores/auth-store";
 import { formatMoney } from "@/lib/utils";
 
 type Drug = {
@@ -23,7 +26,9 @@ const empty = { id: 0, name: "", barcode: "", quantity: "", price: "" };
 
 export function PharmacyCatalogPage() {
   const t = useTranslations();
+  const locale = useLocale();
   const qc = useQueryClient();
+  const isAdmin = roleNames(useAuthStore((state) => state.user)).includes("admin");
   const [draft, setDraft] = useState(empty);
   const [saving, setSaving] = useState(false);
   const { data: rows = [], isLoading } = useQuery({
@@ -68,7 +73,13 @@ export function PharmacyCatalogPage() {
 
   return (
     <div className="flex h-full flex-col">
-      <PageToolbar title={t("pharmacy.catalog")} />
+      <PageToolbar title={t("pharmacy.catalog")}>
+        {isAdmin ? (
+          <Link href={`/${locale}/dashboard/pharmacy/backups`} className="text-[12px] underline">
+            {t("station.backup")}
+          </Link>
+        ) : null}
+      </PageToolbar>
       <form onSubmit={save} className="grid gap-2 border-b border-[var(--his-border)] bg-white p-2 md:grid-cols-5">
         <Input
           required

@@ -1,4 +1,20 @@
+declare global {
+  interface Window {
+    __HMS__?: { apiUrl?: string };
+  }
+}
+
+export function resolveApiUrl(): string {
+  if (typeof window !== "undefined" && window.__HMS__?.apiUrl) {
+    return window.__HMS__.apiUrl;
+  }
+
+  return process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api";
+}
+
 export const env = {
-  apiUrl: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api",
+  get apiUrl() {
+    return resolveApiUrl();
+  },
   appName: process.env.NEXT_PUBLIC_APP_NAME ?? "MediCore",
 };

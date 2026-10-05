@@ -24,7 +24,7 @@ export function PatientAccountPanel({
   const charges = arr(billing.recent_charges);
   const invoices = arr(billing.recent_invoices);
   const installments = invoices.flatMap((invoice) =>
-    arr(invoice.installments).map((row) => ({ ...row, invoice_number: invoice.invoice_number })),
+    arr(invoice.installments).map((row): Rec => ({ ...row, invoice_number: invoice.invoice_number })),
   );
 
   return (

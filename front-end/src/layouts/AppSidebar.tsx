@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { ChevronDown, ChevronLeft, Star } from "lucide-react";
 import { modules, navTree, type NavModule, type NavNode } from "@/config/navigation";
-import { visibleModules } from "@/config/desk";
+import { roleNames, visibleModules } from "@/config/desk";
 import { useAuthStore } from "@/stores/auth-store";
 import { useEditionStore } from "@/stores/edition-store";
 import { useUiStore } from "@/stores/ui-store";
@@ -138,6 +138,7 @@ function NavBranch({
 
 export function AppSidebar() {
   const t = useTranslations("app");
+  const tStation = useTranslations("station");
   const locale = useLocale();
   const pathname = usePathname();
   const openSidebar = useUiStore((s) => s.sidebarOpen);
@@ -208,6 +209,19 @@ export function AppSidebar() {
             toggle={toggle}
           />
         ))}
+        {ready && editionName === "pharmacy" && roleNames(user).includes("admin") ? (
+          <Link
+            href={`/${locale}/dashboard/pharmacy/backups`}
+            className={cn(
+              "flex items-center gap-2 border-b border-[#d7e0e8] px-3 py-[7px] text-[12px]",
+              pathname.includes("/pharmacy/backups")
+                ? "bg-[#4a90d9] text-white"
+                : "text-[#1a1a1a] hover:bg-[#dce8f3]",
+            )}
+          >
+            {tStation("backup")}
+          </Link>
+        ) : null}
       </div>
     </aside>
   );

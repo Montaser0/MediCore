@@ -66,7 +66,7 @@ export function PatientsPage() {
         key: "mrn",
         header: t("patients.mrn"),
         width: 110,
-        cell: (r) => (
+        cell: (r: Patient) => (
           <Link
             href={`/${locale}/dashboard/patients/${r.id}`}
             className="text-[var(--his-accent)] underline-offset-2 hover:underline font-semibold"
@@ -78,25 +78,25 @@ export function PatientsPage() {
       {
         key: "name",
         header: t("patients.fullName"),
-        cell: (r) => r.full_name,
+        cell: (r: Patient) => r.full_name,
       },
       {
         key: "department",
         header: t("workspace.department"),
         width: 140,
-        cell: (r) => r.department?.name ?? "—",
+        cell: (r: Patient) => r.department?.name ?? "—",
       },
       {
         key: "clinic",
         header: t("appointments.clinic"),
         width: 140,
-        cell: (r) => r.clinic?.name ?? "—",
+        cell: (r: Patient) => r.clinic?.name ?? "—",
       },
       {
         key: "gender",
         header: t("patients.gender"),
         width: 70,
-        cell: (r) =>
+        cell: (r: Patient) =>
           r.gender === "male"
             ? t("patients.male")
             : r.gender === "female"
@@ -107,31 +107,31 @@ export function PatientsPage() {
         key: "age",
         header: t("patients.age"),
         width: 60,
-        cell: (r) => r.age ?? "—",
+        cell: (r: Patient) => r.age ?? "—",
       },
       {
         key: "phone",
         header: t("patients.phone"),
         width: 120,
-        cell: (r) => r.phone ?? "—",
+        cell: (r: Patient) => r.phone ?? "—",
       },
       {
         key: "city",
         header: t("patients.city"),
         width: 100,
-        cell: (r) => r.city ?? "—",
+        cell: (r: Patient) => r.city ?? "—",
       },
       {
         key: "blood",
         header: t("patients.bloodType"),
         width: 80,
-        cell: (r) => r.blood_type ?? "—",
+        cell: (r: Patient) => r.blood_type ?? "—",
       },
       {
         key: "status",
         header: t("app.status"),
         width: 90,
-        cell: (r) => (
+        cell: (r: Patient) => (
           <Badge tone={r.status === "active" ? "success" : "default"}>
             {arabicLabel(r.status)}
           </Badge>
@@ -141,13 +141,13 @@ export function PatientsPage() {
         key: "created",
         header: t("app.date"),
         width: 110,
-        cell: (r) => formatDate(r.created_at),
+        cell: (r: Patient) => formatDate(r.created_at),
       },
       {
         key: "actions",
         header: t("app.actions"),
         width: 150,
-        cell: (r) => (
+        cell: (r: Patient) => (
           <div className="flex gap-1">
             {canUpdatePatient ? (
               <Button

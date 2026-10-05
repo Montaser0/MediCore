@@ -1,12 +1,17 @@
 import axios from "axios";
-import { env } from "@/config/environment";
+import { resolveApiUrl } from "@/config/environment";
 
 const publicClient = axios.create({
-  baseURL: env.apiUrl,
+  baseURL: resolveApiUrl(),
   headers: {
     Accept: "application/json",
     "Content-Type": "application/json",
   },
+});
+
+publicClient.interceptors.request.use((config) => {
+  config.baseURL = resolveApiUrl();
+  return config;
 });
 
 export type PublicDoctor = {

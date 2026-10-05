@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useAuthStore } from "@/stores/auth-store";
 import { deskHrefs } from "@/config/desk";
-import { getErrorMessage } from "@/lib/api/client";
+import { apiGet, getErrorMessage } from "@/lib/api/client";
 import { env } from "@/config/environment";
 
 export function LoginPage() {
@@ -20,6 +20,26 @@ export function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    apiGet<{ required: boolean }>("/setup/status")
+      .then((res) => {
+        if (cancelled) return;
+        if (res.data?.required) {
+          router.replace(`/${locale}/setup`);
+          return;
+        }
+        setReady(true);
+      })
+      .catch(() => {
+        if (!cancelled) setReady(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [locale, router]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -34,6 +54,17 @@ export function LoginPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  if (!ready) {
+    return (
+      <div
+        className="flex min-h-screen items-center justify-center text-sm text-white"
+        style={{ background: "linear-gradient(135deg, #143a68 0%, #1b4f8c 45%, #2a6fbb 100%)" }}
+      >
+        {t("app.loading")}
+      </div>
+    );
   }
 
   return (

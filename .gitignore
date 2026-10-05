@@ -8,3 +8,6 @@ storage/*.key
 *.log
 .DS_Store
 Thumbs.db
+installer/cache/
+installer/staging/
+installer/dist/

@@ -15,6 +15,7 @@ const desks: Record<string, string[]> = {
     "/dashboard/pharmacy/debts",
     "/dashboard/pharmacy/warehouses",
     "/dashboard/pharmacy/stocktake",
+    "/dashboard/pharmacy/backups",
   ],
 };
 
