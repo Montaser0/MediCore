@@ -13,6 +13,11 @@ function Write-Log([string]$Message) {
 }
 
 try {
+    . (Join-Path $PSScriptRoot 'file-encryption.ps1')
+    if (Test-MediCoreEncrypted) {
+        Write-Log 'Decrypting MediCore files before update.'
+        Invoke-MediCoreFileCrypto Decrypt
+    }
     $mysql = Get-Service HMSMariaDB -ErrorAction SilentlyContinue
     if ($mysql -and $mysql.Status -ne 'Running') {
         Start-Service HMSMariaDB

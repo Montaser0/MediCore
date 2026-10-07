@@ -81,7 +81,36 @@ function Set-EnvValue([string]$Text, [string]$Key, [string]$Value) {
 }
 
 function Protect-File([string]$Path) {
-    & icacls $Path /inheritance:r /grant:r 'SYSTEM:(F)' 'Administrators:(F)' | Out-Null
+    & icacls $Path /inheritance:r /grant:r '*S-1-5-18:(F)' '*S-1-5-32-544:(F)' | Out-Null
+}
+
+function Protect-Installation {
+    $acl = New-Object System.Security.AccessControl.DirectorySecurity
+    $acl.SetAccessRuleProtection($true, $false)
+    foreach ($sid in @('S-1-5-18', 'S-1-5-32-544')) {
+        $rule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+            (New-Object System.Security.Principal.SecurityIdentifier $sid),
+            'FullControl',
+            'ContainerInherit,ObjectInherit',
+            'None',
+            'Allow')
+        $acl.AddAccessRule($rule)
+    }
+    Set-Acl -LiteralPath $Root -AclObject $acl
+    & icacls "$Root\*" /reset /T /C /Q | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw 'Could not apply the MediCore file lock.' }
+    foreach ($relative in @(
+        'scripts\launch.vbs',
+        'scripts\launch.ps1',
+        'medicore.ico',
+        'config\ready.flag',
+        'config\site-url.txt'
+    )) {
+        $path = Join-Path $Root $relative
+        if (-not (Test-Path $path)) { continue }
+        & icacls $path /grant '*S-1-5-32-545:(RX)' | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw 'Could not allow the MediCore shortcut.' }
+    }
 }
 
 function Invoke-Artisan([string[]]$ArtisanArgs) {
@@ -149,6 +178,11 @@ function Invoke-Mysql([string]$DefaultsFile, [string]$Sql) {
 
 try {
     Write-Log "Install started in $Root"
+    . (Join-Path $PSScriptRoot 'file-encryption.ps1')
+    if (Test-MediCoreEncrypted) {
+        Write-Log 'Decrypting MediCore files before setup.'
+        Invoke-MediCoreFileCrypto Decrypt
+    }
     $script:Php = Join-Path $Root 'runtime\php\php.exe'
     $script:Mysql = Join-Path $Root 'runtime\mariadb\bin\mysql.exe'
     $script:Mysqld = Join-Path $Root 'runtime\mariadb\bin\mysqld.exe'
@@ -221,7 +255,10 @@ try {
     $slash = $Root.Replace('\', '/')
     $phpIni = Get-Content (Join-Path $Root 'config\templates\php.ini') -Raw
     $phpIni = $phpIni.Replace('__PHPDIR__', $slash + '/runtime/php').Replace('__LOG__', $slash + '/logs')
+    $phpIni += "`r`nopcache.enable=0`r`nauto_prepend_file=`"$slash/runtime/php/medicore-loader.php`"`r`n"
     Write-Utf8 (Join-Path $Root 'runtime\php\php.ini') $phpIni
+    Copy-Item (Join-Path $PSScriptRoot 'medicore-loader.php') (Join-Path $Root 'runtime\php\medicore-loader.php') -Force
+    Copy-Item (Join-Path $PSScriptRoot 'medicore-loader.js') (Join-Path $Root 'runtime\node\medicore-loader.js') -Force
 
     $myIni = Get-Content (Join-Path $Root 'config\templates\my.ini') -Raw
     $myIni = $myIni.Replace('__BASEDIR__', $slash + '/runtime/mariadb').Replace('__DATADIR__', $slash + '/data/mysql').Replace('__PORT__', "$mysqlPort").Replace('__ERRORLOG__', $slash + '/logs/mysql/error.log').Replace('__PIDFILE__', $slash + '/logs/mysql/mariadb.pid')
@@ -280,7 +317,8 @@ try {
     Set-HmsService 'HMSMariaDB' $script:Mysqld "--defaults-file=$myIniFile --console" $mariaDir (Join-Path $Root 'logs\mysql\service.log') (Join-Path $Root 'logs\mysql\service.err.log') '' ''
     Set-HmsService 'HMSPhpCgi' $script:Php.Replace('php.exe', 'php-cgi.exe') '-b 127.0.0.1:9000' (Join-Path $Root 'runtime\php') (Join-Path $Root 'logs\php\cgi.log') (Join-Path $Root 'logs\php\cgi.err.log') "PHPRC=$Root\runtime\php" 'HMSMariaDB'
     Set-HmsService 'HMSWeb' $nginx "-p $Root\runtime\nginx -c conf/hms.conf" (Join-Path $Root 'runtime\nginx') (Join-Path $Root 'logs\nginx\service.log') (Join-Path $Root 'logs\nginx\service.err.log') '' 'HMSPhpCgi'
-    Set-HmsService 'HMSFrontend' $node 'server.js' (Join-Path $Root 'app\frontend') (Join-Path $Root 'logs\frontend\service.log') (Join-Path $Root 'logs\frontend\service.err.log') "PORT=$nodePort`nHOSTNAME=127.0.0.1`nNODE_ENV=production" 'HMSWeb'
+    $nodeLoader = Join-Path $Root 'runtime\node\medicore-loader.js'
+    Set-HmsService 'HMSFrontend' $node "-r `"$nodeLoader`" server.js" (Join-Path $Root 'app\frontend') (Join-Path $Root 'logs\frontend\service.log') (Join-Path $Root 'logs\frontend\service.err.log') "PORT=$nodePort`nHOSTNAME=127.0.0.1`nNODE_ENV=production" 'HMSWeb'
 
     if (-not $upgrade) {
         if ((Get-Service HMSMariaDB).Status -ne 'Running') { Start-Service HMSMariaDB }
@@ -445,6 +483,38 @@ file_put_contents(__DIR__ . '/seed-count.txt', (string) Illuminate\Support\Facad
         Remove-Item (Join-Path $Root 'config\upgrade-backup.ok') -Force
     }
     Write-Utf8 (Join-Path $Root 'config\ready.flag') (Get-Date -Format o)
+    Write-Log 'Encrypting MediCore files.'
+    foreach ($name in @('HMSFrontend', 'HMSWeb', 'HMSPhpCgi')) {
+        $svc = Get-Service $name -ErrorAction SilentlyContinue
+        if ($svc -and $svc.Status -ne 'Stopped') { Stop-Service $name -Force }
+    }
+    try {
+        Invoke-MediCoreFileCrypto Encrypt
+    } catch {
+        Write-Log $_.Exception.Message
+        Invoke-MediCoreFileCrypto Decrypt
+        throw
+    } finally {
+        foreach ($name in @('HMSPhpCgi', 'HMSWeb', 'HMSFrontend')) {
+            $svc = Get-Service $name -ErrorAction SilentlyContinue
+            if ($svc -and $svc.Status -ne 'Running') { Start-Service $name }
+        }
+    }
+    $deadline = (Get-Date).AddSeconds(90)
+    $healthy = $false
+    do {
+        try {
+            $response = Invoke-WebRequest -UseBasicParsing "http://127.0.0.1:$httpPort/up" -TimeoutSec 3
+            if ($response.StatusCode -eq 200) { $healthy = $true; break }
+        } catch {
+        }
+        Start-Sleep -Seconds 1
+    } while ((Get-Date) -lt $deadline)
+    if (-not $healthy) {
+        Invoke-MediCoreFileCrypto Decrypt
+        throw "HMS did not answer on $siteUrl/up after file encryption"
+    }
+    Protect-Installation
     Write-Log 'Install completed.'
     exit 0
 } catch {
