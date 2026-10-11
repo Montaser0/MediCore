@@ -26,7 +26,16 @@ export type CrudField = {
   createOnly?: boolean;
   boolean?: boolean;
   when?: { key: string; value: string };
+  whenFilled?: string;
 };
+
+function fieldIsShown(field: CrudField, form: Record<string, string>, editing: Row | null): boolean {
+  if (field.inject) return false;
+  if (field.createOnly && editing) return false;
+  if (field.when && form[field.when.key] !== field.when.value) return false;
+  if (field.whenFilled && (form[field.whenFilled] ?? "") === "") return false;
+  return true;
+}
 
 function readField(row: Row, field: CrudField): string {
   if (field.boolean && field.key === "is_doctor") {
@@ -129,7 +138,7 @@ export function CrudResourcePage({
         if (!editing) payload.hospital_id = hospitalId;
         continue;
       }
-      if (field.createOnly && editing) continue;
+      if (!fieldIsShown(field, form, editing)) continue;
       const raw = form[field.key] ?? "";
       if (raw === "") continue;
       if (field.type === "number") payload[field.key] = Number(raw);
@@ -197,9 +206,7 @@ export function CrudResourcePage({
     [columns, t],
   );
 
-  const visibleFields = fields.filter(
-    (field) => !field.inject && !(field.createOnly && editing) && (!field.when || form[field.when.key] === field.when.value),
-  );
+  const visibleFields = fields.filter((field) => fieldIsShown(field, form, editing));
 
   return (
     <div className="flex h-full flex-col">

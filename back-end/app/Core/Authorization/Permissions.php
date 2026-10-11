@@ -145,10 +145,7 @@ final class Permissions
                 self::ENCOUNTERS_TRANSFER,
                 self::DOCUMENTS_VIEW,
                 self::DOCUMENTS_UPLOAD,
-                self::BILLING_INVOICES_VIEW,
-                self::BILLING_INVOICES_CREATE,
-                self::BILLING_PAYMENTS_CREATE,
-                self::BILLING_CHARGES_VIEW,
+                ...self::receptionBilling(),
             ],
 
             'doctor' => [
@@ -288,6 +285,50 @@ final class Permissions
                 self::BILLING_PAYMENTS_CREATE,
                 self::BILLING_DISCOUNTS_APPLY,
             ],
+        ];
+    }
+
+    /**
+     * Roles that can be opened from the staff screen. Each one already carries
+     * its permission set in {@see self::roles()}.
+     *
+     * @return array<string, string>
+     */
+    public static function staffRoles(): array
+    {
+        return [
+            'reception' => 'استقبال',
+            'doctor' => 'طبيب',
+            'nurse' => 'تمريض',
+            'lab_technician' => 'مخبر',
+            'lab_supervisor' => 'مشرف مخبر',
+            'radiology_technician' => 'أشعة',
+            'radiologist' => 'طبيب أشعة',
+            'pharmacist' => 'صيدلية',
+            'cashier' => 'محاسب',
+            'warehouse' => 'مستودع',
+        ];
+    }
+
+    /**
+     * A clinic, laboratory, or radiology desk collects its own payments.
+     * A hospital leaves invoices to the accountant.
+     *
+     * @return array<int, string>
+     */
+    private static function receptionBilling(): array
+    {
+        $edition = function_exists('config') ? (string) config('modules.edition', 'hospital') : 'hospital';
+
+        if (! in_array($edition, ['clinic', 'laboratory', 'radiology'], true)) {
+            return [];
+        }
+
+        return [
+            self::BILLING_INVOICES_VIEW,
+            self::BILLING_INVOICES_CREATE,
+            self::BILLING_PAYMENTS_CREATE,
+            self::BILLING_CHARGES_VIEW,
         ];
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Patients\Application\Queries;
 
+use App\Core\Authorization\RecordVisibility;
 use App\Core\Support\PatientRecordRegistry;
 use App\Modules\Patients\Infrastructure\Persistence\Models\PatientModel;
 use App\Modules\Patients\Infrastructure\Persistence\Repositories\PatientRepository;
@@ -24,9 +25,17 @@ final class GetPatientFileQuery
      */
     public function execute(int $patientId, ?int $encounterId = null): array
     {
+        $sections = $this->registry->summarise($patientId, $encounterId);
+
+        foreach (array_keys($sections) as $section) {
+            if (! RecordVisibility::sectionVisible($section)) {
+                unset($sections[$section]);
+            }
+        }
+
         return [
             'patient' => $this->patients->withHeader($patientId),
-            'sections' => $this->registry->summarise($patientId, $encounterId),
+            'sections' => $sections,
         ];
     }
 }

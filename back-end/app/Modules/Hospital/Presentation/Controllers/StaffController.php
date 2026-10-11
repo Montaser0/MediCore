@@ -25,7 +25,7 @@ final class StaffController extends ApiController
     public function index(Request $request): JsonResponse
     {
         $staff = StaffModel::query()
-            ->with(['department', 'doctor'])
+            ->with(['department', 'doctor', 'user.roles'])
             ->forCurrentHospital()
             ->when($request->filled('department_id'), fn ($query) => $query->where('department_id', $request->integer('department_id')))
             ->when($request->filled('is_active'), fn ($query) => $query->where('is_active', $request->boolean('is_active')))
@@ -46,32 +46,35 @@ final class StaffController extends ApiController
 
     public function show(StaffModel $staff): JsonResponse
     {
-        return ApiResponse::resource(new StaffResource($staff->load(['department', 'doctor'])));
+        return ApiResponse::resource(new StaffResource($staff->load(['department', 'doctor', 'user.roles'])));
     }
 
     public function store(StoreStaffRequest $request, CreateStaffAction $action, CreateUserAction $users): JsonResponse
     {
         $staff = DB::transaction(function () use ($request, $action, $users): StaffModel {
-            $data = $request->safe()->except(['username', 'password', 'email']);
+            $data = $request->safe()->except(['username', 'password', 'email', 'role']);
+            $role = $this->accountRole($request);
 
-            if (($data['is_doctor'] ?? false) && empty($data['job_title'])) {
-                $data['job_title'] = 'طبيب';
+            if ($role !== null && empty($data['job_title'])) {
+                $data['job_title'] = Permissions::staffRoles()[$role];
             }
+
+            $data['is_doctor'] = $role === 'doctor';
 
             $staff = $action->execute($data);
 
-            if ($request->boolean('is_doctor')) {
+            if ($role !== null) {
                 $users->execute(UserData::fromArray([
                     'username' => $request->string('username')->toString(),
                     'email' => $request->input('email'),
                     'password' => $request->string('password')->toString(),
                     'staff_id' => $staff->getKey(),
-                    'roles' => ['doctor'],
+                    'roles' => [$role],
                     'department_ids' => array_values(array_filter([$staff->department_id])),
                 ]));
             }
 
-            return $staff->fresh(['department', 'doctor']);
+            return $staff->fresh(['department', 'doctor', 'user.roles']);
         });
 
         return ApiResponse::created(new StaffResource($staff));
@@ -87,5 +90,16 @@ final class StaffController extends ApiController
         DeactivateRecord::run($request, $staff, Permissions::STAFF_MANAGE);
 
         return ApiResponse::noContent();
+    }
+
+    private function accountRole(Request $request): ?string
+    {
+        $role = $request->filled('role') ? $request->string('role')->toString() : null;
+
+        if ($role === null && $request->boolean('is_doctor')) {
+            return 'doctor';
+        }
+
+        return $role;
     }
 }

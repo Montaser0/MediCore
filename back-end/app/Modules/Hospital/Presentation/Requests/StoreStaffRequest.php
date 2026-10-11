@@ -6,6 +6,7 @@ namespace App\Modules\Hospital\Presentation\Requests;
 
 use App\Core\Authorization\Permissions;
 use App\Core\Http\Requests\ApiFormRequest;
+use Illuminate\Validation\Rule;
 
 final class StoreStaffRequest extends ApiFormRequest
 {
@@ -26,10 +27,11 @@ final class StoreStaffRequest extends ApiFormRequest
             'department_id' => ['nullable', 'integer', 'exists:departments,id'],
             'is_active' => ['sometimes', 'boolean'],
             'is_doctor' => ['sometimes', 'boolean'],
+            'role' => ['nullable', 'string', Rule::in(array_keys(Permissions::staffRoles()))],
             'license_number' => ['nullable', 'string', 'max:100'],
             'specialty' => ['nullable', 'string', 'max:150'],
-            'username' => ['nullable', 'string', 'max:50', 'required_if:is_doctor,true', 'unique:users,username'],
-            'password' => ['nullable', 'string', 'min:6', 'required_if:is_doctor,true'],
+            'username' => ['nullable', 'string', 'max:50', 'required_with:role', 'required_if:is_doctor,true', 'unique:users,username'],
+            'password' => ['nullable', 'string', 'min:6', 'required_with:role', 'required_if:is_doctor,true'],
             'email' => ['nullable', 'email', 'max:255', 'unique:users,email'],
         ];
     }
@@ -40,8 +42,11 @@ final class StoreStaffRequest extends ApiFormRequest
     public function messages(): array
     {
         return [
-            'username.required_if' => 'اسم المستخدم مطلوب عند تعريف طبيب.',
-            'password.required_if' => 'كلمة المرور مطلوبة عند تعريف طبيب.',
+            'role.in' => 'نوع الحساب غير معروف.',
+            'username.required_with' => 'اسم المستخدم مطلوب عند إنشاء حساب.',
+            'username.required_if' => 'اسم المستخدم مطلوب عند إنشاء حساب.',
+            'password.required_with' => 'كلمة المرور مطلوبة عند إنشاء حساب.',
+            'password.required_if' => 'كلمة المرور مطلوبة عند إنشاء حساب.',
         ];
     }
 }

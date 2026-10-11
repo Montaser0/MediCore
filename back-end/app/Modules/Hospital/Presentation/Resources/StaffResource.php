@@ -38,6 +38,13 @@ final class StaffResource extends JsonResource
                 'license_number' => $this->doctor->license_number,
                 'specialty' => $this->doctor->specialty,
             ]),
+            'user' => $this->whenLoaded('user', fn () => $this->user === null ? null : [
+                'id' => $this->user->id,
+                'username' => $this->user->username,
+                'roles' => $this->user->relationLoaded('roles')
+                    ? $this->user->roles->pluck('name')->values()->all()
+                    : [],
+            ]),
         ];
     }
 }

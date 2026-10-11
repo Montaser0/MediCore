@@ -411,6 +411,21 @@
     "key": "المفتاح",
     "hospitalMissing": "الحساب غير مرتبط بمستشفى"
   },
+  "staffRoles": {
+    "label": "نوع الحساب",
+    "specialty": "التخصص",
+    "admin": "مدير",
+    "reception": "استقبال",
+    "doctor": "طبيب",
+    "nurse": "تمريض",
+    "lab_technician": "مخبر",
+    "lab_supervisor": "مشرف مخبر",
+    "radiology_technician": "أشعة",
+    "radiologist": "طبيب أشعة",
+    "pharmacist": "صيدلية",
+    "cashier": "محاسب",
+    "warehouse": "مستودع"
+  },
   "settings": {
     "title": "الإعدادات",
     "users": "المستخدمون",

@@ -32,7 +32,7 @@ import { apiDelete, getErrorMessage } from "@/lib/api/client";
 import { DocumentGallery } from "@/components/shared/DocumentGallery";
 import { useAuthStore } from "@/stores/auth-store";
 import { useEditionStore } from "@/stores/edition-store";
-import { isDoctorDesk } from "@/config/desk";
+import { canSeeBilling, isDoctorDesk } from "@/config/desk";
 import type { EncounterRow } from "@/modules/encounters/api/encounters.api";
 
 type TabKey =
@@ -79,7 +79,9 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
   const userId = useAuthStore((s) => s.user?.id);
   const can = useAuthStore((s) => s.hasPermission);
   const canCreateAppointment = can("appointments.create");
-  const doctorDesk = isDoctorDesk(useAuthStore((s) => s.user));
+  const user = useAuthStore((s) => s.user);
+  const doctorDesk = isDoctorDesk(user);
+  const showBilling = canSeeBilling(user);
   const canBook = canCreateAppointment && !doctorDesk;
   const canUpdatePatient = can("patients.update");
   const canOpenVisit = can("encounters.create") && !doctorDesk;
@@ -110,7 +112,18 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
   const showAdmit = canAdmit && moduleOn("Inpatient");
   const showCharge = canCharge && moduleOn("Billing");
   const showStay = canDischargeStay && moduleOn("Inpatient");
-  const showAccount = !doctorDesk && moduleOn("Billing");
+  const showAccount = showBilling && !doctorDesk && moduleOn("Billing");
+  const showClinical =
+    can("clinical.notes.view") || can("clinical.vitals.view") || can("clinical.diagnosis.view");
+  const showOrderRecords = can("orders.view") && moduleOn("Orders");
+  const showLabRecords = can("laboratory.orders.view") && moduleOn("Laboratory");
+  const showRadRecords = can("radiology.orders.view") && moduleOn("Radiology");
+  const showOrdersTab = showOrderRecords || showLabRecords || showRadRecords;
+  const showPharmacyTab = can("pharmacy.prescriptions.view") && featureOn("pharmacy.prescriptions");
+  const showNursingTab = can("nursing.notes.view") && moduleOn("Nursing");
+  const showStayTab = can("inpatient.view") && moduleOn("Inpatient");
+  const showOperations = can("operations.view") && moduleOn("Operations");
+  const showDocs = can("documents.view");
   const qc = useQueryClient();
   const [tab, setTab] = useState<TabKey>("file");
   const [action, setAction] = useState<ActionKey | null>(null);
@@ -462,13 +475,13 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
   const vitals = asObj(clinical.latest_vitals);
   const tabs: Array<[TabKey, string]> = [
     ["file", t("workspace.fileInfo")],
-    ["visit", t("workspace.treatment")],
-    ...(moduleOn("Orders") ? [["orders", t("workspace.orders")] as [TabKey, string]] : []),
-    ...(featureOn("pharmacy.prescriptions") ? [["pharmacy", t("workspace.pharmacy")] as [TabKey, string]] : []),
-    ...(moduleOn("Nursing") ? [["nursing", t("workspace.nursing")] as [TabKey, string]] : []),
-    ...(moduleOn("Inpatient") ? [["stay", t("workspace.stay")] as [TabKey, string]] : []),
+    ...(showClinical ? [["visit", t("workspace.treatment")] as [TabKey, string]] : []),
+    ...(showOrdersTab ? [["orders", t("workspace.orders")] as [TabKey, string]] : []),
+    ...(showPharmacyTab ? [["pharmacy", t("workspace.pharmacy")] as [TabKey, string]] : []),
+    ...(showNursingTab ? [["nursing", t("workspace.nursing")] as [TabKey, string]] : []),
+    ...(showStayTab ? [["stay", t("workspace.stay")] as [TabKey, string]] : []),
     ...(showAccount ? [["billing", t("patients.billing")] as [TabKey, string]] : []),
-    ["docs", t("patients.docs")],
+    ...(showDocs ? [["docs", t("patients.docs")] as [TabKey, string]] : []),
     ["timeline", t("patients.timeline")],
   ];
 
@@ -549,8 +562,8 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
             <div className="grid gap-2 md:grid-cols-6">
               <Select value={visit.type} onChange={(e) => setVisit((v) => ({ ...v, type: e.target.value }))}>
                 {VISIT_TYPES.filter((type) => {
-                  if (type === "inpatient") return moduleOn("Inpatient");
-                  if (type === "operation") return moduleOn("Operations");
+                  if (type === "inpatient") return can("inpatient.admit");
+                  if (type === "operation") return can("operations.schedule");
                   return true;
                 }).map((type) => (
                   <option key={type} value={type}>
@@ -657,7 +670,7 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
             </div>
           )}
 
-          {tab === "visit" && (
+          {tab === "visit" && showClinical && (
             <div className="grid gap-2">
               <div className="his-panel">
                 <div className="his-panel-header">{t("workspace.vitalsAction")}</div>
@@ -692,8 +705,9 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
             </div>
           )}
 
-          {tab === "orders" && (
+          {tab === "orders" && showOrdersTab && (
             <div className="grid gap-2">
+              {showOrderRecords ? (
               <div className="his-panel">
                 <div className="his-panel-header">{t("workspace.orders")}</div>
                 <DataTable
@@ -711,6 +725,8 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
                   emptyText={t("app.noData")}
                 />
               </div>
+              ) : null}
+              {showLabRecords ? (
               <div className="his-panel">
                 <div className="his-panel-header">{t("nav.laboratory")}</div>
                 <DataTable
@@ -728,6 +744,8 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
                   emptyText={t("app.noData")}
                 />
               </div>
+              ) : null}
+              {showRadRecords ? (
               <div className="his-panel">
                 <div className="his-panel-header">{t("nav.radiology")}</div>
                 <DataTable
@@ -746,10 +764,11 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
                   emptyText={t("app.noData")}
                 />
               </div>
+              ) : null}
             </div>
           )}
 
-          {tab === "pharmacy" && (
+          {tab === "pharmacy" && showPharmacyTab && (
             <div className="grid gap-2">
               <div className="his-panel">
                 <div className="his-panel-header">{t("pharmacy.prescriptions")}</div>
@@ -789,13 +808,13 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
             </div>
           )}
 
-          {tab === "nursing" && (
+          {tab === "nursing" && showNursingTab && (
             <Section title={t("workspace.nursing")}>
               <SimpleList items={arr(nursing.notes)} text={(item) => withActor(text(item.content), item, t("patients.actor"))} />
             </Section>
           )}
 
-          {tab === "stay" && (
+          {tab === "stay" && showStayTab && (
             <div className="grid gap-2 md:grid-cols-2">
               <Section title={t("workspace.stay")}>
                 <SimpleList
@@ -809,16 +828,18 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
                   }
                 />
               </Section>
+              {showOperations ? (
               <Section title={t("nav.operations")}>
                 <SimpleList
                   items={operations}
                   text={(item) => withActor(`${text(item.name)} — ${arabicLabel(item.status)} — ${formatDate(String(item.scheduled_at ?? ""), true)}`, item, t("patients.actor"))}
                 />
               </Section>
+              ) : null}
             </div>
           )}
 
-          {tab === "billing" && !doctorDesk && (
+          {tab === "billing" && showAccount && (
             <PatientAccountPanel
               billing={billing}
               onPay={
@@ -845,7 +866,7 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
             />
           )}
 
-          {tab === "docs" && (
+          {tab === "docs" && showDocs && (
             <Section
               title={t("patients.docs")}
               action={
@@ -871,7 +892,9 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
           {tab === "timeline" && (
             <DataTable
               columns={timelineColumns}
-              rows={Array.isArray(timeline) ? (timeline as Rec[]) : []}
+              rows={(Array.isArray(timeline) ? (timeline as Rec[]) : []).filter((row) =>
+                timelineVisible(String(row.event_type ?? ""), can, showBilling),
+              )}
               rowKey={(row, index) => String(row.id ?? index)}
               emptyText={t("app.noData")}
             />
@@ -1551,6 +1574,21 @@ function visitSheet(diagnoses: Rec[], procedures: Rec[], notes: Rec[], label: (k
 function timelineWhen(value: unknown) {
   if (!value) return "—";
   return formatDate(String(value), true);
+}
+
+function timelineVisible(type: string, can: (permission: string) => boolean, showBilling: boolean) {
+  if (type.startsWith("billing.")) return showBilling;
+  if (type.startsWith("laboratory.")) return can("laboratory.orders.view");
+  if (type.startsWith("radiology.")) return can("radiology.orders.view");
+  if (type.startsWith("pharmacy.")) return can("pharmacy.prescriptions.view");
+  if (type.startsWith("nursing.")) return can("nursing.notes.view");
+  if (type.startsWith("inpatient.")) return can("inpatient.view");
+  if (type.startsWith("operation.")) return can("operations.view");
+  if (type.startsWith("clinical.")) {
+    return can("clinical.notes.view") || can("clinical.vitals.view") || can("clinical.diagnosis.view");
+  }
+  if (type.startsWith("order.")) return can("orders.view");
+  return true;
 }
 
 function timelineText(item: Rec) {

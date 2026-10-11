@@ -411,6 +411,21 @@
     "key": "Key",
     "hospitalMissing": "This account is not linked to a hospital"
   },
+  "staffRoles": {
+    "label": "Account type",
+    "specialty": "Specialty",
+    "admin": "Administrator",
+    "reception": "Reception",
+    "doctor": "Doctor",
+    "nurse": "Nursing",
+    "lab_technician": "Laboratory",
+    "lab_supervisor": "Lab supervisor",
+    "radiology_technician": "Radiology",
+    "radiologist": "Radiologist",
+    "pharmacist": "Pharmacy",
+    "cashier": "Accountant",
+    "warehouse": "Warehouse"
+  },
   "settings": {
     "title": "Settings",
     "users": "Users",

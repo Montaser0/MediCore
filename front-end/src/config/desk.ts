@@ -51,6 +51,23 @@ export function deskHrefs(user: AuthUser | null): string[] | null {
   return [...new Set(matched.flatMap((role) => desks[role]))];
 }
 
+function hasPermission(user: AuthUser | null, permission: string): boolean {
+  const perms = user?.permissions ?? [];
+  if (perms.includes("*") || perms.includes("admin")) return true;
+  return perms.includes(permission);
+}
+
+/** Invoices stay with whoever holds the billing permissions: reception in a clinic, the accountant in a hospital. */
+export function canSeeBilling(user: AuthUser | null): boolean {
+  return hasPermission(user, "billing.invoices.view") || hasPermission(user, "billing.charges.view");
+}
+
+function mayOpen(user: AuthUser | null, item: NavModule): boolean {
+  if (!item.permission) return true;
+  const required = Array.isArray(item.permission) ? item.permission : [item.permission];
+  return required.some((permission) => hasPermission(user, permission));
+}
+
 export function visibleModules(user: AuthUser | null, edition?: EditionMenu | null): NavModule[] {
   const hrefs = deskHrefs(user);
   const byDesk = !hrefs
@@ -59,7 +76,7 @@ export function visibleModules(user: AuthUser | null, edition?: EditionMenu | nu
 
   if (!edition?.ready) return byDesk.filter((item) => item.id === "home");
 
-  const allowed = byDesk.filter((item) => editionAllows(item, edition));
+  const allowed = byDesk.filter((item) => editionAllows(item, edition) && mayOpen(user, item));
 
   if (!ACCOUNT_EDITIONS.has(edition.edition)) return allowed;
   return allowed.map((item) => (item.id === "billing" ? { ...item, labelKey: "nav.account" } : item));
@@ -88,6 +105,15 @@ export function canOpenPath(user: AuthUser | null, path: string, edition?: Editi
   }
 
   const hrefs = deskHrefs(user);
+  const matches = modules.filter((item) => {
+    const href = hrefOf(item);
+    return href !== "/dashboard" && (path === href || path.startsWith(`${href}/`));
+  });
+  if (matches.length > 0) {
+    const top = Math.max(...matches.map((item) => hrefOf(item).length));
+    const winner = matches.find((item) => hrefOf(item).length === top);
+    if (winner && !mayOpen(user, winner)) return false;
+  }
   if (!hrefs) return true;
   if (path === "/dashboard") return true;
   if (isDoctorDesk(user) && (path === "/dashboard/patients/new" || path.startsWith("/dashboard/patients/new/"))) {

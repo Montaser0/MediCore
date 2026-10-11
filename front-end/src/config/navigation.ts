@@ -35,7 +35,7 @@ export type NavModule = {
   labelKey: string;
   icon: LucideIcon;
   category: "medical" | "admin" | "finance" | "system";
-  permission?: string;
+  permission?: string | string[];
   color?: string;
 };
 
@@ -120,6 +120,7 @@ export const modules: NavModule[] = [
     labelKey: "nav.pharmacyCatalog",
     icon: Pill,
     category: "medical",
+    permission: ["pharmacy.medications.manage", "pharmacy.dispensing.create"],
     color: "#16A085",
   },
   {
@@ -128,6 +129,7 @@ export const modules: NavModule[] = [
     labelKey: "nav.pharmacySale",
     icon: Barcode,
     category: "medical",
+    permission: ["pharmacy.medications.manage", "pharmacy.dispensing.create"],
     color: "#16A085",
   },
   {
@@ -136,6 +138,7 @@ export const modules: NavModule[] = [
     labelKey: "nav.pharmacyReturn",
     icon: Undo2,
     category: "medical",
+    permission: ["pharmacy.medications.manage", "pharmacy.dispensing.create"],
     color: "#16A085",
   },
   {
@@ -144,6 +147,7 @@ export const modules: NavModule[] = [
     labelKey: "nav.pharmacyDebts",
     icon: Wallet,
     category: "medical",
+    permission: ["pharmacy.medications.manage", "pharmacy.dispensing.create"],
     color: "#16A085",
   },
   {
@@ -152,6 +156,7 @@ export const modules: NavModule[] = [
     labelKey: "nav.pharmacyWarehouses",
     icon: CircleDollarSign,
     category: "medical",
+    permission: ["pharmacy.medications.manage", "pharmacy.dispensing.create"],
     color: "#16A085",
   },
   {
@@ -160,6 +165,7 @@ export const modules: NavModule[] = [
     labelKey: "nav.pharmacyStocktake",
     icon: ClipboardList,
     category: "medical",
+    permission: ["pharmacy.medications.manage", "pharmacy.dispensing.create"],
     color: "#16A085",
   },
   {
@@ -193,7 +199,7 @@ export const modules: NavModule[] = [
     labelKey: "nav.nursing",
     icon: NotebookPen,
     category: "medical",
-    permission: "nursing.view",
+    permission: "nursing.notes.view",
   },
   {
     id: "inventory",
@@ -209,7 +215,7 @@ export const modules: NavModule[] = [
     labelKey: "nav.staff",
     icon: Users,
     category: "admin",
-    permission: "staff.view",
+    permission: "staff.manage",
   },
   {
     id: "departments",
@@ -217,6 +223,7 @@ export const modules: NavModule[] = [
     labelKey: "nav.departments",
     icon: Hospital,
     category: "admin",
+    permission: "departments.manage",
   },
   {
     id: "billing",
@@ -224,7 +231,7 @@ export const modules: NavModule[] = [
     labelKey: "nav.billing",
     icon: Receipt,
     category: "finance",
-    permission: "billing.invoices.view",
+    permission: ["billing.invoices.view", "billing.charges.view"],
   },
   {
     id: "reports",
@@ -240,6 +247,7 @@ export const modules: NavModule[] = [
     labelKey: "nav.documents",
     icon: FileText,
     category: "admin",
+    permission: "documents.view",
   },
   {
     id: "notifications",
@@ -262,6 +270,7 @@ export const modules: NavModule[] = [
     labelKey: "nav.settings",
     icon: Settings,
     category: "system",
+    permission: "settings.manage",
   },
 ];
 
