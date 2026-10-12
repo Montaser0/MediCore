@@ -50,6 +50,7 @@ final class AddDiagnosisAction
             $diagnosis = DiagnosisModel::query()->create([
                 'encounter_id' => $encounter->id,
                 'doctor_id' => $doctorId,
+                'entered_by' => $this->currentUser->id(),
                 'diagnosis_code_id' => $data['diagnosis_code_id'] ?? null,
                 'diagnosis_name' => $name,
                 'type' => $type->value,
@@ -67,7 +68,7 @@ final class AddDiagnosisAction
                 payload: ['diagnosis_id' => $diagnosis->getKey()],
             );
 
-            return $diagnosis->load(['code', 'doctor.staff']);
+            return $diagnosis->load(['code', 'doctor.staff', 'enteredBy.staff', 'enteredBy.roles']);
         });
     }
 

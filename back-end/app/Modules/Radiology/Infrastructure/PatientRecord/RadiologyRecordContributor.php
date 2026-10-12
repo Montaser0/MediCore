@@ -33,7 +33,7 @@ final class RadiologyRecordContributor implements PatientRecordContributor
         );
 
         $recent = (clone $base)
-            ->with(['service', 'studies.report.verifiedBy', 'radiologyOrder.order.orderedBy'])
+            ->with(['service', 'studies.report.verifiedBy', 'radiologyOrder.order.orderedBy.staff', 'radiologyOrder.order.orderedBy.roles'])
             ->orderByDesc('id')
             ->limit(25)
             ->get();
@@ -52,7 +52,7 @@ final class RadiologyRecordContributor implements PatientRecordContributor
                     'modality' => $item->service?->modality,
                     'status' => $item->status->value,
                     'order_number' => $item->radiologyOrder?->order?->order_number,
-                    'by' => $item->radiologyOrder?->order?->orderedBy?->displayName(),
+                    'by' => $item->radiologyOrder?->order?->orderedBy?->actorLabel(),
                     'verified_by' => $study?->report?->verifiedBy?->displayName(),
                     'study_id' => $study?->getKey(),
                     'study_number' => $study?->study_number,

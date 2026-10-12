@@ -6,6 +6,7 @@ namespace App\Modules\Hospital\Infrastructure\Persistence\Models;
 
 use App\Core\Persistence\BaseModel;
 use App\Core\Support\Traits\BelongsToHospital;
+use App\Modules\Departments\Infrastructure\Persistence\Models\ClinicModel;
 use App\Modules\Departments\Infrastructure\Persistence\Models\DepartmentModel;
 use App\Modules\Identity\Infrastructure\Persistence\Models\UserModel;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -15,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property int $id
  * @property int $hospital_id
  * @property int|null $department_id
+ * @property int|null $clinic_id
  * @property string $employee_number
  * @property string $first_name
  * @property string $last_name
@@ -50,6 +52,14 @@ final class StaffModel extends BaseModel
     public function department(): BelongsTo
     {
         return $this->belongsTo(DepartmentModel::class, 'department_id');
+    }
+
+    /**
+     * @return BelongsTo<ClinicModel, $this>
+     */
+    public function clinic(): BelongsTo
+    {
+        return $this->belongsTo(ClinicModel::class, 'clinic_id');
     }
 
     /**

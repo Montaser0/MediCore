@@ -32,7 +32,7 @@ final class TimelineEventResource extends JsonResource
             ]),
             'actor' => $this->whenLoaded('actor', fn () => $this->actor === null ? null : [
                 'id' => $this->actor->id,
-                'name' => $this->actor->displayName(),
+                'name' => $this->actor->actorLabel(),
             ]),
             'occurred_at' => $this->occurred_at->toIso8601String(),
             'occurred_on' => $this->occurred_at->toDateString(),

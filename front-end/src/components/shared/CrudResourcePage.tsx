@@ -21,12 +21,13 @@ export type CrudField = {
   type?: "text" | "number" | "select" | "password";
   required?: boolean;
   options?: Array<{ value: string; label: string }>;
-  optionsSource?: "departments";
+  optionsSource?: "departments" | "clinics";
   inject?: "hospital_id";
   createOnly?: boolean;
   boolean?: boolean;
   when?: { key: string; value: string };
   whenFilled?: string;
+  requiredWhen?: { key: string; value: string };
 };
 
 function fieldIsShown(field: CrudField, form: Record<string, string>, editing: Row | null): boolean {
@@ -83,6 +84,7 @@ export function CrudResourcePage({
   const [form, setForm] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const needsDepartments = fields.some((field) => field.optionsSource === "departments");
+  const needsClinics = fields.some((field) => field.optionsSource === "clinics");
 
   const { data, isLoading, refetch, isFetching } = useQuery({
     queryKey: [endpoint, q],
@@ -103,12 +105,30 @@ export function CrudResourcePage({
     },
   });
 
+  const { data: clinics = [] } = useQuery({
+    queryKey: ["/clinics", "crud-options"],
+    enabled: needsClinics,
+    queryFn: async () => {
+      const res = await apiGet<Row[]>("/clinics");
+      return Array.isArray(res.data) ? res.data : [];
+    },
+  });
+
   function optionsFor(field: CrudField) {
     if (field.optionsSource === "departments") {
       return departments.map((row) => ({
         value: String(row.id),
         label: String(row.name ?? row.id),
       }));
+    }
+    if (field.optionsSource === "clinics") {
+      const departmentId = form.department_id ?? "";
+      return clinics
+        .filter((row) => departmentId === "" || String(row.department_id ?? "") === departmentId)
+        .map((row) => ({
+          value: String(row.id),
+          label: String(row.name ?? row.id),
+        }));
     }
     return field.options ?? [];
   }
@@ -245,7 +265,7 @@ export function CrudResourcePage({
                 <span>{field.label}</span>
                 {field.type === "select" || field.optionsSource || field.boolean ? (
                   <Select
-                    required={field.required}
+                    required={field.required || (field.requiredWhen != null && form[field.requiredWhen.key] === field.requiredWhen.value)}
                     value={form[field.key] ?? ""}
                     onChange={(event) => setForm((current) => ({ ...current, [field.key]: event.target.value }))}
                   >
@@ -264,7 +284,7 @@ export function CrudResourcePage({
                   </Select>
                 ) : (
                   <Input
-                    required={field.required}
+                    required={field.required || (field.requiredWhen != null && form[field.requiredWhen.key] === field.requiredWhen.value)}
                     type={field.type === "number" ? "number" : field.type === "password" ? "password" : "text"}
                     value={form[field.key] ?? ""}
                     onChange={(event) => setForm((current) => ({ ...current, [field.key]: event.target.value }))}

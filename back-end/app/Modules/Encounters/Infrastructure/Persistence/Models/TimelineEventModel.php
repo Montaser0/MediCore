@@ -39,4 +39,9 @@ final class TimelineEventModel extends BaseModel
     {
         return $this->belongsTo(DepartmentModel::class, 'department_id');
     }
+
+    public function encounter(): BelongsTo
+    {
+        return $this->belongsTo(EncounterModel::class, 'encounter_id');
+    }
 }

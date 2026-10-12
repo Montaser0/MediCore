@@ -35,7 +35,7 @@ final class VitalSignResource extends JsonResource
             'recorded_at' => $this->recorded_at?->toIso8601String(),
             'recorded_by' => $this->whenLoaded('recordedBy', fn () => [
                 'id' => $this->recordedBy->id,
-                'name' => $this->recordedBy->displayName(),
+                'name' => $this->recordedBy->actorLabel(),
             ]),
         ];
     }

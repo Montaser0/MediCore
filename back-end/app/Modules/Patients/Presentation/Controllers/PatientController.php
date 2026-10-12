@@ -13,6 +13,7 @@ use App\Core\Support\Contracts\AuditRecorder;
 use App\Modules\Patients\Application\Actions\RegisterPatientAction;
 use App\Modules\Patients\Application\Actions\UpdatePatientAction;
 use App\Modules\Patients\Application\DTOs\PatientData;
+use App\Modules\Patients\Application\PatientAccess;
 use App\Modules\Patients\Application\Queries\GetPatientFileQuery;
 use App\Modules\Patients\Application\Queries\SearchPatientsQuery;
 use App\Modules\Patients\Infrastructure\Persistence\Models\PatientModel;
@@ -38,9 +39,9 @@ final class PatientController extends ApiController
         return ApiResponse::paginated(PatientResource::collection($patients), $patients);
     }
 
-    public function show(Request $request, PatientModel $patient, AuditRecorder $audit, CurrentUser $currentUser): JsonResponse
+    public function show(Request $request, PatientModel $patient, AuditRecorder $audit, PatientAccess $access): JsonResponse
     {
-        $this->guardOwnPatient($patient, $currentUser);
+        $access->assertVisible($patient);
 
         // Opening a medical file is itself an auditable event.
         $audit->record('patients.viewed', PatientModel::class, $patient->getKey());
@@ -53,8 +54,9 @@ final class PatientController extends ApiController
     /**
      * Compact header used by the doctor, lab, radiology and pharmacy screens.
      */
-    public function header(PatientModel $patient): JsonResponse
+    public function header(PatientModel $patient, PatientAccess $access): JsonResponse
     {
+        $access->assertVisible($patient);
         return ApiResponse::resource(new PatientHeaderResource(
             $patient->load([
                 'allergies' => fn ($query) => $query->active(),
@@ -67,9 +69,9 @@ final class PatientController extends ApiController
     /**
      * The full medical record: identity plus one section per module.
      */
-    public function file(Request $request, PatientModel $patient, GetPatientFileQuery $query, AuditRecorder $audit, CurrentUser $currentUser): JsonResponse
+    public function file(Request $request, PatientModel $patient, GetPatientFileQuery $query, AuditRecorder $audit, PatientAccess $access): JsonResponse
     {
-        $this->guardOwnPatient($patient, $currentUser);
+        $access->assertVisible($patient);
 
         $audit->record('patients.medical_record_viewed', PatientModel::class, $patient->getKey());
 
@@ -83,7 +85,7 @@ final class PatientController extends ApiController
 
     public function store(StorePatientRequest $request, RegisterPatientAction $action, CurrentUser $currentUser): JsonResponse
     {
-        abort_if($currentUser->ownDoctorId() !== null, 403, 'لا يمكنك إضافة مريض جديد.');
+        abort_if($currentUser->isClinicalDesk(), 403, 'لا يمكنك إضافة مريض جديد.');
 
         $hospitalId = $currentUser->hospitalId()
             ?? throw BusinessRuleException::make('حسابك غير مرتبط بمستشفى. اطلب من المسؤول ربطه بملف موظف.');
@@ -93,9 +95,9 @@ final class PatientController extends ApiController
         return ApiResponse::created(new PatientResource($patient));
     }
 
-    public function update(UpdatePatientRequest $request, PatientModel $patient, UpdatePatientAction $action, CurrentUser $currentUser): JsonResponse
+    public function update(UpdatePatientRequest $request, PatientModel $patient, UpdatePatientAction $action, PatientAccess $access): JsonResponse
     {
-        $this->guardOwnPatient($patient, $currentUser);
+        $access->assertVisible($patient);
 
         return ApiResponse::resource(new PatientResource($action->execute($patient, $request->validated())));
     }
@@ -107,29 +109,5 @@ final class PatientController extends ApiController
         $patient->delete();
 
         return ApiResponse::noContent();
-    }
-
-    private function guardOwnPatient(PatientModel $patient, CurrentUser $currentUser): void
-    {
-        $doctorId = $currentUser->ownDoctorId();
-
-        if ($doctorId === null) {
-            return;
-        }
-
-        $allowed = PatientModel::query()
-            ->whereKey($patient->getKey())
-            ->where(function ($inner) use ($doctorId): void {
-                $inner->whereHas(
-                    'encounters',
-                    fn ($encounters) => $encounters->where('doctor_id', $doctorId)->where('status', '!=', 'cancelled'),
-                )->orWhereHas(
-                    'appointments',
-                    fn ($appointments) => $appointments->where('doctor_id', $doctorId)->where('status', '!=', 'cancelled'),
-                );
-            })
-            ->exists();
-
-        abort_unless($allowed, 403, 'هذا المريض ليس من مرضاك.');
     }
 }

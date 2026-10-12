@@ -61,7 +61,7 @@ final class RecordProcedureAction
                 payload: ['procedure_id' => $procedure->getKey()],
             );
 
-            return $procedure->load('doctor.staff');
+            return $procedure->load(['doctor.staff', 'recordedBy.staff', 'recordedBy.roles']);
         });
     }
 }

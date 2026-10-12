@@ -36,13 +36,31 @@ final class EncounterController extends ApiController
             $filters['doctor_id'] = $ownDoctorId;
         }
 
+        $clinicIds = $currentUser->dataEntryClinicIds();
+        $departmentIds = $currentUser->dataEntryDepartmentIds();
+
+        if ($clinicIds !== null) {
+            $filters['clinic_ids'] = $clinicIds;
+        } elseif ($departmentIds !== null) {
+            $filters['department_ids'] = $departmentIds;
+        }
+
         $encounters = $query->execute($filters, $this->perPage());
 
         return ApiResponse::paginated(EncounterResource::collection($encounters), $encounters);
     }
 
-    public function show(EncounterModel $encounter): JsonResponse
+    public function show(EncounterModel $encounter, CurrentUser $currentUser): JsonResponse
     {
+        abort_unless(
+            $currentUser->canAccessVisit(
+                $encounter->department_id === null ? null : (int) $encounter->department_id,
+                $encounter->clinic_id === null ? null : (int) $encounter->clinic_id,
+            ),
+            403,
+            'هذه الزيارة ليست من المرضى المحوّلين إلى عيادتك.',
+        );
+
         return ApiResponse::resource(new EncounterResource(
             $encounter->load(['patient.allergies', 'department', 'clinic', 'doctor.staff'])
         ));
@@ -55,34 +73,46 @@ final class EncounterController extends ApiController
     public function queue(Request $request, CurrentUser $currentUser): JsonResponse
     {
         $ownDoctorId = $currentUser->ownDoctorId();
+        $clinicIds = $currentUser->dataEntryClinicIds();
+        $departmentIds = $currentUser->dataEntryDepartmentIds();
+        $lockedClinic = $clinicIds !== null ? ($clinicIds[0] ?? null) : null;
 
         $encounters = EncounterModel::query()
             ->with(['patient', 'department', 'clinic', 'doctor.staff'])
             ->forCurrentHospital()
             ->queueFor(
                 $request->integer('department_id') ?: null,
-                $request->integer('clinic_id') ?: null,
+                $lockedClinic ?? ($request->integer('clinic_id') ?: null),
                 $ownDoctorId ?? ($request->integer('doctor_id') ?: null),
             )
+            ->when($clinicIds !== null, fn ($query) => $query->whereIn('clinic_id', $clinicIds))
+            ->when($departmentIds !== null, fn ($query) => $query->whereIn('department_id', $departmentIds))
             ->when($request->filled('date'), fn ($query) => $query->whereDate('created_at', $request->string('date')->toString()))
             ->paginate($this->perPage(100));
 
         return ApiResponse::paginated(EncounterResource::collection($encounters), $encounters);
     }
 
-    public function forPatient(Request $request, PatientModel $patient, ListEncountersQuery $query): JsonResponse
+    public function forPatient(Request $request, PatientModel $patient, ListEncountersQuery $query, CurrentUser $currentUser): JsonResponse
     {
-        $encounters = $query->execute(
-            ['patient_id' => $patient->getKey()] + array_filter($request->only(['status', 'type', 'open_only'])),
-            $this->perPage(),
-        );
+        $filters = ['patient_id' => $patient->getKey()] + array_filter($request->only(['status', 'type', 'open_only']));
+        $clinicIds = $currentUser->dataEntryClinicIds();
+        $departmentIds = $currentUser->dataEntryDepartmentIds();
+
+        if ($clinicIds !== null) {
+            $filters['clinic_ids'] = $clinicIds;
+        } elseif ($departmentIds !== null) {
+            $filters['department_ids'] = $departmentIds;
+        }
+
+        $encounters = $query->execute($filters, $this->perPage());
 
         return ApiResponse::paginated(EncounterResource::collection($encounters), $encounters);
     }
 
     public function store(StoreEncounterRequest $request, CreateEncounterAction $action, CurrentUser $currentUser): JsonResponse
     {
-        abort_if($currentUser->ownDoctorId() !== null, 403, 'لا يمكنك فتح زيارة جديدة.');
+        abort_if($currentUser->isClinicalDesk(), 403, 'لا يمكنك فتح زيارة جديدة.');
 
         $patient = PatientModel::query()->findOrFail($request->integer('patient_id'));
 

@@ -8,6 +8,7 @@ use App\Core\Persistence\BaseModel;
 use App\Core\Support\Traits\Auditable;
 use App\Modules\Encounters\Infrastructure\Persistence\Models\EncounterModel;
 use App\Modules\Hospital\Infrastructure\Persistence\Models\DoctorModel;
+use App\Modules\Identity\Infrastructure\Persistence\Models\UserModel;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 final class ProcedureModel extends BaseModel
@@ -31,5 +32,10 @@ final class ProcedureModel extends BaseModel
     public function doctor(): BelongsTo
     {
         return $this->belongsTo(DoctorModel::class, 'doctor_id');
+    }
+
+    public function recordedBy(): BelongsTo
+    {
+        return $this->belongsTo(UserModel::class, 'recorded_by');
     }
 }

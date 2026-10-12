@@ -35,6 +35,10 @@ final class DiagnosisResource extends JsonResource
                 'id' => $this->doctor?->id,
                 'name' => $this->doctor?->display_name,
             ]),
+            'entered_by' => $this->whenLoaded('enteredBy', fn () => $this->enteredBy === null ? null : [
+                'id' => $this->enteredBy->id,
+                'name' => $this->enteredBy->actorLabel(),
+            ]),
         ];
     }
 }

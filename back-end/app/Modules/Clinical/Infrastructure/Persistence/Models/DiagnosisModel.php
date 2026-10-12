@@ -9,6 +9,7 @@ use App\Core\Support\Traits\Auditable;
 use App\Modules\Clinical\Domain\Enums\DiagnosisType;
 use App\Modules\Encounters\Infrastructure\Persistence\Models\EncounterModel;
 use App\Modules\Hospital\Infrastructure\Persistence\Models\DoctorModel;
+use App\Modules\Identity\Infrastructure\Persistence\Models\UserModel;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -34,6 +35,11 @@ final class DiagnosisModel extends BaseModel
     public function doctor(): BelongsTo
     {
         return $this->belongsTo(DoctorModel::class, 'doctor_id');
+    }
+
+    public function enteredBy(): BelongsTo
+    {
+        return $this->belongsTo(UserModel::class, 'entered_by');
     }
 
     public function code(): BelongsTo

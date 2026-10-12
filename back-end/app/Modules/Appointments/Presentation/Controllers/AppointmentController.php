@@ -56,8 +56,10 @@ final class AppointmentController extends ApiController
         return ApiResponse::paginated(AppointmentResource::collection($appointments), $appointments);
     }
 
-    public function show(AppointmentModel $appointment): JsonResponse
+    public function show(AppointmentModel $appointment, CurrentUser $currentUser): JsonResponse
     {
+        $this->guardOwnAppointment($appointment, $currentUser);
+
         return ApiResponse::resource(new AppointmentResource(
             $appointment->load(['patient', 'department', 'clinic', 'doctor.staff'])
         ));
@@ -65,7 +67,7 @@ final class AppointmentController extends ApiController
 
     public function store(StoreAppointmentRequest $request, CreateAppointmentAction $action, CurrentUser $currentUser): JsonResponse
     {
-        abort_if($currentUser->ownDoctorId() !== null, 403, 'لا يمكنك إنشاء موعد جديد.');
+        abort_if($currentUser->isClinicalDesk(), 403, 'لا يمكنك إنشاء موعد جديد.');
 
         return ApiResponse::created(new AppointmentResource($action->execute($request->validated())));
     }
@@ -140,10 +142,17 @@ final class AppointmentController extends ApiController
     {
         $doctorId = $currentUser->ownDoctorId();
 
-        if ($doctorId === null) {
-            return;
+        if ($doctorId !== null) {
+            abort_unless((int) $appointment->doctor_id === $doctorId, 403, 'هذا الموعد ليس من مواعيدك.');
         }
 
-        abort_unless((int) $appointment->doctor_id === $doctorId, 403, 'هذا الموعد ليس من مواعيدك.');
+        abort_unless(
+            $currentUser->canAccessVisit(
+                $appointment->department_id === null ? null : (int) $appointment->department_id,
+                $appointment->clinic_id === null ? null : (int) $appointment->clinic_id,
+            ),
+            403,
+            'هذا الموعد ليس من المرضى المحوّلين إلى عيادتك.',
+        );
     }
 }

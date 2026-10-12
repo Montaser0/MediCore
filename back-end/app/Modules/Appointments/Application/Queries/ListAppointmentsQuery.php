@@ -17,6 +17,8 @@ final class ListAppointmentsQuery
     public function execute(array $filters, int $perPage = 25): LengthAwarePaginator
     {
         $ownDoctorId = $this->currentUser->ownDoctorId();
+        $clinicIds = $this->currentUser->dataEntryClinicIds();
+        $departmentIds = $this->currentUser->dataEntryDepartmentIds();
 
         if ($ownDoctorId !== null) {
             $filters['doctor_id'] = $ownDoctorId;
@@ -26,6 +28,8 @@ final class ListAppointmentsQuery
             ->with(['patient', 'department', 'clinic', 'doctor.staff'])
             ->forCurrentHospital()
             ->when($filters['patient_id'] ?? null, fn ($q, $value) => $q->where('patient_id', $value))
+            ->when($clinicIds !== null, fn ($q) => $q->whereIn('clinic_id', $clinicIds))
+            ->when($departmentIds !== null, fn ($q) => $q->whereIn('department_id', $departmentIds))
             ->when($filters['department_id'] ?? null, fn ($q, $value) => $q->where('department_id', $value))
             ->when($filters['clinic_id'] ?? null, fn ($q, $value) => $q->where('clinic_id', $value))
             ->when($filters['doctor_id'] ?? null, fn ($q, $value) => $q->where('doctor_id', $value))

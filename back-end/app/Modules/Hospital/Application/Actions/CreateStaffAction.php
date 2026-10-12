@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Hospital\Application\Actions;
 
 use App\Core\Support\Numbering\NumberGenerator;
+use App\Modules\Departments\Infrastructure\Persistence\Models\ClinicModel;
 use App\Modules\Hospital\Infrastructure\Persistence\Models\DoctorModel;
 use App\Modules\Hospital\Infrastructure\Persistence\Models\StaffModel;
 use Illuminate\Support\Facades\DB;
@@ -24,6 +25,12 @@ final class CreateStaffAction
     {
         return DB::transaction(function () use ($data): StaffModel {
             $hospitalId = (int) $data['hospital_id'];
+            $clinicId = isset($data['clinic_id']) ? (int) $data['clinic_id'] : null;
+            $departmentId = $data['department_id'] ?? null;
+
+            if ($clinicId) {
+                $departmentId = ClinicModel::query()->whereKey($clinicId)->value('department_id') ?? $departmentId;
+            }
 
             $staff = StaffModel::query()->create([
                 'hospital_id' => $hospitalId,
@@ -32,7 +39,8 @@ final class CreateStaffAction
                 'last_name' => $data['last_name'],
                 'phone' => $data['phone'] ?? null,
                 'job_title' => $data['job_title'] ?? null,
-                'department_id' => $data['department_id'] ?? null,
+                'department_id' => $departmentId,
+                'clinic_id' => $clinicId ?: null,
                 'is_active' => $data['is_active'] ?? true,
             ]);
 
@@ -44,7 +52,7 @@ final class CreateStaffAction
                 ]);
             }
 
-            return $staff->fresh(['department', 'doctor']);
+            return $staff->fresh(['department', 'clinic', 'doctor']);
         });
     }
 }

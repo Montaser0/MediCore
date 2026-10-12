@@ -25,6 +25,7 @@ final class StoreStaffRequest extends ApiFormRequest
             'phone' => ['nullable', 'string', 'max:50'],
             'job_title' => ['nullable', 'string', 'max:150'],
             'department_id' => ['nullable', 'integer', 'exists:departments,id'],
+            'clinic_id' => ['nullable', 'integer', 'exists:clinics,id', 'required_if:role,data_entry'],
             'is_active' => ['sometimes', 'boolean'],
             'is_doctor' => ['sometimes', 'boolean'],
             'role' => ['nullable', 'string', Rule::in(array_keys(Permissions::staffRoles()))],
@@ -43,6 +44,7 @@ final class StoreStaffRequest extends ApiFormRequest
     {
         return [
             'role.in' => 'نوع الحساب غير معروف.',
+            'clinic_id.required_if' => 'اختر العيادة التي يُحوَّل إليها المرضى.',
             'username.required_with' => 'اسم المستخدم مطلوب عند إنشاء حساب.',
             'username.required_if' => 'اسم المستخدم مطلوب عند إنشاء حساب.',
             'password.required_with' => 'كلمة المرور مطلوبة عند إنشاء حساب.',

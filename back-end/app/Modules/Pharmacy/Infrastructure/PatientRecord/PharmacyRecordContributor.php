@@ -30,7 +30,7 @@ final class PharmacyRecordContributor implements PatientRecordContributor
         };
 
         $prescriptions = PrescriptionModel::query()
-            ->with(['items.medication', 'doctor.staff'])
+            ->with(['items.medication', 'doctor.staff', 'enteredBy.staff', 'enteredBy.roles'])
             ->whereHas('encounter', $filter)
             ->orderByDesc('prescribed_at')
             ->limit(20)
@@ -49,7 +49,7 @@ final class PharmacyRecordContributor implements PatientRecordContributor
                 'prescription_number' => $prescription->prescription_number,
                 'status' => $prescription->status->value,
                 'doctor' => $prescription->doctor?->staff?->full_name,
-                'by' => $prescription->doctor?->staff?->full_name,
+                'by' => $prescription->enteredBy?->actorLabel() ?? $prescription->doctor?->staff?->full_name,
                 'prescribed_at' => $prescription->prescribed_at?->toIso8601String(),
                 'medications' => $prescription->items->map(fn ($item) => [
                     'name' => $item->medication?->displayName(),

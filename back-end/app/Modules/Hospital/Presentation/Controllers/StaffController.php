@@ -25,7 +25,7 @@ final class StaffController extends ApiController
     public function index(Request $request): JsonResponse
     {
         $staff = StaffModel::query()
-            ->with(['department', 'doctor', 'user.roles'])
+            ->with(['department', 'clinic', 'doctor', 'user.roles'])
             ->forCurrentHospital()
             ->when($request->filled('department_id'), fn ($query) => $query->where('department_id', $request->integer('department_id')))
             ->when($request->filled('is_active'), fn ($query) => $query->where('is_active', $request->boolean('is_active')))
@@ -46,7 +46,7 @@ final class StaffController extends ApiController
 
     public function show(StaffModel $staff): JsonResponse
     {
-        return ApiResponse::resource(new StaffResource($staff->load(['department', 'doctor', 'user.roles'])));
+        return ApiResponse::resource(new StaffResource($staff->load(['department', 'clinic', 'doctor', 'user.roles'])));
     }
 
     public function store(StoreStaffRequest $request, CreateStaffAction $action, CreateUserAction $users): JsonResponse
@@ -74,7 +74,7 @@ final class StaffController extends ApiController
                 ]));
             }
 
-            return $staff->fresh(['department', 'doctor', 'user.roles']);
+            return $staff->fresh(['department', 'clinic', 'doctor', 'user.roles']);
         });
 
         return ApiResponse::created(new StaffResource($staff));

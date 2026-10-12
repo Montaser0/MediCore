@@ -20,7 +20,15 @@ final class ListEncountersQuery
             ->forCurrentHospital()
             ->when(isset($filters['patient_id']), fn ($query) => $query->where('patient_id', $filters['patient_id']))
             ->when(isset($filters['department_id']), fn ($query) => $query->where('department_id', $filters['department_id']))
+            ->when(
+                isset($filters['department_ids']) && is_array($filters['department_ids']),
+                fn ($query) => $query->whereIn('department_id', $filters['department_ids']),
+            )
             ->when(isset($filters['clinic_id']), fn ($query) => $query->where('clinic_id', $filters['clinic_id']))
+            ->when(
+                isset($filters['clinic_ids']) && is_array($filters['clinic_ids']),
+                fn ($query) => $query->whereIn('clinic_id', $filters['clinic_ids']),
+            )
             ->when(isset($filters['doctor_id']), fn ($query) => $query->where('doctor_id', $filters['doctor_id']))
             ->when(isset($filters['status']), fn ($query) => $query->where('status', $filters['status']))
             ->when(isset($filters['type']), fn ($query) => $query->where('type', $filters['type']))

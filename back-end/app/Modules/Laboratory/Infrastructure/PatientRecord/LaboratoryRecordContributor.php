@@ -33,7 +33,7 @@ final class LaboratoryRecordContributor implements PatientRecordContributor
         );
 
         $recent = (clone $base)
-            ->with(['test', 'result.verifiedBy', 'labOrder.order.orderedBy'])
+            ->with(['test', 'result.verifiedBy', 'labOrder.order.orderedBy.staff', 'labOrder.order.orderedBy.roles'])
             ->orderByDesc('id')
             ->limit(25)
             ->get();
@@ -48,7 +48,7 @@ final class LaboratoryRecordContributor implements PatientRecordContributor
                 'price' => $item->test?->price,
                 'status' => $item->status->value,
                 'order_number' => $item->labOrder?->order?->order_number,
-                'by' => $item->labOrder?->order?->orderedBy?->displayName(),
+                'by' => $item->labOrder?->order?->orderedBy?->actorLabel(),
                 'verified_by' => $item->result?->verifiedBy?->displayName(),
                 'result_value' => $item->result?->result_value,
                 'flag' => $item->result?->flag->value,

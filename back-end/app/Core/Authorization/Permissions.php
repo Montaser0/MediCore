@@ -148,43 +148,10 @@ final class Permissions
                 ...self::receptionBilling(),
             ],
 
-            'doctor' => [
-                self::PATIENTS_VIEW,
-                self::APPOINTMENTS_VIEW,
-                self::APPOINTMENTS_UPDATE,
-                self::ENCOUNTERS_VIEW,
-                self::ENCOUNTERS_CREATE,
-                self::ENCOUNTERS_UPDATE,
-                self::ENCOUNTERS_TRANSFER,
-                self::ENCOUNTERS_DISCHARGE,
-                self::CLINICAL_NOTES_VIEW,
-                self::CLINICAL_NOTES_CREATE,
-                self::CLINICAL_VITALS_VIEW,
-                self::CLINICAL_VITALS_CREATE,
-                self::CLINICAL_DIAGNOSIS_VIEW,
-                self::CLINICAL_DIAGNOSIS_CREATE,
-                self::CLINICAL_DIAGNOSIS_UPDATE,
-                self::CLINICAL_PROCEDURES_CREATE,
-                self::ORDERS_VIEW,
-                self::ORDERS_CREATE,
-                self::ORDERS_CANCEL,
-                self::LABORATORY_ORDERS_VIEW,
-                self::RADIOLOGY_ORDERS_VIEW,
-                self::PHARMACY_PRESCRIPTIONS_VIEW,
-                self::PHARMACY_PRESCRIPTIONS_CREATE,
-                self::DOCUMENTS_VIEW,
-                self::DOCUMENTS_UPLOAD,
-                self::BILLING_CHARGES_VIEW,
-                self::BILLING_INVOICES_VIEW,
-                self::OPERATIONS_VIEW,
-                self::OPERATIONS_SCHEDULE,
-                self::INPATIENT_VIEW,
-                self::INPATIENT_ADMIT,
-                self::INPATIENT_TRANSFER,
-                self::INPATIENT_DISCHARGE,
-                self::NURSING_NOTES_VIEW,
-                self::REPORTS_VIEW,
-            ],
+            'doctor' => self::clinicalDesk(),
+
+            // Enters the doctor's clinical work for one clinic or wing, under their own name.
+            'data_entry' => self::clinicalDesk(),
 
             'lab_technician' => [
                 self::PATIENTS_VIEW,
@@ -299,6 +266,7 @@ final class Permissions
         return [
             'reception' => 'استقبال',
             'doctor' => 'طبيب',
+            'data_entry' => 'مدخل بيانات',
             'nurse' => 'تمريض',
             'lab_technician' => 'مخبر',
             'lab_supervisor' => 'مشرف مخبر',
@@ -307,6 +275,53 @@ final class Permissions
             'pharmacist' => 'صيدلية',
             'cashier' => 'محاسب',
             'warehouse' => 'مستودع',
+        ];
+    }
+
+    /**
+     * What a doctor can do. The data-entry account for a clinic or wing
+     * uses the same list, so the work is identical and the actor stays distinct.
+     *
+     * @return array<int, string>
+     */
+    private static function clinicalDesk(): array
+    {
+        return [
+            self::PATIENTS_VIEW,
+            self::APPOINTMENTS_VIEW,
+            self::APPOINTMENTS_UPDATE,
+            self::ENCOUNTERS_VIEW,
+            self::ENCOUNTERS_CREATE,
+            self::ENCOUNTERS_UPDATE,
+            self::ENCOUNTERS_TRANSFER,
+            self::ENCOUNTERS_DISCHARGE,
+            self::CLINICAL_NOTES_VIEW,
+            self::CLINICAL_NOTES_CREATE,
+            self::CLINICAL_VITALS_VIEW,
+            self::CLINICAL_VITALS_CREATE,
+            self::CLINICAL_DIAGNOSIS_VIEW,
+            self::CLINICAL_DIAGNOSIS_CREATE,
+            self::CLINICAL_DIAGNOSIS_UPDATE,
+            self::CLINICAL_PROCEDURES_CREATE,
+            self::ORDERS_VIEW,
+            self::ORDERS_CREATE,
+            self::ORDERS_CANCEL,
+            self::LABORATORY_ORDERS_VIEW,
+            self::RADIOLOGY_ORDERS_VIEW,
+            self::PHARMACY_PRESCRIPTIONS_VIEW,
+            self::PHARMACY_PRESCRIPTIONS_CREATE,
+            self::DOCUMENTS_VIEW,
+            self::DOCUMENTS_UPLOAD,
+            self::BILLING_CHARGES_VIEW,
+            self::BILLING_INVOICES_VIEW,
+            self::OPERATIONS_VIEW,
+            self::OPERATIONS_SCHEDULE,
+            self::INPATIENT_VIEW,
+            self::INPATIENT_ADMIT,
+            self::INPATIENT_TRANSFER,
+            self::INPATIENT_DISCHARGE,
+            self::NURSING_NOTES_VIEW,
+            self::REPORTS_VIEW,
         ];
     }
 

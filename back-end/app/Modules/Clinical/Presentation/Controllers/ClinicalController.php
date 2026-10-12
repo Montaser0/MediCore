@@ -35,7 +35,7 @@ final class ClinicalController extends ApiController
     public function vitals(EncounterModel $encounter): JsonResponse
     {
         $readings = VitalSignModel::query()
-            ->with('recordedBy')
+            ->with(['recordedBy.staff', 'recordedBy.roles'])
             ->where('encounter_id', $encounter->getKey())
             ->orderByDesc('recorded_at')
             ->get();
@@ -47,13 +47,13 @@ final class ClinicalController extends ApiController
     {
         $reading = $action->execute($encounter->getKey(), $request->validated());
 
-        return ApiResponse::created(new VitalSignResource($reading->load('recordedBy')));
+        return ApiResponse::created(new VitalSignResource($reading->load(['recordedBy.staff', 'recordedBy.roles'])));
     }
 
     public function notes(EncounterModel $encounter): JsonResponse
     {
         $notes = ClinicalNoteModel::query()
-            ->with('author')
+            ->with(['author.staff', 'author.roles'])
             ->where('encounter_id', $encounter->getKey())
             ->orderByDesc('created_at')
             ->get();
@@ -71,7 +71,7 @@ final class ClinicalController extends ApiController
     public function diagnoses(EncounterModel $encounter): JsonResponse
     {
         $diagnoses = DiagnosisModel::query()
-            ->with(['code', 'doctor.staff'])
+            ->with(['code', 'doctor.staff', 'enteredBy.staff', 'enteredBy.roles'])
             ->where('encounter_id', $encounter->getKey())
             ->orderByDesc('diagnosed_at')
             ->get();
@@ -89,7 +89,7 @@ final class ClinicalController extends ApiController
     public function procedures(EncounterModel $encounter): JsonResponse
     {
         $procedures = ProcedureModel::query()
-            ->with('doctor.staff')
+            ->with(['doctor.staff', 'recordedBy.staff', 'recordedBy.roles'])
             ->where('encounter_id', $encounter->getKey())
             ->orderByDesc('performed_at')
             ->get();

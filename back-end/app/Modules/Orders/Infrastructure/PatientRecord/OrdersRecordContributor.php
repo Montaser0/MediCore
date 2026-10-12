@@ -29,7 +29,7 @@ final class OrdersRecordContributor implements PatientRecordContributor
         });
 
         $recent = (clone $base)
-            ->with(['items', 'orderedBy'])
+            ->with(['items', 'orderedBy.staff', 'orderedBy.roles'])
             ->orderByDesc('ordered_at')
             ->limit(20)
             ->get();
@@ -44,7 +44,7 @@ final class OrdersRecordContributor implements PatientRecordContributor
                 'status' => $order->status->value,
                 'priority' => $order->priority->value,
                 'items' => $order->items->pluck('name')->all(),
-                'by' => $order->orderedBy?->displayName(),
+                'by' => $order->orderedBy?->actorLabel(),
                 'ordered_at' => $order->ordered_at?->toIso8601String(),
             ])->all(),
         ];

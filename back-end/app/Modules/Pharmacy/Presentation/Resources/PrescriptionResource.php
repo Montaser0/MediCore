@@ -32,6 +32,10 @@ final class PrescriptionResource extends JsonResource
                 'id' => $this->doctor?->id,
                 'name' => $this->doctor?->display_name,
             ]),
+            'entered_by' => $this->whenLoaded('enteredBy', fn () => $this->enteredBy === null ? null : [
+                'id' => $this->enteredBy->id,
+                'name' => $this->enteredBy->actorLabel(),
+            ]),
             'patient' => $this->whenLoaded('encounter', fn () => $this->encounter?->patient === null ? null : [
                 'id' => $this->encounter->patient->id,
                 'mrn' => $this->encounter->patient->mrn,

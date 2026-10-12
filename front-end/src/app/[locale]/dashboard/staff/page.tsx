@@ -6,6 +6,7 @@ import { CrudResourcePage } from "@/components/shared/CrudResourcePage";
 const ACCOUNT_ROLES = [
   "reception",
   "doctor",
+  "data_entry",
   "nurse",
   "lab_technician",
   "lab_supervisor",
@@ -20,6 +21,7 @@ const ROLE_LABELS = {
   admin: "staffRoles.admin",
   reception: "staffRoles.reception",
   doctor: "staffRoles.doctor",
+  data_entry: "staffRoles.data_entry",
   nurse: "staffRoles.nurse",
   lab_technician: "staffRoles.lab_technician",
   lab_supervisor: "staffRoles.lab_supervisor",
@@ -68,6 +70,11 @@ export default function Page() {
           header: t("workspace.department"),
           render: (row) => String((row.department as { name?: string } | undefined)?.name ?? "—"),
         },
+        {
+          key: "clinic",
+          header: t("workspace.clinic"),
+          render: (row) => String((row.clinic as { name?: string } | undefined)?.name ?? "—"),
+        },
       ]}
       fields={[
         { key: "hospital_id", label: "", inject: "hospital_id" },
@@ -76,6 +83,14 @@ export default function Page() {
         { key: "employee_number", label: t("crud.code") },
         { key: "phone", label: t("patients.phone") },
         { key: "department_id", label: t("workspace.department"), optionsSource: "departments" },
+        {
+          key: "clinic_id",
+          label: t("workspace.clinic"),
+          optionsSource: "clinics",
+          createOnly: true,
+          when: { key: "role", value: "data_entry" },
+          requiredWhen: { key: "role", value: "data_entry" },
+        },
         {
           key: "role",
           label: t("staffRoles.label"),

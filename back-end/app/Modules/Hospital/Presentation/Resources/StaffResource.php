@@ -33,6 +33,10 @@ final class StaffResource extends JsonResource
                 'name' => $this->department->name,
                 'type' => $this->department->type->value,
             ]),
+            'clinic' => $this->whenLoaded('clinic', fn () => $this->clinic === null ? null : [
+                'id' => $this->clinic->id,
+                'name' => $this->clinic->name,
+            ]),
             'doctor' => $this->whenLoaded('doctor', fn () => $this->doctor === null ? null : [
                 'id' => $this->doctor->id,
                 'license_number' => $this->doctor->license_number,

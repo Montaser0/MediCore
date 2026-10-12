@@ -25,7 +25,7 @@ final class ClinicalNoteResource extends JsonResource
             'content' => $this->content,
             'author' => $this->whenLoaded('author', fn () => [
                 'id' => $this->author->id,
-                'name' => $this->author->displayName(),
+                'name' => $this->author->actorLabel(),
             ]),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),

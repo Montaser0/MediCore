@@ -417,6 +417,7 @@
     "admin": "Administrator",
     "reception": "Reception",
     "doctor": "Doctor",
+    "data_entry": "Data entry",
     "nurse": "Nursing",
     "lab_technician": "Laboratory",
     "lab_supervisor": "Lab supervisor",

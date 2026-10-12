@@ -3,6 +3,7 @@ import { modules, type NavModule } from "@/config/navigation";
 
 const desks: Record<string, string[]> = {
   doctor: ["/dashboard/patients", "/dashboard/encounters"],
+  data_entry: ["/dashboard/patients", "/dashboard/encounters"],
   lab_technician: ["/dashboard/laboratory"],
   lab_supervisor: ["/dashboard/laboratory"],
   radiology_technician: ["/dashboard/radiology"],
@@ -84,7 +85,7 @@ export function visibleModules(user: AuthUser | null, edition?: EditionMenu | nu
 
 export function isDoctorDesk(user: AuthUser | null): boolean {
   const roles = roleNames(user);
-  return roles.length === 1 && roles[0] === "doctor";
+  return roles.length === 1 && (roles[0] === "doctor" || roles[0] === "data_entry");
 }
 
 export function canOpenPath(user: AuthUser | null, path: string, edition?: EditionMenu | null): boolean {

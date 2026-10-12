@@ -14,15 +14,22 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 final class GetPatientTimelineQuery
 {
     /**
+     * @param  array<int, int>|null  $departmentIds
+     * @param  array<int, int>|null  $clinicIds
      * @return LengthAwarePaginator<int, TimelineEventModel>
      */
-    public function execute(int $patientId, ?int $encounterId = null, ?string $eventType = null, int $perPage = 100): LengthAwarePaginator
+    public function execute(int $patientId, ?int $encounterId = null, ?string $eventType = null, int $perPage = 100, ?array $departmentIds = null, ?array $clinicIds = null): LengthAwarePaginator
     {
         $query = TimelineEventModel::query()
-            ->with(['actor.staff', 'department:id,name'])
+            ->with(['actor.staff', 'actor.roles', 'department:id,name'])
             ->where('patient_id', $patientId)
             ->when($encounterId !== null, fn ($inner) => $inner->where('encounter_id', $encounterId))
-            ->when($eventType !== null, fn ($inner) => $inner->where('event_type', 'like', $eventType.'%'));
+            ->when($eventType !== null, fn ($inner) => $inner->where('event_type', 'like', $eventType.'%'))
+            ->when($clinicIds !== null, fn ($inner) => $inner->whereHas(
+                'encounter',
+                fn ($encounter) => $encounter->whereIn('clinic_id', $clinicIds),
+            ))
+            ->when($departmentIds !== null, fn ($inner) => $inner->whereIn('department_id', $departmentIds));
 
         foreach (RecordVisibility::hiddenEventPrefixes() as $prefix) {
             $query->where('event_type', 'not like', $prefix.'%');

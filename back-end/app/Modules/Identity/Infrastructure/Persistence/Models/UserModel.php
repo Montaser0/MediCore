@@ -85,6 +85,21 @@ final class UserModel extends Authenticatable
     }
 
     /**
+     * Name shown on a clinical row. Data-entry accounts keep the role visible
+     * so a visit shows which clerk entered it, not only the doctor.
+     */
+    public function actorLabel(): string
+    {
+        $name = $this->displayName();
+
+        if ($this->hasRole('data_entry')) {
+            return $name.' — مدخل بيانات';
+        }
+
+        return $name;
+    }
+
+    /**
      * Permission names flattened for the frontend guard components.
      *
      * @return array<int, string>

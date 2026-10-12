@@ -46,7 +46,7 @@ final class AddClinicalNoteAction
                 payload: ['clinical_note_id' => $note->getKey(), 'note_type' => $type->value],
             );
 
-            return $note->load('author');
+            return $note->load(['author.staff', 'author.roles']);
         });
     }
 }

@@ -30,6 +30,10 @@ final class ProcedureResource extends JsonResource
                 'id' => $this->doctor?->id,
                 'name' => $this->doctor?->display_name,
             ]),
+            'recorded_by' => $this->whenLoaded('recordedBy', fn () => $this->recordedBy === null ? null : [
+                'id' => $this->recordedBy->id,
+                'name' => $this->recordedBy->actorLabel(),
+            ]),
         ];
     }
 }

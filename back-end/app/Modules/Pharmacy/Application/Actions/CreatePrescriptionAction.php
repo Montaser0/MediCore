@@ -59,6 +59,7 @@ final class CreatePrescriptionAction
                 'encounter_id' => $encounter->id,
                 'prescription_number' => $this->numbers->prescriptionNumber($encounter->hospitalId),
                 'doctor_id' => $doctorId,
+                'entered_by' => $this->currentUser->id(),
                 'order_id' => $data['order_id'] ?? null,
                 'status' => $status->value,
                 'notes' => $data['notes'] ?? null,
@@ -79,7 +80,7 @@ final class CreatePrescriptionAction
                 ]);
             }
 
-            $prescription->load('items.medication');
+            $prescription->load(['items.medication', 'doctor.staff', 'enteredBy.staff', 'enteredBy.roles']);
 
             PrescriptionCreated::dispatch($prescription);
 
