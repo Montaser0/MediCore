@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use App\Modules\Departments\Infrastructure\Persistence\Models\ClinicModel;
 use App\Modules\Departments\Infrastructure\Persistence\Models\DepartmentModel;
 use App\Modules\Hospital\Infrastructure\Persistence\Models\DoctorModel;
 use App\Modules\Hospital\Infrastructure\Persistence\Models\HospitalModel;
@@ -76,7 +77,12 @@ final class DemoDataSeeder extends Seeder
             ]);
 
             if ($isDoctor) {
-                DoctorModel::factory()->create(['staff_id' => $staff->getKey()]);
+                DoctorModel::factory()->create([
+                    'staff_id' => $staff->getKey(),
+                    'clinic_id' => $department === null
+                        ? null
+                        : ClinicModel::query()->where('department_id', $department->getKey())->orderBy('id')->value('id'),
+                ]);
             }
 
             UserModel::factory()->withRole($role)->create([
@@ -110,17 +116,45 @@ final class DemoDataSeeder extends Seeder
                 ->count();
 
             if ($existingCount >= 2) {
+                $this->coverClinics($department);
+
                 continue;
             }
 
+            $clinics = ClinicModel::query()
+                ->where('department_id', $department->getKey())
+                ->orderBy('id')
+                ->get();
             $needed = 2 - $existingCount;
             for ($i = 0; $i < $needed; $i++) {
                 $staff = StaffModel::factory()->doctor()->create([
                     'hospital_id' => $hospitalId,
                     'department_id' => $department->getKey(),
                 ]);
-                DoctorModel::factory()->create(['staff_id' => $staff->getKey()]);
+                DoctorModel::factory()->create([
+                    'staff_id' => $staff->getKey(),
+                    'clinic_id' => $clinics->isEmpty() ? null : $clinics[($existingCount + $i) % $clinics->count()]->getKey(),
+                ]);
             }
+
+            $this->coverClinics($department);
+        }
+    }
+
+    private function coverClinics(DepartmentModel $department): void
+    {
+        $clinicIds = ClinicModel::query()
+            ->where('department_id', $department->getKey())
+            ->orderBy('id')
+            ->pluck('id');
+        $doctors = DoctorModel::query()->inDepartment((int) $department->getKey())->orderBy('id')->get();
+
+        if ($clinicIds->isEmpty() || $doctors->isEmpty()) {
+            return;
+        }
+
+        foreach ($clinicIds as $index => $clinicId) {
+            $doctors[$index % $doctors->count()]->clinics()->syncWithoutDetaching([$clinicId]);
         }
     }
 

@@ -5,12 +5,15 @@ declare(strict_types=1);
 namespace App\Modules\Hospital\Infrastructure\Persistence\Models;
 
 use App\Core\Persistence\BaseModel;
+use App\Modules\Departments\Infrastructure\Persistence\Models\ClinicModel;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 /**
  * @property int $id
  * @property int $staff_id
+ * @property int|null $clinic_id
  * @property string|null $specialty
  */
 final class DoctorModel extends BaseModel
@@ -25,6 +28,22 @@ final class DoctorModel extends BaseModel
         return $this->belongsTo(StaffModel::class, 'staff_id');
     }
 
+    /**
+     * @return BelongsTo<ClinicModel, $this>
+     */
+    public function clinic(): BelongsTo
+    {
+        return $this->belongsTo(ClinicModel::class, 'clinic_id');
+    }
+
+    /**
+     * @return BelongsToMany<ClinicModel, $this>
+     */
+    public function clinics(): BelongsToMany
+    {
+        return $this->belongsToMany(ClinicModel::class, 'clinic_doctor', 'doctor_id', 'clinic_id');
+    }
+
     public function getDisplayNameAttribute(): string
     {
         return 'Dr. '.($this->staff?->full_name ?? '');
@@ -37,5 +56,17 @@ final class DoctorModel extends BaseModel
     public function scopeInDepartment(Builder $query, int $departmentId): Builder
     {
         return $query->whereHas('staff', fn (Builder $staff) => $staff->where('department_id', $departmentId));
+    }
+
+    /**
+     * @param  Builder<DoctorModel>  $query
+     * @return Builder<DoctorModel>
+     */
+    public function scopeInClinic(Builder $query, int $clinicId): Builder
+    {
+        return $query->where(function (Builder $inner) use ($clinicId): void {
+            $inner->where('clinic_id', $clinicId)
+                ->orWhereHas('clinics', fn (Builder $clinics) => $clinics->whereKey($clinicId));
+        });
     }
 }

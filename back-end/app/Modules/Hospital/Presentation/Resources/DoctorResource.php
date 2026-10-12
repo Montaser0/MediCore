@@ -25,6 +25,7 @@ final class DoctorResource extends JsonResource
             'display_name' => $this->display_name,
             'license_number' => $this->license_number,
             'specialty' => $this->specialty,
+            'clinic_id' => $this->clinic_id,
             'department' => $this->whenLoaded('staff', fn () => $this->staff->department === null ? null : [
                 'id' => $this->staff->department->id,
                 'name' => $this->staff->department->name,

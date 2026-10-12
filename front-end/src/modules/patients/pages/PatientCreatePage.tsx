@@ -14,10 +14,12 @@ import { Panel } from "@/components/ui/Panel";
 import { useCreatePatient, usePatients } from "../hooks/usePatients";
 import { journeyApi, type NamedRow } from "../api/journey.api";
 import { apiGet, getErrorMessage } from "@/lib/api/client";
-import { arabicLabel } from "@/i18n/arabicLabels";
 import { dailyNo } from "@/lib/arabicText";
 
-const VISIT_TYPES = ["outpatient", "emergency", "follow_up"] as const;
+type RegisterDepartment = NamedRow & {
+  type?: string;
+  clinics?: NamedRow[];
+};
 
 export function PatientCreatePage() {
   const t = useTranslations();
@@ -39,7 +41,6 @@ export function PatientCreatePage() {
     blood_type: "",
     address: "",
     notes: "",
-    visit_type: "outpatient",
     department_id: "",
     clinic_id: "",
     doctor_id: "",
@@ -67,10 +68,12 @@ export function PatientCreatePage() {
   const { data: departments = [] } = useQuery({
     queryKey: ["/departments", "register"],
     queryFn: async () => {
-      const res = await apiGet<NamedRow[]>("/departments", { params: { per_page: 200 } });
+      const res = await apiGet<RegisterDepartment[]>("/departments", { params: { per_page: 200 } });
       return Array.isArray(res.data) ? res.data : [];
     },
   });
+  const departmentOptions = departments.filter(isVisitDepartment);
+  const selectedDepartment = departmentOptions.find((row) => String(row.id) === form.department_id);
   const { data: clinics = [] } = useQuery({
     queryKey: ["/clinics", "register"],
     queryFn: async () => {
@@ -78,12 +81,15 @@ export function PatientCreatePage() {
       return Array.isArray(res.data) ? res.data : [];
     },
   });
-  const clinicOptions = clinics.filter((row) => !form.department_id || String(row.department_id ?? "") === form.department_id);
+  const clinicOptions = form.department_id
+    ? clinics.filter((row) => String(row.department_id ?? "") === form.department_id)
+    : [];
   const { data: doctors = [] } = useQuery({
-    queryKey: ["/doctors", "register", form.department_id],
+    queryKey: ["/doctors", "register", form.clinic_id],
+    enabled: Boolean(form.clinic_id),
     queryFn: async () => {
       const res = await apiGet<NamedRow[]>("/doctors", {
-        params: form.department_id ? { per_page: 200, department_id: form.department_id } : { per_page: 200 },
+        params: { per_page: 200, clinic_id: form.clinic_id },
       });
       return Array.isArray(res.data) ? res.data : [];
     },
@@ -100,11 +106,10 @@ export function PatientCreatePage() {
       router.push(`/${locale}/dashboard/patients/${existing[0].id}`);
       return;
     }
-    const clinic = clinics.find((row) => String(row.id) === form.clinic_id);
-    const departmentId = num(form.department_id) ?? clinic?.department_id;
+    const departmentId = num(form.department_id);
     const clinicId = num(form.clinic_id);
     const doctorId = num(form.doctor_id);
-    if (!departmentId && !clinicId) {
+    if (!departmentId || !clinicId) {
       toast.error(t("patients.placeRequired"));
       return;
     }
@@ -132,7 +137,7 @@ export function PatientCreatePage() {
       try {
         await journeyApi.openVisit({
           patient_id: patientId,
-          type: form.visit_type,
+          type: selectedDepartment?.type === "emergency" ? "emergency" : "outpatient",
           department_id: departmentId,
           clinic_id: clinicId,
           doctor_id: doctorId,
@@ -233,24 +238,16 @@ export function PatientCreatePage() {
             <Field label={t("app.notes")}>
               <Input value={form.notes} onChange={(e) => set("notes", e.target.value)} />
             </Field>
-            <Field label={t("encounters.type")}>
-              <Select value={form.visit_type} onChange={(e) => set("visit_type", e.target.value)}>
-                {VISIT_TYPES.map((type) => (
-                  <option key={type} value={type}>
-                    {arabicLabel(type)}
-                  </option>
-                ))}
-              </Select>
-            </Field>
             <Field label={t("workspace.department")}>
               <Select
+                required
                 value={form.department_id}
                 onChange={(e) =>
                   setForm((current) => ({ ...current, department_id: e.target.value, clinic_id: "", doctor_id: "" }))
                 }
               >
                 <option value="">{t("workspace.department")}</option>
-                {departments.map((row) => (
+                {departmentOptions.map((row) => (
                   <option key={row.id} value={row.id}>
                     {row.name}
                   </option>
@@ -258,7 +255,14 @@ export function PatientCreatePage() {
               </Select>
             </Field>
             <Field label={t("appointments.clinic")}>
-              <Select value={form.clinic_id} onChange={(e) => set("clinic_id", e.target.value)}>
+              <Select
+                required
+                value={form.clinic_id}
+                disabled={!form.department_id}
+                onChange={(e) =>
+                  setForm((current) => ({ ...current, clinic_id: e.target.value, doctor_id: "" }))
+                }
+              >
                 <option value="">{t("appointments.clinic")}</option>
                 {clinicOptions.map((row) => (
                   <option key={row.id} value={row.id}>
@@ -268,7 +272,12 @@ export function PatientCreatePage() {
               </Select>
             </Field>
             <Field label={t("appointments.doctor")}>
-              <Select required value={form.doctor_id} onChange={(e) => set("doctor_id", e.target.value)}>
+              <Select
+                required
+                value={form.doctor_id}
+                disabled={!form.clinic_id}
+                onChange={(e) => set("doctor_id", e.target.value)}
+              >
                 <option value="">{t("appointments.doctor")}</option>
                 {doctors.map((row) => (
                   <option key={row.id} value={row.id}>
@@ -282,6 +291,11 @@ export function PatientCreatePage() {
       </form>
     </div>
   );
+}
+
+function isVisitDepartment(row: RegisterDepartment) {
+  if (row.type === "emergency") return true;
+  return (row.type === "medical" || row.type === "surgery") && (row.clinics?.length ?? 0) > 0;
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
