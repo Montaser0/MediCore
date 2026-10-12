@@ -7,11 +7,10 @@ import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { apiClient, apiPost, getErrorMessage } from "@/lib/api/client";
 import { Button } from "@/components/ui/Button";
-import { CrudResourcePage } from "@/components/shared/CrudResourcePage";
 import { ModuleTabs } from "@/components/shared/ModuleTabs";
+import { RadiologyCatalogPage } from "@/modules/radiology/pages/RadiologyCatalogPage";
 import { OrderResultDialog, uploadResultFiles } from "@/components/shared/OrderResultDialog";
 import { ResourceListPage, dateCell, statusBadge } from "@/components/shared/ResourceListPage";
-import { arabicLabel } from "@/i18n/arabicLabels";
 import { deskHrefs } from "@/config/desk";
 import { formatMoney } from "@/lib/utils";
 import { dailyNo } from "@/lib/arabicText";
@@ -23,7 +22,11 @@ export default function Page() {
   const t = useTranslations();
   const locale = useLocale();
   const qc = useQueryClient();
-  const focused = (deskHrefs(useAuthStore((state) => state.user)) ?? []).includes("/dashboard/radiology");
+  const user = useAuthStore((state) => state.user);
+  const focused = (deskHrefs(user) ?? []).includes("/dashboard/radiology");
+  const permissions = user?.permissions ?? [];
+  const canManageServices =
+    permissions.includes("*") || permissions.includes("admin") || permissions.includes("radiology.services.manage");
   const [item, setItem] = useState<Row | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -135,28 +138,10 @@ export default function Page() {
               />
             ),
           },
-          ...(!focused ? [{
+          ...(canManageServices ? [{
             id: "services",
-            label: t("billing.services"),
-            content: (
-              <CrudResourcePage
-                title={t("billing.services")}
-                endpoint="/radiology/services"
-                columns={[
-                  { key: "id", header: "#", width: 60 },
-                  { key: "name", header: t("crud.name"), render: (row) => String(row.name ?? "—") },
-                  { key: "code", header: t("crud.code"), width: 100, render: (row) => String(row.code ?? "—") },
-                  { key: "modality", header: t("crud.type"), render: (row) => arabicLabel(row.modality) },
-                  { key: "price", header: t("crud.price"), width: 110, render: (row) => formatMoney(row.price) },
-                ]}
-                fields={[
-                  { key: "name", label: t("crud.name"), required: true },
-                  { key: "code", label: t("crud.code"), required: true },
-                  { key: "modality", label: t("crud.type") },
-                  { key: "price", label: t("crud.price"), type: "number" },
-                ]}
-              />
-            ),
+            label: t("nav.radiologyServices"),
+            content: <RadiologyCatalogPage />,
           }] : []),
         ]}
       />

@@ -5,29 +5,24 @@ declare(strict_types=1);
 namespace App\Modules\Radiology\Domain\Enums;
 
 /**
- * Imaging modalities, kept as a soft list: `radiology_services.modality` is a
- * string so a hospital can add its own without a migration.
+ * The five radiology desks. `radiology_services.modality` stores one of these.
  */
 enum Modality: string
 {
-    case XRay = 'xray';
     case CT = 'ct';
+    case Echo = 'echo';
+    case Panorama = 'panorama';
     case MRI = 'mri';
-    case Ultrasound = 'ultrasound';
-    case Mammography = 'mammography';
-    case Fluoroscopy = 'fluoroscopy';
-    case NuclearMedicine = 'nuclear_medicine';
+    case XRay = 'xray';
 
     public function label(): string
     {
         return match ($this) {
-            self::XRay => 'أشعة سينية',
-            self::CT => 'طبقي محوري',
-            self::MRI => 'رنين مغناطيسي',
-            self::Ultrasound => 'إيكو',
-            self::Mammography => 'تصوير الثدي',
-            self::Fluoroscopy => 'تنظير شعاعي',
-            self::NuclearMedicine => 'طب نووي',
+            self::CT => 'طبقي',
+            self::Echo => 'إيكو',
+            self::Panorama => 'بانوراما',
+            self::MRI => 'رنين',
+            self::XRay => 'أشعة بسيطة',
         };
     }
 

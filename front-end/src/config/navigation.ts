@@ -106,6 +106,14 @@ export const modules: NavModule[] = [
     permission: "radiology.orders.view",
   },
   {
+    id: "radiology-services",
+    href: "/dashboard/radiology-services",
+    labelKey: "nav.radiologyServices",
+    icon: Scan,
+    category: "medical",
+    permission: "radiology.services.manage",
+  },
+  {
     id: "pharmacy",
     href: "/dashboard/pharmacy",
     labelKey: "nav.pharmacy",
@@ -321,6 +329,7 @@ export const navTree: NavNode[] = [
           { kind: "link", id: "laboratory" },
           { kind: "link", id: "lab-tests" },
           { kind: "link", id: "radiology" },
+          { kind: "link", id: "radiology-services" },
           { kind: "link", id: "pharmacy" },
           { kind: "link", id: "pharmacy-stock" },
           { kind: "link", id: "pharmacy-catalog" },

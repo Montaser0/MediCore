@@ -44,15 +44,45 @@ final class RadiologyServiceController extends ApiController
     public function store(StoreRadiologyServiceRequest $request): JsonResponse
     {
         return ApiResponse::created(new RadiologyServiceResource(
-            RadiologyServiceModel::query()->create($request->validated())
+            RadiologyServiceModel::query()->create($this->attributes($request, true))
         ));
     }
 
     public function update(StoreRadiologyServiceRequest $request, RadiologyServiceModel $radiologyService): JsonResponse
     {
-        $radiologyService->fill($request->validated())->save();
+        $radiologyService->fill($this->attributes($request, false))->save();
 
         return ApiResponse::resource(new RadiologyServiceResource($radiologyService));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function attributes(StoreRadiologyServiceRequest $request, bool $creating): array
+    {
+        $attributes = $request->validated();
+
+        if (blank($attributes['code'] ?? null)) {
+            if ($creating) {
+                $attributes['code'] = $this->nextCode();
+            } else {
+                unset($attributes['code']);
+            }
+        }
+
+        return $attributes;
+    }
+
+    private function nextCode(): string
+    {
+        $number = ((int) RadiologyServiceModel::query()->max('id')) + 1;
+
+        do {
+            $code = 'R-'.str_pad((string) $number, 4, '0', STR_PAD_LEFT);
+            $number++;
+        } while (RadiologyServiceModel::query()->where('code', $code)->exists());
+
+        return $code;
     }
 
     public function destroy(Request $request, RadiologyServiceModel $radiologyService): JsonResponse

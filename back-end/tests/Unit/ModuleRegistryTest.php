@@ -40,6 +40,8 @@ final class ModuleRegistryTest extends TestCase
         $this->assertTrue($radiology->enabled('Radiology'));
         $this->assertTrue($radiology->enabled('Orders'));
         $this->assertFalse($radiology->enabled('Laboratory'));
+        $this->assertContains('radiology', $radiology->navigation());
+        $this->assertContains('radiology-services', $radiology->navigation());
         $this->assertFalse($clinic->enabled('Laboratory'));
         $this->assertFalse($clinic->enabled('Orders'));
     }

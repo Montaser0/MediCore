@@ -930,7 +930,7 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
             </Button>
           ) : null}
           {showRadiology ? (
-            <Button variant="warning" onClick={() => openAction("radiology")}>
+            <Button variant="warning" onClick={() => router.push(`/${locale}/dashboard/patients/${patientId}/radiology`)}>
               <Scan size={13} />
               {t("nav.radiology")}
             </Button>

@@ -8,6 +8,7 @@ export type NamedRow = {
   label?: string;
   code?: string;
   category?: string;
+  modality?: string;
   price?: number;
   specialty?: string;
   department_id?: number;

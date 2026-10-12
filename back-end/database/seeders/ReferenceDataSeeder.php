@@ -130,10 +130,13 @@ final class ReferenceDataSeeder extends Seeder
             ['طبقي محوري للصدر', 'CT-CHEST', 'ct', 110000, false],
             ['رنين مغناطيسي للدماغ', 'MRI-BRAIN', 'mri', 220000, false],
             ['رنين مغناطيسي للفقرات القطنية', 'MRI-LSPINE', 'mri', 230000, false],
-            ['إيكو بطن', 'US-ABD', 'ultrasound', 35000, false],
-            ['إيكو حمل', 'US-OB', 'ultrasound', 40000, false],
-            ['إيكو قلب', 'ECHO', 'ultrasound', 60000, false],
-            ['تصوير الثدي الشعاعي', 'MAMMO', 'mammography', 55000, false],
+            ['إيكو بطن', 'US-ABD', 'echo', 35000, false],
+            ['إيكو حمل', 'US-OB', 'echo', 40000, false],
+            ['إيكو قلب', 'ECHO', 'echo', 60000, false],
+            ['تصوير الثدي الشعاعي', 'MAMMO', 'xray', 55000, false],
+            ['بانوراما أسنان', 'PAN-DENT', 'panorama', 25000, false],
+            ['بانوراما الفكين', 'PAN-JAW', 'panorama', 30000, false],
+            ['بانوراما الجيوب', 'PAN-SINUS', 'panorama', 28000, false],
         ];
 
         foreach ($services as [$name, $code, $modality, $price, $contrast]) {

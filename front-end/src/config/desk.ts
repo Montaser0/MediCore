@@ -7,7 +7,7 @@ const desks: Record<string, string[]> = {
   lab_technician: ["/dashboard/laboratory"],
   lab_supervisor: ["/dashboard/laboratory", "/dashboard/lab-tests"],
   radiology_technician: ["/dashboard/radiology"],
-  radiologist: ["/dashboard/radiology"],
+  radiologist: ["/dashboard/radiology", "/dashboard/radiology-services"],
   pharmacist: [
     "/dashboard/pharmacy",
     "/dashboard/pharmacy/stock",

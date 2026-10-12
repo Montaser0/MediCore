@@ -195,6 +195,7 @@ final class Permissions
                 self::PATIENTS_VIEW,
                 self::ENCOUNTERS_VIEW,
                 self::ORDERS_VIEW,
+                self::RADIOLOGY_SERVICES_MANAGE,
                 self::RADIOLOGY_ORDERS_VIEW,
                 self::RADIOLOGY_STUDIES_CREATE,
                 self::RADIOLOGY_IMAGES_UPLOAD,
