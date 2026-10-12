@@ -54,7 +54,7 @@ final class LabTestController extends ApiController
     public function store(StoreLabTestRequest $request): JsonResponse
     {
         $test = DB::transaction(function () use ($request): LabTestModel {
-            $test = LabTestModel::query()->create($request->safe()->except('parameters'));
+            $test = LabTestModel::query()->create($this->attributes($request, true));
 
             $this->syncParameters($test, $request->input('parameters', []));
 
@@ -67,7 +67,7 @@ final class LabTestController extends ApiController
     public function update(StoreLabTestRequest $request, LabTestModel $labTest): JsonResponse
     {
         DB::transaction(function () use ($request, $labTest): void {
-            $labTest->fill($request->safe()->except('parameters'))->save();
+            $labTest->fill($this->attributes($request, false))->save();
 
             if ($request->has('parameters')) {
                 $labTest->parameters()->delete();
@@ -76,6 +76,36 @@ final class LabTestController extends ApiController
         });
 
         return ApiResponse::resource(new LabTestResource($labTest->fresh('parameters')));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function attributes(StoreLabTestRequest $request, bool $creating): array
+    {
+        $attributes = $request->safe()->except('parameters');
+
+        if (blank($attributes['code'] ?? null)) {
+            if ($creating) {
+                $attributes['code'] = $this->nextCode();
+            } else {
+                unset($attributes['code']);
+            }
+        }
+
+        return $attributes;
+    }
+
+    private function nextCode(): string
+    {
+        $number = ((int) LabTestModel::query()->max('id')) + 1;
+
+        do {
+            $code = 'T-'.str_pad((string) $number, 4, '0', STR_PAD_LEFT);
+            $number++;
+        } while (LabTestModel::query()->where('code', $code)->exists());
+
+        return $code;
     }
 
     /**

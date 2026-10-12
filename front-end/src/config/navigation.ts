@@ -89,6 +89,15 @@ export const modules: NavModule[] = [
     color: "#2E86C1",
   },
   {
+    id: "lab-tests",
+    href: "/dashboard/lab-tests",
+    labelKey: "nav.labTests",
+    icon: FlaskConical,
+    category: "medical",
+    permission: "laboratory.tests.manage",
+    color: "#2E86C1",
+  },
+  {
     id: "radiology",
     href: "/dashboard/radiology",
     labelKey: "nav.radiology",
@@ -310,6 +319,7 @@ export const navTree: NavNode[] = [
         labelKey: "nav.diagnostics",
         children: [
           { kind: "link", id: "laboratory" },
+          { kind: "link", id: "lab-tests" },
           { kind: "link", id: "radiology" },
           { kind: "link", id: "pharmacy" },
           { kind: "link", id: "pharmacy-stock" },

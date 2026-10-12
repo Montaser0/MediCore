@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
@@ -51,7 +52,6 @@ type ActionKey =
   | "note"
   | "diagnosis"
   | "procedure"
-  | "lab"
   | "radiology"
   | "medication"
   | "nursing"
@@ -76,6 +76,7 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
   const t = useTranslations();
   const tr = (key: string) => (t as unknown as (value: string) => string)(key);
   const locale = useLocale();
+  const router = useRouter();
   const userId = useAuthStore((s) => s.user?.id);
   const can = useAuthStore((s) => s.hasPermission);
   const canCreateAppointment = can("appointments.create");
@@ -299,20 +300,6 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
           name: catalogs?.services?.find((row) => String(row.id) === form.service_id)?.name,
           doctor_id: doctorId,
           description: form.description,
-        });
-      case "lab":
-        return journeyApi.order({
-          encounter_id: encounterId,
-          type: "laboratory",
-          priority: form.priority || "routine",
-          clinical_notes: form.clinical_notes,
-          items: [
-            {
-              service_type: "lab_test",
-              service_id: num(form.service_id),
-              name: selectedName(catalogs?.tests, form.service_id),
-            },
-          ],
         });
       case "radiology":
         return journeyApi.order({
@@ -932,7 +919,7 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
             </Button>
           ) : null}
           {showLab ? (
-            <Button variant="info" onClick={() => openAction("lab")}>
+            <Button variant="info" onClick={() => router.push(`/${locale}/dashboard/patients/${patientId}/laboratory`)}>
               <FlaskConical size={13} />
               {t("workspace.labAction")}
             </Button>
@@ -1112,12 +1099,6 @@ function ActionFields({
             value={form.service_id ?? ""}
             onChange={(value) => setField("service_id", value)}
           />
-        </Field>
-      );
-    case "lab":
-      return (
-        <Field label={t("laboratory.tests")}>
-          <NamedSelect required rows={catalogs?.tests} value={form.service_id ?? ""} onChange={(value) => setField("service_id", value)} />
         </Field>
       );
     case "radiology":
@@ -1449,7 +1430,6 @@ function dialogTitle(action: ActionKey, t: (key: string) => string) {
     note: t("workspace.noteAction"),
     diagnosis: t("workspace.diagnosis"),
     procedure: t("workspace.procedure"),
-    lab: t("workspace.labAction"),
     radiology: t("nav.radiology"),
     medication: t("workspace.medAction"),
     nursing: t("workspace.nursing"),

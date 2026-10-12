@@ -93,7 +93,7 @@ final class ModuleRegistry
     private const NAVIGATION = [
         'hospital' => ['*'],
         'clinic' => ['home', 'patients', 'appointments', 'booking-link', 'billing', 'departments', 'diagnoses', 'staff', 'reports'],
-        'laboratory' => ['home', 'patients', 'appointments', 'booking-link', 'billing', 'departments', 'diagnoses', 'staff', 'laboratory', 'reports'],
+        'laboratory' => ['home', 'patients', 'appointments', 'booking-link', 'billing', 'departments', 'diagnoses', 'staff', 'laboratory', 'lab-tests', 'reports'],
         'radiology' => ['home', 'patients', 'appointments', 'booking-link', 'billing', 'departments', 'diagnoses', 'staff', 'radiology', 'reports'],
         'pharmacy' => ['home', 'pharmacy-catalog', 'pharmacy-sale', 'pharmacy-return', 'pharmacy-debts', 'pharmacy-warehouses', 'pharmacy-stocktake', 'reports'],
     ];

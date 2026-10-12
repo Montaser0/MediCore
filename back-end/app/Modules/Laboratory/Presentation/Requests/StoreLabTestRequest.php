@@ -6,12 +6,20 @@ namespace App\Modules\Laboratory\Presentation\Requests;
 
 use App\Core\Authorization\Permissions;
 use App\Core\Http\Requests\ApiFormRequest;
+use App\Modules\Laboratory\Domain\Enums\LabTestCategory;
 use App\Modules\Laboratory\Infrastructure\Persistence\Models\LabTestModel;
 use Illuminate\Validation\Rule;
 
 final class StoreLabTestRequest extends ApiFormRequest
 {
     protected ?string $permission = Permissions::LABORATORY_TESTS_MANAGE;
+
+    protected function prepareForValidation(): void
+    {
+        if (trim((string) $this->input('code', '')) === '') {
+            $this->merge(['code' => null]);
+        }
+    }
 
     /**
      * @return array<string, mixed>
@@ -23,8 +31,8 @@ final class StoreLabTestRequest extends ApiFormRequest
 
         return [
             'name' => ['required', 'string', 'max:255'],
-            'code' => ['required', 'string', 'max:50', Rule::unique('lab_tests', 'code')->ignore($testId)],
-            'category' => ['nullable', 'string', 'max:150'],
+            'code' => ['nullable', 'string', 'max:50', Rule::unique('lab_tests', 'code')->ignore($testId)],
+            'category' => ['required', Rule::in(LabTestCategory::values())],
             'sample_type' => ['nullable', 'string', 'max:100'],
             'unit' => ['nullable', 'string', 'max:50'],
             'reference_range' => ['nullable', 'string', 'max:255'],

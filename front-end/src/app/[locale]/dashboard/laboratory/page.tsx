@@ -7,8 +7,8 @@ import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { apiPost, getErrorMessage } from "@/lib/api/client";
 import { Button } from "@/components/ui/Button";
-import { CrudResourcePage } from "@/components/shared/CrudResourcePage";
 import { ModuleTabs } from "@/components/shared/ModuleTabs";
+import { LabCatalogPage } from "@/modules/laboratory/pages/LabCatalogPage";
 import { OrderResultDialog, uploadResultFiles } from "@/components/shared/OrderResultDialog";
 import { ResourceListPage, dateCell, statusBadge } from "@/components/shared/ResourceListPage";
 import { deskHrefs } from "@/config/desk";
@@ -22,7 +22,11 @@ export default function Page() {
   const t = useTranslations();
   const locale = useLocale();
   const qc = useQueryClient();
-  const focused = (deskHrefs(useAuthStore((state) => state.user)) ?? []).includes("/dashboard/laboratory");
+  const user = useAuthStore((state) => state.user);
+  const focused = (deskHrefs(user) ?? []).includes("/dashboard/laboratory");
+  const permissions = user?.permissions ?? [];
+  const canManageTests =
+    permissions.includes("*") || permissions.includes("admin") || permissions.includes("laboratory.tests.manage");
   const [item, setItem] = useState<Row | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -125,29 +129,10 @@ export default function Page() {
               />
             ),
           },
-          ...(!focused ? [{
+          ...(canManageTests ? [{
             id: "tests",
-            label: t("laboratory.tests"),
-            content: (
-              <CrudResourcePage
-                title={t("laboratory.tests")}
-                endpoint="/laboratory/tests"
-                columns={[
-                  { key: "id", header: "#", width: 60 },
-                  { key: "name", header: t("crud.name"), render: (row) => String(row.name ?? "—") },
-                  { key: "code", header: t("crud.code"), width: 100, render: (row) => String(row.code ?? "—") },
-                  { key: "price", header: t("crud.price"), width: 110, render: (row) => formatMoney(row.price) },
-                ]}
-                fields={[
-                  { key: "name", label: t("crud.name"), required: true },
-                  { key: "code", label: t("crud.code"), required: true },
-                  { key: "category", label: t("crud.type") },
-                  { key: "sample_type", label: t("laboratory.sample") },
-                  { key: "unit", label: t("laboratory.resultValue") },
-                  { key: "price", label: t("crud.price"), type: "number" },
-                ]}
-              />
-            ),
+            label: t("nav.labTests"),
+            content: <LabCatalogPage />,
           }] : []),
         ]}
       />
