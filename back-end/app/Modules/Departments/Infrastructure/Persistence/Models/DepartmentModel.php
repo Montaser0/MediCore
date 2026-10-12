@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Modules\Departments\Infrastructure\Persistence\Models;
 
-use App\Core\Cache\ReferenceCatalog;
 use App\Core\Persistence\BaseModel;
 use App\Core\Support\Traits\BelongsToHospital;
 use App\Modules\Departments\Domain\Enums\DepartmentType;
@@ -31,16 +30,6 @@ final class DepartmentModel extends BaseModel
         'type' => DepartmentType::class,
         'is_active' => 'boolean',
     ];
-
-    protected static function booted(): void
-    {
-        $forget = static function (self $department): void {
-            ReferenceCatalog::forget((int) $department->hospital_id);
-        };
-
-        static::saved($forget);
-        static::deleted($forget);
-    }
 
     /**
      * @return BelongsTo<HospitalModel, $this>

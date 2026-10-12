@@ -21,22 +21,21 @@ final class GetPatientFileQuery
     ) {}
 
     /**
-     * @param  list<string>|null  $sections
      * @return array{patient: PatientModel, sections: array<string, array<string, mixed>>}
      */
-    public function execute(int $patientId, ?int $encounterId = null, ?array $sections = null): array
+    public function execute(int $patientId, ?int $encounterId = null): array
     {
-        $loaded = $this->registry->summarise($patientId, $encounterId, $sections);
+        $sections = $this->registry->summarise($patientId, $encounterId);
 
-        foreach (array_keys($loaded) as $section) {
+        foreach (array_keys($sections) as $section) {
             if (! RecordVisibility::sectionVisible($section)) {
-                unset($loaded[$section]);
+                unset($sections[$section]);
             }
         }
 
         return [
             'patient' => $this->patients->withHeader($patientId),
-            'sections' => $loaded,
+            'sections' => $sections,
         ];
     }
 }

@@ -45,10 +45,6 @@ final class PaymentModel extends BaseModel
 
     public function refundedAmount(): float
     {
-        if ($this->relationLoaded('refunds')) {
-            return (float) $this->refunds->sum('amount');
-        }
-
         return (float) $this->refunds()->sum('amount');
     }
 

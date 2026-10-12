@@ -30,35 +30,4 @@ final class DailyNumber
 
         return $value;
     }
-
-    /**
-     * The serial staff type at the desk (15), taken from the stored value
-     * (2026-10-12-15 or MRN-2026-000015). Null when the text is not a number.
-     */
-    public static function serial(?string $value): ?int
-    {
-        if ($value === null) {
-            return null;
-        }
-
-        $value = trim($value);
-
-        if ($value === '') {
-            return null;
-        }
-
-        if (preg_match('/^\d{4}-\d{2}-\d{2}-(\d+)$/', $value, $matches) === 1) {
-            return (int) $matches[1];
-        }
-
-        if (preg_match('/^(?:MRN|ENC|APT)-\d{4,8}-(\d+)$/i', $value, $matches) === 1) {
-            return (int) $matches[1];
-        }
-
-        if (preg_match('/^\d{1,6}$/', $value) === 1) {
-            return (int) $value;
-        }
-
-        return null;
-    }
 }

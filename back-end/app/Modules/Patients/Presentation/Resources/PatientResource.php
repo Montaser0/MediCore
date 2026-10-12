@@ -27,7 +27,6 @@ final class PatientResource extends JsonResource
             'father_name' => $this->father_name,
             'grandfather_name' => $this->grandfather_name,
             'last_name' => $this->last_name,
-            'name_en' => $this->name_en,
             'mother_name' => $this->mother_name,
             'full_name' => $this->full_name,
 

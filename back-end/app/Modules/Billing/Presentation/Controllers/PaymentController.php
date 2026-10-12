@@ -6,7 +6,6 @@ namespace App\Modules\Billing\Presentation\Controllers;
 
 use App\Core\Http\Controllers\ApiController;
 use App\Core\Http\Responses\ApiResponse;
-use App\Core\Persistence\QueryWindow;
 use App\Modules\Billing\Application\Actions\ReceivePaymentAction;
 use App\Modules\Billing\Application\Actions\RefundPaymentAction;
 use App\Modules\Billing\Infrastructure\Persistence\Models\InvoiceModel;
@@ -21,31 +20,15 @@ final class PaymentController extends ApiController
     public function index(Request $request): JsonResponse
     {
         $payments = PaymentModel::query()
-            ->select([
-                'payments.id',
-                'payments.hospital_id',
-                'payments.invoice_id',
-                'payments.receipt_number',
-                'payments.amount',
-                'payments.method',
-                'payments.reference',
-                'payments.received_by',
-                'payments.paid_at',
-                'payments.notes',
-            ])
-            ->with([
-                'receivedBy:id,username,staff_id',
-                'receivedBy.staff:id,first_name,last_name',
-                'refunds:id,payment_id,amount',
-            ])
+            ->with(['invoice.patient', 'receivedBy', 'refunds'])
             ->forCurrentHospital()
-            ->when($request->filled('invoice_id'), fn ($query) => $query->where('payments.invoice_id', $request->integer('invoice_id')))
-            ->when($request->filled('method'), fn ($query) => $query->whereIn('payments.method', (array) $request->input('method')))
-            ->when($request->filled('date'), fn ($query) => QueryWindow::on($query, 'payments.paid_at', $request->date('date')))
-            ->when($request->filled('from'), fn ($query) => QueryWindow::from($query, 'payments.paid_at', $request->date('from')))
-            ->when($request->filled('to'), fn ($query) => QueryWindow::until($query, 'payments.paid_at', $request->date('to')))
-            ->orderByDesc('payments.paid_at')
-            ->paginate(min($this->perPage(25), 50));
+            ->when($request->filled('invoice_id'), fn ($query) => $query->where('invoice_id', $request->integer('invoice_id')))
+            ->when($request->filled('method'), fn ($query) => $query->whereIn('method', (array) $request->input('method')))
+            ->when($request->filled('date'), fn ($query) => $query->whereDate('paid_at', $request->date('date')))
+            ->when($request->filled('from'), fn ($query) => $query->where('paid_at', '>=', $request->date('from')))
+            ->when($request->filled('to'), fn ($query) => $query->where('paid_at', '<=', $request->date('to')))
+            ->orderByDesc('paid_at')
+            ->paginate($this->perPage(50));
 
         return ApiResponse::paginated(PaymentResource::collection($payments), $payments);
     }

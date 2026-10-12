@@ -29,18 +29,13 @@ final class PatientRecordRegistry
     }
 
     /**
-     * @param  list<string>|null  $only  Null loads every section. A list loads just those tabs.
      * @return array<string, array<string, mixed>>
      */
-    public function summarise(int $patientId, ?int $encounterId = null, ?array $only = null): array
+    public function summarise(int $patientId, ?int $encounterId = null): array
     {
         $sections = [];
 
         foreach ($this->contributors as $section => $contributor) {
-            if ($only !== null && ! in_array($section, $only, true)) {
-                continue;
-            }
-
             $sections[$section] = $contributor->summarise($patientId, $encounterId);
         }
 

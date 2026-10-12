@@ -12,7 +12,6 @@ import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { formatDate } from "@/lib/utils";
 import { getErrorMessage } from "@/lib/api/client";
-import { useDebouncedValue } from "@/lib/useDebouncedValue";
 import { arabicLabel } from "@/i18n/arabicLabels";
 import { dailyNo } from "@/lib/arabicText";
 import { useAuthStore } from "@/stores/auth-store";
@@ -43,7 +42,6 @@ export function AppointmentsPage() {
   const canCreate = canCreateAppointment && !doctorDesk;
   const [booking, setBooking] = useState(false);
   const [search, setSearch] = useState("");
-  const debouncedSearch = useDebouncedValue(search, 300);
   const [draft, setDraft] = useState({
     patient_id: "",
     department_id: "",
@@ -64,13 +62,10 @@ export function AppointmentsPage() {
   }, [loaded]);
   const { checkIn, noShow, create } = useAppointmentActions();
   const { data: catalogs } = useCatalogs();
-  const { data: patientLookup } = usePatients(
-    {
-      search: debouncedSearch.trim() || undefined,
-      per_page: 8,
-    },
-    debouncedSearch.trim().length >= 2,
-  );
+  const { data: patientLookup } = usePatients({
+    search: search || undefined,
+    per_page: 8,
+  });
 
   const columns = useMemo<Column<AppointmentRow>[]>(
     () => [

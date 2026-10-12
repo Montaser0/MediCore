@@ -13,23 +13,17 @@ export type PatientsListParams = {
 };
 
 export const patientsApi = {
-  list: (params?: PatientsListParams, signal?: AbortSignal) =>
-    apiGet<Patient[]>("/patients", { params, signal }),
+  list: (params?: PatientsListParams) =>
+    apiGet<Patient[]>("/patients", { params }),
 
   get: (id: number | string) => apiGet<Patient>(`/patients/${id}`),
 
   header: (id: number | string) => apiGet<Patient>(`/patients/${id}/header`),
 
-  file: (id: number | string, encounterId?: number, sections?: string[], signal?: AbortSignal) =>
+  file: (id: number | string, encounterId?: number) =>
     apiGet<{ patient: Patient; sections: Record<string, unknown> }>(
       `/patients/${id}/file`,
-      {
-        signal,
-        params: {
-          ...(encounterId ? { encounter_id: encounterId } : {}),
-          ...(sections && sections.length > 0 ? { sections: sections.join(",") } : {}),
-        },
-      },
+      { params: encounterId ? { encounter_id: encounterId } : undefined },
     ),
 
   create: (data: Partial<Patient>) => apiPost<Patient>("/patients", data),

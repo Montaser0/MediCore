@@ -6,7 +6,6 @@ namespace App\Modules\Encounters\Presentation\Controllers;
 
 use App\Core\Auth\CurrentUser;
 use App\Core\Http\Controllers\ApiController;
-use App\Core\Persistence\QueryWindow;
 use App\Core\Http\Responses\ApiResponse;
 use App\Modules\Encounters\Application\Actions\CloseEncounterAction;
 use App\Modules\Encounters\Application\Actions\CreateEncounterAction;
@@ -79,17 +78,17 @@ final class EncounterController extends ApiController
         $lockedClinic = $clinicIds !== null ? ($clinicIds[0] ?? null) : null;
 
         $encounters = EncounterModel::query()
-            ->forList()
+            ->with(['patient', 'department', 'clinic', 'doctor.staff'])
             ->forCurrentHospital()
             ->queueFor(
                 $request->integer('department_id') ?: null,
                 $lockedClinic ?? ($request->integer('clinic_id') ?: null),
                 $ownDoctorId ?? ($request->integer('doctor_id') ?: null),
             )
-            ->when($clinicIds !== null, fn ($query) => $query->whereIn('encounters.clinic_id', $clinicIds))
-            ->when($departmentIds !== null, fn ($query) => $query->whereIn('encounters.department_id', $departmentIds))
-            ->when($request->filled('date'), fn ($query) => QueryWindow::on($query, 'encounters.created_at', $request->string('date')->toString()))
-            ->paginate(min($this->perPage(100), 100));
+            ->when($clinicIds !== null, fn ($query) => $query->whereIn('clinic_id', $clinicIds))
+            ->when($departmentIds !== null, fn ($query) => $query->whereIn('department_id', $departmentIds))
+            ->when($request->filled('date'), fn ($query) => $query->whereDate('created_at', $request->string('date')->toString()))
+            ->paginate($this->perPage(100));
 
         return ApiResponse::paginated(EncounterResource::collection($encounters), $encounters);
     }

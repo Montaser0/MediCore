@@ -75,18 +75,7 @@ final class PatientController extends ApiController
 
         $audit->record('patients.medical_record_viewed', PatientModel::class, $patient->getKey());
 
-        $requested = $request->filled('sections')
-            ? array_values(array_filter(array_map(
-                trim(...),
-                explode(',', (string) $request->string('sections')),
-            )))
-            : null;
-
-        $result = $query->execute(
-            $patient->getKey(),
-            $request->integer('encounter_id') ?: null,
-            $requested,
-        );
+        $result = $query->execute($patient->getKey(), $request->integer('encounter_id') ?: null);
 
         return ApiResponse::data([
             'patient' => new PatientHeaderResource($result['patient']),

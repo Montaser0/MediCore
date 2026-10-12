@@ -26,7 +26,6 @@ final class StorePatientRequest extends ApiFormRequest
             'father_name' => ['nullable', 'string', 'max:100'],
             'grandfather_name' => ['nullable', 'string', 'max:100'],
             'last_name' => ['required', 'string', 'max:100'],
-            'name_en' => ['nullable', 'string', 'max:200'],
             'mother_name' => ['nullable', 'string', 'max:200'],
             'gender' => ['required', Rule::in(Gender::values())],
             'date_of_birth' => ['nullable', 'date', 'before_or_equal:today'],

@@ -137,47 +137,12 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
     chief_complaint: "",
   });
 
-  const fileSections = useMemo(() => {
-    const names: string[] = [];
-    if (showStay) names.push("admissions");
-    if (tab === "visit" && showClinical) names.push("clinical");
-    if (tab === "orders" && showOrdersTab) names.push("orders", "laboratory", "radiology");
-    if (tab === "pharmacy" && showPharmacyTab) names.push("pharmacy");
-    if (tab === "nursing" && showNursingTab) names.push("nursing");
-    if (tab === "stay" && showStayTab) {
-      names.push("admissions");
-      if (showOperations) names.push("operations");
-    }
-    if (tab === "billing" && showAccount) names.push("billing");
-    if (tab === "docs" && showDocs) names.push("documents");
-    return [...new Set(names)];
-  }, [
-    tab,
-    showStay,
-    showClinical,
-    showOrdersTab,
-    showPharmacyTab,
-    showNursingTab,
-    showStayTab,
-    showOperations,
-    showAccount,
-    showDocs,
-  ]);
-
-  const { data: listData } = usePatients({ per_page: 25 });
+  const { data: listData } = usePatients({ per_page: 40 });
   const { data: patient, isLoading } = usePatient(patientId);
-  const { data: file, isLoading: fileLoading } = usePatientFile(
-    patientId,
-    undefined,
-    fileSections,
-    fileSections.length > 0,
-  );
-  const { data: timeline, isLoading: timelineLoading } = usePatientTimeline(patientId, tab === "timeline");
-  const { data: encounters = [], isFetched: encountersReady } = usePatientEncounters(patientId);
-  const hasOpenVisit = encounters.some((row) => row.is_open);
-  const { data: catalogs, refetch: refetchCatalogs } = useCatalogs(
-    action === "admit" || (canOpenVisit && encountersReady && !hasOpenVisit),
-  );
+  const { data: file } = usePatientFile(patientId);
+  const { data: timeline } = usePatientTimeline(patientId);
+  const { data: encounters = [] } = usePatientEncounters(patientId);
+  const { data: catalogs, refetch: refetchCatalogs } = useCatalogs();
   const run = useJourneyAction(patientId);
 
   async function removeFact(url: string) {
@@ -721,7 +686,6 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
                   ]}
                   rows={vitalSheet(vitals, tr)}
                   rowKey={(_row, index) => index}
-                  loading={fileLoading}
                   emptyText={t("app.noData")}
                 />
               </div>
@@ -738,7 +702,6 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
                   ]}
                   rows={visitSheet(arr(clinical.diagnoses), procedures, notes as unknown as Rec[], tr)}
                   rowKey={(_row, index) => index}
-                  loading={fileLoading}
                   emptyText={t("app.noData")}
                 />
               </div>
@@ -762,7 +725,6 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
                   ]}
                   rows={orders}
                   rowKey={(row, index) => String(row.id ?? index)}
-                  loading={fileLoading}
                   emptyText={t("app.noData")}
                 />
               </div>
@@ -782,7 +744,6 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
                   ]}
                   rows={lab}
                   rowKey={(row, index) => String(row.id ?? index)}
-                  loading={fileLoading}
                   emptyText={t("app.noData")}
                 />
               </div>
@@ -803,7 +764,6 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
                   ]}
                   rows={radiology}
                   rowKey={(row, index) => String(row.id ?? index)}
-                  loading={fileLoading}
                   emptyText={t("app.noData")}
                 />
               </div>
@@ -828,7 +788,6 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
                   ]}
                   rows={prescriptionRows(arr(pharmacy.prescriptions))}
                   rowKey={(row, index) => `${text(row.prescription_number, "rx")}-${index}`}
-                  loading={fileLoading}
                   emptyText={t("app.noData")}
                 />
               </div>
@@ -846,22 +805,19 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
                   ]}
                   rows={arr(pharmacy.dispenses)}
                   rowKey={(row, index) => String(row.id ?? index)}
-                  loading={fileLoading}
                   emptyText={t("app.noData")}
                 />
               </div>
             </div>
           )}
 
-          {tab === "nursing" && showNursingTab && fileLoading ? <div className="h-40 animate-pulse bg-[#e7eef5]" /> : null}
-          {tab === "nursing" && showNursingTab && !fileLoading ? (
+          {tab === "nursing" && showNursingTab && (
             <Section title={t("workspace.nursing")}>
               <SimpleList items={arr(nursing.notes)} text={(item) => withActor(text(item.content), item, t("patients.actor"))} />
             </Section>
-          ) : null}
+          )}
 
-          {tab === "stay" && showStayTab && fileLoading ? <div className="h-40 animate-pulse bg-[#e7eef5]" /> : null}
-          {tab === "stay" && showStayTab && !fileLoading ? (
+          {tab === "stay" && showStayTab && (
             <div className="grid gap-2 md:grid-cols-2">
               <Section title={t("workspace.stay")}>
                 <SimpleList
@@ -884,12 +840,9 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
               </Section>
               ) : null}
             </div>
-          ) : null}
+          )}
 
-          {tab === "billing" && showAccount && fileLoading ? (
-            <div className="h-40 animate-pulse bg-[#e7eef5]" />
-          ) : null}
-          {tab === "billing" && showAccount && !fileLoading ? (
+          {tab === "billing" && showAccount && (
             <PatientAccountPanel
               billing={billing}
               onPay={
@@ -914,10 +867,9 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
                   : undefined
               }
             />
-          ) : null}
+          )}
 
-          {tab === "docs" && showDocs && fileLoading ? <div className="h-40 animate-pulse bg-[#e7eef5]" /> : null}
-          {tab === "docs" && showDocs && !fileLoading ? (
+          {tab === "docs" && showDocs && (
             <Section
               title={t("patients.docs")}
               action={
@@ -938,7 +890,7 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
                 }))}
               />
             </Section>
-          ) : null}
+          )}
 
           {tab === "timeline" && (
             <DataTable
@@ -947,7 +899,6 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
                 timelineVisible(String(row.event_type ?? ""), can, showBilling),
               )}
               rowKey={(row, index) => String(row.id ?? index)}
-              loading={timelineLoading}
               emptyText={t("app.noData")}
             />
           )}

@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace App\Modules\Patients\Application\Queries;
 
-use App\Core\Auth\CurrentUser;
-use App\Core\Persistence\QueryWindow;
 use App\Modules\Patients\Infrastructure\Persistence\Models\PatientModel;
+use App\Core\Auth\CurrentUser;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 /**
@@ -21,43 +20,24 @@ final class SearchPatientsQuery
      */
     public function execute(array $filters, int $perPage = 25): LengthAwarePaginator
     {
-        $perPage = max(1, min($perPage, 50));
         $doctorId = $this->currentUser->ownDoctorId();
         $clinicIds = $this->currentUser->dataEntryClinicIds();
         $departmentIds = $this->currentUser->dataEntryDepartmentIds();
 
         return PatientModel::query()
-            ->select([
-                'patients.id',
-                'patients.hospital_id',
-                'patients.mrn',
-                'patients.first_name',
-                'patients.father_name',
-                'patients.grandfather_name',
-                'patients.last_name',
-                'patients.name_en',
-                'patients.gender',
-                'patients.date_of_birth',
-                'patients.national_id',
-                'patients.phone',
-                'patients.city',
-                'patients.blood_type',
-                'patients.status',
-                'patients.created_at',
-            ])
             ->forCurrentHospital()
             ->when(isset($filters['search']), fn ($query) => $query->search((string) $filters['search']))
-            ->when(isset($filters['status']), fn ($query) => $query->where('patients.status', $filters['status']))
-            ->when(isset($filters['gender']), fn ($query) => $query->where('patients.gender', $filters['gender']))
-            ->when(isset($filters['city']), fn ($query) => $query->where('patients.city', $filters['city']))
-            ->when(isset($filters['blood_type']), fn ($query) => $query->where('patients.blood_type', $filters['blood_type']))
+            ->when(isset($filters['status']), fn ($query) => $query->where('status', $filters['status']))
+            ->when(isset($filters['gender']), fn ($query) => $query->where('gender', $filters['gender']))
+            ->when(isset($filters['city']), fn ($query) => $query->where('city', $filters['city']))
+            ->when(isset($filters['blood_type']), fn ($query) => $query->where('blood_type', $filters['blood_type']))
             ->when(
                 isset($filters['registered_from']),
-                fn ($query) => QueryWindow::from($query, 'patients.created_at', $filters['registered_from']),
+                fn ($query) => $query->whereDate('created_at', '>=', $filters['registered_from'])
             )
             ->when(
                 isset($filters['registered_to']),
-                fn ($query) => QueryWindow::until($query, 'patients.created_at', $filters['registered_to']),
+                fn ($query) => $query->whereDate('created_at', '<=', $filters['registered_to'])
             )
             ->when(
                 ! empty($filters['department_id']),
@@ -85,17 +65,7 @@ final class SearchPatientsQuery
                     );
                 })
             )
-            ->with([
-                'latestEncounter' => fn ($query) => $query->select([
-                    'encounters.id',
-                    'encounters.patient_id',
-                    'encounters.department_id',
-                    'encounters.clinic_id',
-                    'encounters.created_at',
-                ]),
-                'latestEncounter.department:id,name',
-                'latestEncounter.clinic:id,name',
-            ])
+            ->with(['latestEncounter.department', 'latestEncounter.clinic'])
             ->when($clinicIds !== null, fn ($query) => $query->where(function ($inner) use ($clinicIds): void {
                 $inner->whereHas(
                     'encounters',
@@ -124,7 +94,7 @@ final class SearchPatientsQuery
                 );
             }))
             ->withCount('encounters')
-            ->orderByDesc('patients.created_at')
+            ->orderByDesc('created_at')
             ->paginate($perPage);
     }
 }

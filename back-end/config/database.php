@@ -20,13 +20,6 @@ return [
     'default' => env('DB_CONNECTION', 'sqlite'),
 
     /*
-    | Queries slower than this many milliseconds are written to the log.
-    | Leave at 0 to disable. Inspect the logged SQL with EXPLAIN ANALYZE
-    | before adding an index. php artisan lookup:explain
-    */
-    'slow_query_ms' => (int) env('DB_SLOW_QUERY_MS', 0),
-
-    /*
     |--------------------------------------------------------------------------
     | Database Connections
     |--------------------------------------------------------------------------

@@ -6,7 +6,6 @@ namespace App\Modules\Billing\Presentation\Controllers;
 
 use App\Core\Http\Controllers\ApiController;
 use App\Core\Http\Responses\ApiResponse;
-use App\Core\Persistence\QueryWindow;
 use App\Modules\Billing\Application\Actions\ApplyDiscountAction;
 use App\Modules\Billing\Application\Actions\CreateInstallmentPlanAction;
 use App\Modules\Billing\Application\Actions\CreateInvoiceAction;
@@ -26,34 +25,15 @@ final class InvoiceController extends ApiController
     public function index(Request $request): JsonResponse
     {
         $invoices = InvoiceModel::query()
-            ->select([
-                'invoices.id',
-                'invoices.hospital_id',
-                'invoices.patient_id',
-                'invoices.encounter_id',
-                'invoices.invoice_number',
-                'invoices.subtotal',
-                'invoices.discount',
-                'invoices.tax',
-                'invoices.total',
-                'invoices.paid_amount',
-                'invoices.balance',
-                'invoices.status',
-                'invoices.notes',
-                'invoices.issued_at',
-                'invoices.created_at',
-            ])
-            ->with([
-                'patient:id,mrn,first_name,father_name,grandfather_name,last_name,phone,national_id,gender,date_of_birth,blood_type,status',
-            ])
+            ->with('patient')
             ->forCurrentHospital()
-            ->when($request->filled('patient_id'), fn ($query) => $query->where('invoices.patient_id', $request->integer('patient_id')))
-            ->when($request->filled('status'), fn ($query) => $query->whereIn('invoices.status', (array) $request->input('status')))
+            ->when($request->filled('patient_id'), fn ($query) => $query->where('patient_id', $request->integer('patient_id')))
+            ->when($request->filled('status'), fn ($query) => $query->whereIn('status', (array) $request->input('status')))
             ->when($request->boolean('outstanding_only'), fn ($query) => $query->outstanding())
-            ->when($request->filled('from'), fn ($query) => QueryWindow::from($query, 'invoices.created_at', $request->date('from')))
-            ->when($request->filled('to'), fn ($query) => QueryWindow::until($query, 'invoices.created_at', $request->date('to')))
-            ->orderByDesc('invoices.created_at')
-            ->paginate(min($this->perPage(25), 50));
+            ->when($request->filled('from'), fn ($query) => $query->where('created_at', '>=', $request->date('from')))
+            ->when($request->filled('to'), fn ($query) => $query->where('created_at', '<=', $request->date('to')))
+            ->orderByDesc('created_at')
+            ->paginate($this->perPage(50));
 
         return ApiResponse::paginated(InvoiceResource::collection($invoices), $invoices);
     }

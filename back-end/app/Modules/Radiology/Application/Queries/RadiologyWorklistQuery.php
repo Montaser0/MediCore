@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Modules\Radiology\Application\Queries;
 
-use App\Core\Persistence\QueryWindow;
 use App\Modules\Radiology\Infrastructure\Persistence\Models\RadiologyOrderItemModel;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
@@ -15,8 +14,6 @@ final class RadiologyWorklistQuery
      */
     public function execute(array $filters, int $perPage = 50): LengthAwarePaginator
     {
-        $perPage = max(1, min($perPage, 50));
-
         return RadiologyOrderItemModel::query()
             ->with([
                 'service',
@@ -40,7 +37,7 @@ final class RadiologyWorklistQuery
                 }
 
                 if (! empty($filters['date'])) {
-                    QueryWindow::on($query, 'ordered_at', $filters['date']);
+                    $query->whereDate('ordered_at', $filters['date']);
                 }
             })
             ->when($filters['status'] ?? null, fn ($q, $value) => $q->whereIn('status', (array) $value))

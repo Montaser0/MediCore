@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -19,31 +17,6 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->resolveModuleFactories();
-        $this->logSlowQueries();
-    }
-
-    /**
-     * Enabled only when DB_SLOW_QUERY_MS is set. The log names the SQL;
-     * the plan itself is checked with `php artisan lookup:explain`.
-     */
-    private function logSlowQueries(): void
-    {
-        $threshold = (int) config('database.slow_query_ms');
-
-        if ($threshold < 1 || $this->app->environment('testing')) {
-            return;
-        }
-
-        DB::listen(static function ($query) use ($threshold): void {
-            if ($query->time < $threshold) {
-                return;
-            }
-
-            Log::warning('slow query', [
-                'ms' => $query->time,
-                'sql' => $query->sql,
-            ]);
-        });
     }
 
     /**

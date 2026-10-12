@@ -6,7 +6,6 @@ namespace App\Modules\Encounters\Infrastructure\Persistence\Models;
 
 use App\Core\Persistence\BaseModel;
 use App\Core\Support\Numbering\DailyNumber;
-use App\Core\Support\RecordLookup;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use App\Core\Support\Traits\Auditable;
 use App\Core\Support\Traits\BelongsToHospital;
@@ -47,57 +46,7 @@ final class EncounterModel extends BaseModel
     {
         return Attribute::make(
             get: fn (?string $value) => DailyNumber::present($value),
-            set: fn (?string $value) => [
-                'encounter_number' => $value,
-                'encounter_serial' => DailyNumber::serial($value),
-            ],
         );
-    }
-
-    /**
-     * Columns the waiting room and visit list actually render.
-     *
-     * @param  Builder<EncounterModel>  $query
-     * @return Builder<EncounterModel>
-     */
-    public function scopeForList(Builder $query): Builder
-    {
-        return $query
-            ->select([
-                'encounters.id',
-                'encounters.hospital_id',
-                'encounters.patient_id',
-                'encounters.encounter_number',
-                'encounters.type',
-                'encounters.status',
-                'encounters.department_id',
-                'encounters.clinic_id',
-                'encounters.doctor_id',
-                'encounters.started_at',
-                'encounters.ended_at',
-                'encounters.reason',
-                'encounters.chief_complaint',
-                'encounters.discharge_instructions',
-                'encounters.discharge_disposition',
-                'encounters.follow_up_date',
-                'encounters.created_at',
-            ])
-            ->with([
-                'patient:id,mrn,first_name,father_name,grandfather_name,last_name,name_en,gender,date_of_birth,phone,national_id,blood_type,status',
-                'department:id,name,type',
-                'clinic:id,name',
-                'doctor:id,staff_id,specialty',
-                'doctor.staff:id,first_name,last_name',
-            ]);
-    }
-
-    /**
-     * @param  Builder<EncounterModel>  $query
-     * @return Builder<EncounterModel>
-     */
-    public function scopeSearch(Builder $query, string $term): Builder
-    {
-        return RecordLookup::encounters($query, $term);
     }
 
     /**

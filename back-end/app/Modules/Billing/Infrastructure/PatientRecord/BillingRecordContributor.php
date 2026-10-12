@@ -25,6 +25,7 @@ final class BillingRecordContributor implements PatientRecordContributor
             ->when($encounterId !== null, fn ($query) => $query->where('encounter_id', $encounterId));
 
         $invoices = InvoiceModel::query()
+            ->with(['installments', 'createdBy'])
             ->where('patient_id', $patientId)
             ->when($encounterId !== null, fn ($query) => $query->where('encounter_id', $encounterId));
 
@@ -35,7 +36,7 @@ final class BillingRecordContributor implements PatientRecordContributor
             'paid_total' => round((float) (clone $invoices)->sum('paid_amount'), 2),
             'outstanding_balance' => round((float) (clone $invoices)->sum('balance'), 2),
             'recent_charges' => (clone $charges)
-                ->with(['createdBy:id,username,staff_id', 'createdBy.staff:id,first_name,last_name'])
+                ->with('createdBy')
                 ->orderByDesc('created_at')
                 ->limit(30)
                 ->get()
@@ -50,11 +51,6 @@ final class BillingRecordContributor implements PatientRecordContributor
                 ])
                 ->all(),
             'recent_invoices' => (clone $invoices)
-                ->with([
-                    'installments',
-                    'createdBy:id,username,staff_id',
-                    'createdBy.staff:id,first_name,last_name',
-                ])
                 ->orderByDesc('created_at')
                 ->limit(10)
                 ->get()

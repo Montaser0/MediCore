@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace App\Modules\Departments\Presentation\Controllers;
 
 use App\Core\Authorization\Permissions;
-use App\Core\Auth\CurrentUser;
-use App\Core\Cache\ReferenceCatalog;
 use App\Core\Http\Controllers\ApiController;
 use App\Core\Http\DeactivateRecord;
 use App\Core\Http\Responses\ApiResponse;
@@ -19,32 +17,16 @@ use Illuminate\Validation\Rule;
 
 final class ClinicController extends ApiController
 {
-    public function index(Request $request, CurrentUser $currentUser, ReferenceCatalog $catalog): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        $hospitalId = $currentUser->hospitalId();
+        $clinics = ClinicModel::query()
+            ->with('department')
+            ->when($request->filled('department_id'), fn ($query) => $query->where('department_id', $request->integer('department_id')))
+            ->when(! $request->boolean('include_inactive'), fn ($query) => $query->active())
+            ->orderBy('name')
+            ->get();
 
-        if ($hospitalId === null) {
-            $clinics = ClinicModel::query()
-                ->with('department')
-                ->when($request->filled('department_id'), fn ($query) => $query->where('department_id', $request->integer('department_id')))
-                ->when(! $request->boolean('include_inactive'), fn ($query) => $query->active())
-                ->orderBy('name')
-                ->get();
-
-            return ApiResponse::data(ClinicResource::collection($clinics)->resolve());
-        }
-
-        $rows = collect($catalog->clinics($hospitalId));
-
-        if ($request->filled('department_id')) {
-            $rows = $rows->where('department_id', $request->integer('department_id'));
-        }
-
-        if (! $request->boolean('include_inactive')) {
-            $rows = $rows->where('is_active', true);
-        }
-
-        return ApiResponse::data($rows->values()->all());
+        return ApiResponse::data(ClinicResource::collection($clinics)->resolve());
     }
 
     public function store(StoreClinicRequest $request): JsonResponse
