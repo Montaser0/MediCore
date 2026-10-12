@@ -8,7 +8,7 @@ export function useInvoices() {
     queryKey: ["billing", "invoices"],
     queryFn: async () => {
       try {
-        const res = await billingApi.invoices({ per_page: 100 });
+        const res = await billingApi.invoices({ per_page: 25 });
         return res.data ?? [];
       } catch {
         return [];

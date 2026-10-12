@@ -6,6 +6,8 @@ namespace App\Modules\Patients\Infrastructure\Persistence\Models;
 
 use App\Core\Persistence\BaseModel;
 use App\Core\Support\Numbering\DailyNumber;
+use App\Core\Support\PhoneNumber;
+use App\Core\Support\RecordLookup;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use App\Core\Support\Traits\Auditable;
 use App\Core\Support\Traits\BelongsToHospital;
@@ -43,6 +45,32 @@ final class PatientModel extends BaseModel
     {
         return Attribute::make(
             get: fn (?string $value) => DailyNumber::present($value),
+            set: fn (?string $value) => [
+                'mrn' => $value,
+                'mrn_serial' => DailyNumber::serial($value),
+            ],
+        );
+    }
+
+    protected function phone(): Attribute
+    {
+        return Attribute::make(
+            set: fn (?string $value) => [
+                'phone' => $value,
+                'phone_normalized' => PhoneNumber::normalize($value),
+                'phone_tail' => PhoneNumber::tail($value),
+            ],
+        );
+    }
+
+    protected function phoneSecondary(): Attribute
+    {
+        return Attribute::make(
+            set: fn (?string $value) => [
+                'phone_secondary' => $value,
+                'phone_secondary_normalized' => PhoneNumber::normalize($value),
+                'phone_secondary_tail' => PhoneNumber::tail($value),
+            ],
         );
     }
 
@@ -131,22 +159,6 @@ final class PatientModel extends BaseModel
             return $query;
         }
 
-        return $query->where(function (Builder $inner) use ($term): void {
-            $inner->where('mrn', 'like', "%{$term}%")
-                ->orWhere('phone', 'like', "%{$term}%")
-                ->orWhere('phone_secondary', 'like', "%{$term}%")
-                ->orWhere('national_id', 'like', "%{$term}%")
-                ->orWhere('first_name', 'like', "%{$term}%")
-                ->orWhere('father_name', 'like', "%{$term}%")
-                ->orWhere('last_name', 'like', "%{$term}%")
-                ->orWhereRaw(
-                    "CONCAT_WS(' ', first_name, father_name, grandfather_name, last_name) LIKE ?",
-                    ["%{$term}%"]
-                );
-
-            if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $term) === 1) {
-                $inner->orWhere('date_of_birth', $term);
-            }
-        });
+        return RecordLookup::patients($query, $term);
     }
 }

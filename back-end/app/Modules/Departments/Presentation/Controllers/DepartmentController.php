@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Modules\Departments\Presentation\Controllers;
 
 use App\Core\Authorization\Permissions;
+use App\Core\Auth\CurrentUser;
+use App\Core\Cache\ReferenceCatalog;
 use App\Core\Http\Controllers\ApiController;
 use App\Core\Http\DeactivateRecord;
 use App\Core\Http\Responses\ApiResponse;
@@ -18,17 +20,33 @@ use Illuminate\Http\Request;
 
 final class DepartmentController extends ApiController
 {
-    public function index(Request $request): JsonResponse
+    public function index(Request $request, CurrentUser $currentUser, ReferenceCatalog $catalog): JsonResponse
     {
-        $departments = DepartmentModel::query()
-            ->with('clinics')
-            ->forCurrentHospital()
-            ->when($request->filled('type'), fn ($query) => $query->where('type', (string) $request->string('type')))
-            ->when(! $request->boolean('include_inactive'), fn ($query) => $query->active())
-            ->orderBy('name')
-            ->get();
+        $hospitalId = $currentUser->hospitalId();
 
-        return ApiResponse::data(DepartmentResource::collection($departments)->resolve());
+        if ($hospitalId === null) {
+            $departments = DepartmentModel::query()
+                ->with('clinics')
+                ->forCurrentHospital()
+                ->when($request->filled('type'), fn ($query) => $query->where('type', (string) $request->string('type')))
+                ->when(! $request->boolean('include_inactive'), fn ($query) => $query->active())
+                ->orderBy('name')
+                ->get();
+
+            return ApiResponse::data(DepartmentResource::collection($departments)->resolve());
+        }
+
+        $rows = collect($catalog->departments($hospitalId));
+
+        if (! $request->boolean('include_inactive')) {
+            $rows = $rows->where('is_active', true);
+        }
+
+        if ($request->filled('type')) {
+            $rows = $rows->where('type', (string) $request->string('type'));
+        }
+
+        return ApiResponse::data($rows->values()->all());
     }
 
     public function types(): JsonResponse

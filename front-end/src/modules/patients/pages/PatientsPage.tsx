@@ -18,6 +18,7 @@ import { formatDate } from "@/lib/utils";
 import { arabicLabel } from "@/i18n/arabicLabels";
 import { dailyNo } from "@/lib/arabicText";
 import { apiGet, getErrorMessage } from "@/lib/api/client";
+import { useDebouncedValue } from "@/lib/useDebouncedValue";
 import { isDoctorDesk } from "@/config/desk";
 import { useAuthStore } from "@/stores/auth-store";
 import type { NamedRow } from "../api/journey.api";
@@ -31,7 +32,10 @@ export function PatientsPage() {
   const doctorDesk = isDoctorDesk(useAuthStore((state) => state.user));
   const canRegister = canCreatePatient && !doctorDesk;
   const [search, setSearch] = useState("");
-  const [q, setQ] = useState("");
+  const [immediate, setImmediate] = useState<string | null>(null);
+  const debounced = useDebouncedValue(search, 300);
+  const q = immediate ?? debounced;
+  const [page, setPage] = useState(1);
   const [departmentId, setDepartmentId] = useState("");
   const [clinicId, setClinicId] = useState("");
   const [editing, setEditing] = useState<Patient | null>(null);
@@ -39,13 +43,15 @@ export function PatientsPage() {
   const updatePatient = useUpdatePatient();
   const deletePatient = useDeletePatient();
   const { data, isLoading, refetch, isFetching } = usePatients({
-    search: q || undefined,
+    search: q.trim() || undefined,
     department_id: departmentId ? Number(departmentId) : undefined,
     clinic_id: clinicId ? Number(clinicId) : undefined,
-    per_page: 50,
+    page,
+    per_page: 25,
   });
   const { data: departments = [] } = useQuery({
     queryKey: ["/departments", "patients"],
+    staleTime: 10 * 60_000,
     queryFn: async () => {
       const res = await apiGet<NamedRow[]>("/departments", { params: { per_page: 200 } });
       return Array.isArray(res.data) ? res.data : [];
@@ -53,6 +59,7 @@ export function PatientsPage() {
   });
   const { data: clinics = [] } = useQuery({
     queryKey: ["/clinics", "patients"],
+    staleTime: 10 * 60_000,
     queryFn: async () => {
       const res = await apiGet<NamedRow[]>("/clinics", { params: { per_page: 200 } });
       return Array.isArray(res.data) ? res.data : [];
@@ -202,14 +209,18 @@ export function PatientsPage() {
           <Search size={13} className="text-[var(--his-muted)]" />
           <Input
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setImmediate(null);
+              setPage(1);
+            }}
             onKeyDown={(e) => {
-              if (e.key === "Enter") setQ(search);
+              if (e.key === "Enter") setImmediate(search);
             }}
             placeholder={t("patients.searchPlaceholder")}
             className="border-0! w-64 h-6!"
           />
-          <Button onClick={() => setQ(search)}>{t("app.search")}</Button>
+          <Button onClick={() => setImmediate(search)}>{t("app.search")}</Button>
         </div>
         <Select
           className="w-40"
@@ -217,6 +228,7 @@ export function PatientsPage() {
           onChange={(event) => {
             setDepartmentId(event.target.value);
             setClinicId("");
+            setPage(1);
           }}
         >
           <option value="">{t("patients.allDepartments")}</option>
@@ -226,7 +238,7 @@ export function PatientsPage() {
             </option>
           ))}
         </Select>
-        <Select className="w-40" value={clinicId} onChange={(event) => setClinicId(event.target.value)}>
+        <Select className="w-40" value={clinicId} onChange={(event) => { setClinicId(event.target.value); setPage(1); }}>
           <option value="">{t("patients.allClinics")}</option>
           {clinicOptions.map((row) => (
             <option key={row.id} value={row.id}>
@@ -248,7 +260,7 @@ export function PatientsPage() {
         ) : null}
       </PageToolbar>
 
-      <div className="flex-1 p-2">
+      <div className={`flex-1 p-2 ${isFetching && !isLoading ? "opacity-70" : ""}`}>
         <DataTable
           columns={columns}
           rows={data?.rows ?? []}
@@ -256,6 +268,21 @@ export function PatientsPage() {
           loading={isLoading}
           emptyText={t("app.noData")}
         />
+        <div className="mt-2 flex items-center justify-end gap-2 text-[12px]">
+          <Button disabled={page <= 1 || isFetching} onClick={() => setPage((current) => Math.max(1, current - 1))}>
+            {t("app.previous")}
+          </Button>
+          <span>
+            {page}
+            {data?.meta?.last_page ? ` / ${data.meta.last_page}` : ""}
+          </span>
+          <Button
+            disabled={isFetching || (data?.meta?.last_page != null ? page >= data.meta.last_page : (data?.rows.length ?? 0) < 25)}
+            onClick={() => setPage((current) => current + 1)}
+          >
+            {t("app.next")}
+          </Button>
+        </div>
       </div>
       {editing ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">

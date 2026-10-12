@@ -10,6 +10,7 @@ export type Patient = {
   father_name?: string | null;
   grandfather_name?: string | null;
   last_name: string;
+  name_en?: string | null;
   mother_name?: string | null;
   full_name: string;
   gender: Gender;

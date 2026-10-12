@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Departments\Infrastructure\Persistence\Models;
 
+use App\Core\Cache\ReferenceCatalog;
 use App\Core\Persistence\BaseModel;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -21,6 +22,17 @@ final class ClinicModel extends BaseModel
     protected $casts = [
         'is_active' => 'boolean',
     ];
+
+    protected static function booted(): void
+    {
+        $forget = static function (self $clinic): void {
+            $hospitalId = DepartmentModel::query()->whereKey($clinic->department_id)->value('hospital_id');
+            ReferenceCatalog::forget((int) $hospitalId);
+        };
+
+        static::saved($forget);
+        static::deleted($forget);
+    }
 
     /**
      * @return BelongsTo<DepartmentModel, $this>

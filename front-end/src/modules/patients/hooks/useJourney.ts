@@ -14,11 +14,12 @@ export function usePatientEncounters(patientId?: string) {
   });
 }
 
-export function useCatalogs() {
+export function useCatalogs(enabled = true) {
   return useQuery({
     queryKey: ["journey-catalogs"],
+    enabled,
     queryFn: () => journeyApi.catalogs(),
-    staleTime: 60_000,
+    staleTime: 10 * 60_000,
   });
 }
 

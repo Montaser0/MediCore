@@ -19,16 +19,30 @@ final class GetPatientAccountQuery
      */
     public function execute(int $patientId): array
     {
-        $uninvoiced = ChargeModel::query()
-            ->with('service')
-            ->where('patient_id', $patientId)
+        $charges = ChargeModel::query()->where('patient_id', $patientId);
+        $invoices = InvoiceModel::query()->where('patient_id', $patientId);
+
+        $uninvoicedTotal = (float) (clone $charges)->uninvoiced()->sum('total');
+        $invoicedTotal = (float) (clone $invoices)->sum('total');
+        $paidTotal = (float) (clone $invoices)->sum('paid_amount');
+        $outstanding = (float) (clone $invoices)->sum('balance');
+
+        $uninvoiced = (clone $charges)
             ->uninvoiced()
+            ->select([
+                'id', 'description', 'quantity', 'unit_price', 'discount', 'total',
+                'source_type', 'encounter_id', 'created_at',
+            ])
             ->orderByDesc('created_at')
+            ->limit(50)
             ->get();
 
-        $invoices = InvoiceModel::query()
-            ->where('patient_id', $patientId)
+        $recentInvoices = (clone $invoices)
+            ->select([
+                'id', 'invoice_number', 'status', 'total', 'paid_amount', 'balance', 'issued_at', 'created_at',
+            ])
             ->orderByDesc('created_at')
+            ->limit(50)
             ->get();
 
         $insurance = PatientInsuranceModel::query()
@@ -40,10 +54,10 @@ final class GetPatientAccountQuery
 
         return [
             'totals' => [
-                'uninvoiced_charges' => round((float) $uninvoiced->sum('total'), 2),
-                'invoiced_total' => round((float) $invoices->sum('total'), 2),
-                'paid_total' => round((float) $invoices->sum('paid_amount'), 2),
-                'outstanding_balance' => round((float) $invoices->sum('balance'), 2),
+                'uninvoiced_charges' => round($uninvoicedTotal, 2),
+                'invoiced_total' => round($invoicedTotal, 2),
+                'paid_total' => round($paidTotal, 2),
+                'outstanding_balance' => round($outstanding, 2),
             ],
             'uninvoiced_charges' => $uninvoiced->map(fn (ChargeModel $charge) => [
                 'id' => $charge->getKey(),
@@ -56,7 +70,7 @@ final class GetPatientAccountQuery
                 'encounter_id' => $charge->encounter_id,
                 'created_at' => $charge->created_at?->toIso8601String(),
             ])->all(),
-            'invoices' => $invoices->map(fn (InvoiceModel $invoice) => [
+            'invoices' => $recentInvoices->map(fn (InvoiceModel $invoice) => [
                 'id' => $invoice->getKey(),
                 'invoice_number' => $invoice->invoice_number,
                 'status' => $invoice->status->value,

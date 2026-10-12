@@ -42,11 +42,15 @@ export function DataTable<T>({
         </thead>
         <tbody>
           {loading ? (
-            <tr>
-              <td colSpan={columns.length} className="py-8 text-center text-[var(--his-muted)]">
-                جاري التحميل...
-              </td>
-            </tr>
+            Array.from({ length: 6 }, (_, index) => (
+              <tr key={`skeleton-${index}`}>
+                {columns.map((col) => (
+                  <td key={col.key}>
+                    <span className="inline-block h-3 w-4/5 animate-pulse bg-[#d5dee8]" />
+                  </td>
+                ))}
+              </tr>
+            ))
           ) : rows.length === 0 ? (
             <tr>
               <td colSpan={columns.length} className="py-8 text-center text-[var(--his-muted)]">

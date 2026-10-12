@@ -24,6 +24,7 @@ final class UpdatePatientRequest extends ApiFormRequest
             'father_name' => ['nullable', 'string', 'max:100'],
             'grandfather_name' => ['nullable', 'string', 'max:100'],
             'last_name' => ['sometimes', 'string', 'max:100'],
+            'name_en' => ['nullable', 'string', 'max:200'],
             'mother_name' => ['nullable', 'string', 'max:200'],
             'gender' => ['sometimes', Rule::in(Gender::values())],
             'date_of_birth' => ['nullable', 'date', 'before_or_equal:today'],

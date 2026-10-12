@@ -19,6 +19,7 @@ final readonly class PatientData
         public string $firstName,
         public string $lastName,
         public Gender $gender,
+        public ?string $nameEn = null,
         public ?string $fatherName = null,
         public ?string $grandfatherName = null,
         public ?string $motherName = null,
@@ -49,6 +50,7 @@ final readonly class PatientData
             hospitalId: $hospitalId,
             firstName: (string) $data['first_name'],
             lastName: (string) $data['last_name'],
+            nameEn: $data['name_en'] ?? null,
             gender: Gender::from((string) $data['gender']),
             fatherName: $data['father_name'] ?? null,
             grandfatherName: $data['grandfather_name'] ?? null,
@@ -80,6 +82,7 @@ final readonly class PatientData
         return [
             'hospital_id' => $this->hospitalId,
             'first_name' => $this->firstName,
+            'name_en' => $this->blankToNull($this->nameEn),
             'father_name' => $this->fatherName,
             'grandfather_name' => $this->grandfatherName,
             'last_name' => $this->lastName,

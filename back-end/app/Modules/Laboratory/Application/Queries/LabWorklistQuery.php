@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Laboratory\Application\Queries;
 
+use App\Core\Persistence\QueryWindow;
 use App\Modules\Laboratory\Infrastructure\Persistence\Models\LabOrderItemModel;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
@@ -18,6 +19,8 @@ final class LabWorklistQuery
      */
     public function execute(array $filters, int $perPage = 50): LengthAwarePaginator
     {
+        $perPage = max(1, min($perPage, 50));
+
         return LabOrderItemModel::query()
             ->with([
                 'test',
@@ -42,7 +45,7 @@ final class LabWorklistQuery
                 }
 
                 if (! empty($filters['date'])) {
-                    $query->whereDate('ordered_at', $filters['date']);
+                    QueryWindow::on($query, 'ordered_at', $filters['date']);
                 }
             })
             ->when($filters['status'] ?? null, fn ($q, $value) => $q->whereIn('status', (array) $value))

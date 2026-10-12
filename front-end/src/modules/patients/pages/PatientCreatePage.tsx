@@ -14,6 +14,7 @@ import { Panel } from "@/components/ui/Panel";
 import { useCreatePatient, usePatients } from "../hooks/usePatients";
 import { journeyApi, type NamedRow } from "../api/journey.api";
 import { apiGet, getErrorMessage } from "@/lib/api/client";
+import { useDebouncedValue } from "@/lib/useDebouncedValue";
 import { dailyNo } from "@/lib/arabicText";
 
 type RegisterDepartment = NamedRow & {
@@ -37,6 +38,7 @@ export function PatientCreatePage() {
     date_of_birth: "",
     national_id: "",
     phone: "",
+    name_en: "",
     city: "",
     blood_type: "",
     address: "",
@@ -46,9 +48,10 @@ export function PatientCreatePage() {
     doctor_id: "",
   });
 
-  const lookup = [form.national_id, form.phone, `${form.first_name} ${form.last_name}`]
+  const lookupRaw = [form.national_id, form.phone, form.name_en, `${form.first_name} ${form.last_name}`]
     .map((value) => value.trim())
     .find((value) => value.length >= 3);
+  const lookup = useDebouncedValue(lookupRaw, 350);
   const { data: matches } = usePatients(
     lookup ? { search: lookup, per_page: 5 } : undefined,
     Boolean(lookup),
@@ -67,6 +70,7 @@ export function PatientCreatePage() {
   });
   const { data: departments = [] } = useQuery({
     queryKey: ["/departments", "register"],
+    staleTime: 10 * 60_000,
     queryFn: async () => {
       const res = await apiGet<RegisterDepartment[]>("/departments", { params: { per_page: 200 } });
       return Array.isArray(res.data) ? res.data : [];
@@ -76,6 +80,7 @@ export function PatientCreatePage() {
   const selectedDepartment = departmentOptions.find((row) => String(row.id) === form.department_id);
   const { data: clinics = [] } = useQuery({
     queryKey: ["/clinics", "register"],
+    staleTime: 10 * 60_000,
     queryFn: async () => {
       const res = await apiGet<NamedRow[]>("/clinics", { params: { per_page: 200 } });
       return Array.isArray(res.data) ? res.data : [];
@@ -128,6 +133,7 @@ export function PatientCreatePage() {
         date_of_birth: form.date_of_birth,
         national_id: form.national_id,
         phone: form.phone,
+        name_en: form.name_en,
         city: form.city,
         blood_type: form.blood_type,
         address: form.address,
@@ -202,6 +208,9 @@ export function PatientCreatePage() {
             </Field>
             <Field label={t("patients.lastName")}>
               <Input required value={form.last_name} onChange={(e) => set("last_name", e.target.value)} />
+            </Field>
+            <Field label={t("patients.nameEn")}>
+              <Input value={form.name_en} onChange={(e) => set("name_en", e.target.value)} />
             </Field>
             <Field label={t("patients.motherName")}>
               <Input value={form.mother_name} onChange={(e) => set("mother_name", e.target.value)} />
