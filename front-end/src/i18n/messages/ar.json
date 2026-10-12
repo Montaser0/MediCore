@@ -467,6 +467,8 @@
     "admissionDate": "تاريخ الدخول",
     "doctor": "الطبيب",
     "department": "القسم",
+    "clinic": "العيادة",
+    "unit": "العيادة أو الجناح",
     "openVisit": "فتح زيارة",
     "visitOpened": "تم فتح الزيارة وتعيينها",
     "noOpenVisit": "لا توجد زيارة مفتوحة",

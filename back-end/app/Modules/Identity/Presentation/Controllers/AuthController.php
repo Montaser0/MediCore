@@ -25,7 +25,7 @@ final class AuthController extends ApiController
             CredentialsData::fromArray($request->validated(), $request->ip())
         );
 
-        $user = $result['user']->load(['staff.department', 'staff.doctor', 'roles', 'departments']);
+        $user = $result['user']->load(['staff.department', 'staff.clinic', 'staff.doctor.clinic', 'roles', 'departments']);
 
         return ApiResponse::data([
             'token' => $result['token'],
@@ -40,7 +40,7 @@ final class AuthController extends ApiController
         $user = $request->user();
 
         return ApiResponse::resource(
-            new AuthenticatedUserResource($user->load(['staff.department', 'staff.doctor', 'roles', 'departments']))
+            new AuthenticatedUserResource($user->load(['staff.department', 'staff.clinic', 'staff.doctor.clinic', 'roles', 'departments']))
         );
     }
 

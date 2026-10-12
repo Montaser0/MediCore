@@ -21,14 +21,16 @@ export type EncountersListParams = {
   date?: string;
   page?: number;
   per_page?: number;
+  doctor_id?: number;
+  clinic_id?: number;
 };
 
 export const encountersApi = {
   list: (params?: EncountersListParams) =>
     apiGet<EncounterRow[]>("/encounters", { params }),
 
-  queue: (date?: string) =>
-    apiGet<EncounterRow[]>("/encounters/queue", { params: { date, per_page: 100 } }),
+  queue: (params?: Pick<EncountersListParams, "date" | "doctor_id" | "clinic_id">) =>
+    apiGet<EncounterRow[]>("/encounters/queue", { params: { ...params, per_page: 100 } }),
 
   start: (id: number | string) =>
     apiPost<EncounterRow>(`/encounters/${id}/start`),

@@ -467,6 +467,8 @@
     "admissionDate": "Admission date",
     "doctor": "Doctor",
     "department": "Department",
+    "clinic": "Clinic",
+    "unit": "Clinic or wing",
     "openVisit": "Open visit",
     "visitOpened": "Visit opened and assigned",
     "noOpenVisit": "No open visit",

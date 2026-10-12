@@ -4,19 +4,22 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { RefreshCw } from "lucide-react";
 import { PageToolbar } from "@/components/ui/PageToolbar";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Panel } from "@/components/ui/Panel";
+import { Select } from "@/components/ui/Select";
 import { DataTable, type Column } from "@/components/data-table/DataTable";
 import { formatDate } from "@/lib/utils";
 import { arabicLabel } from "@/i18n/arabicLabels";
 import { dailyNo } from "@/lib/arabicText";
-import { getErrorMessage } from "@/lib/api/client";
+import { apiGet, getErrorMessage } from "@/lib/api/client";
 import { useAuthStore } from "@/stores/auth-store";
-import { isDoctorDesk } from "@/config/desk";
+import { isDoctorDesk, roleNames } from "@/config/desk";
+import type { NamedRow } from "@/modules/patients/api/journey.api";
 import {
   useEncounters,
   useEncounterQueue,
@@ -32,6 +35,10 @@ function localToday() {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
+function placeName(row: EncounterRow) {
+  return row.clinic?.name ?? row.department?.name ?? "—";
+}
+
 function statusTone(status?: string) {
   if (status === "completed") return "success" as const;
   if (status === "cancelled") return "danger" as const;
@@ -42,19 +49,54 @@ function statusTone(status?: string) {
 export function EncountersPage() {
   const t = useTranslations();
   const locale = useLocale();
-  const doctorDesk = isDoctorDesk(useAuthStore((state) => state.user));
+  const user = useAuthStore((state) => state.user);
+  const roles = roleNames(user);
+  const isAdmin = roles.includes("admin");
+  const isDataEntry = roles.length === 1 && roles[0] === "data_entry";
+  const isDoctor = roles.length === 1 && roles[0] === "doctor";
+  const doctorDesk = isDoctorDesk(user);
   const searchParams = useSearchParams();
   const lockedType = searchParams.get("type") ?? "";
   const [kind, setKind] = useState(lockedType);
+  const [doctorId, setDoctorId] = useState("");
+  const [clinicId, setClinicId] = useState("");
   const type = lockedType || kind || undefined;
   const today = localToday();
+  const unitName = user?.clinic?.name ?? user?.department?.name ?? "";
+  const listFilter = {
+    date: today,
+    doctor_id: (isDataEntry || isAdmin) && doctorId ? Number(doctorId) : undefined,
+    clinic_id: isAdmin && clinicId ? Number(clinicId) : undefined,
+  };
+
+  const { data: doctors = [] } = useQuery({
+    queryKey: ["/doctors", "encounters", isAdmin ? clinicId : user?.clinic?.id, user?.department?.id],
+    enabled: isDataEntry || isAdmin,
+    queryFn: async () => {
+      const res = await apiGet<NamedRow[]>("/doctors", {
+        params: {
+          per_page: 200,
+          clinic_id: isAdmin ? clinicId || undefined : user?.clinic?.id,
+          department_id: isAdmin || user?.clinic?.id ? undefined : user?.department?.id,
+        },
+      });
+      return Array.isArray(res.data) ? res.data : [];
+    },
+  });
+  const { data: clinics = [] } = useQuery({
+    queryKey: ["/clinics", "encounters"],
+    enabled: isAdmin,
+    queryFn: async () => {
+      const res = await apiGet<NamedRow[]>("/clinics", { params: { per_page: 200 } });
+      return Array.isArray(res.data) ? res.data : [];
+    },
+  });
 
   const { data: rows = [], isLoading, refetch, isFetching } = useEncounters({
-    type,
-    date: today,
     per_page: 100,
+    ...listFilter,
   });
-  const { data: queue = [], isLoading: queueLoading, refetch: refetchQueue } = useEncounterQueue(today);
+  const { data: queue = [], isLoading: queueLoading, refetch: refetchQueue } = useEncounterQueue(listFilter);
   const { start, close, cancel } = useEncounterActions();
 
   const waiting = useMemo(
@@ -62,12 +104,12 @@ export function EncountersPage() {
     [queue, type],
   );
   const examining = useMemo(
-    () => rows.filter((row) => row.status === "in_progress"),
-    [rows],
+    () => rows.filter((row) => row.status === "in_progress" && (!type || row.type === type)),
+    [rows, type],
   );
   const closed = useMemo(
-    () => rows.filter((row) => row.is_open === false),
-    [rows],
+    () => rows.filter((row) => row.is_open === false && (!type || row.type === type)),
+    [rows, type],
   );
 
   function patientName(row: EncounterRow) {
@@ -102,7 +144,7 @@ export function EncountersPage() {
       { key: "patient", header: t("patients.fullName"), cell: patientName },
       { key: "mrn", header: t("patients.mrn"), width: 90, cell: (row) => dailyNo(row.patient?.mrn) || "—" },
       { key: "complaint", header: t("workspace.chiefComplaint"), cell: (row) => row.chief_complaint || "—" },
-      { key: "place", header: t("workspace.department"), width: 130, cell: (row) => row.department?.name ?? row.clinic?.name ?? "—" },
+      { key: "place", header: t("workspace.unit"), width: 140, cell: (row) => placeName(row) },
       { key: "doctor", header: t("workspace.doctor"), width: 130, cell: (row) => row.doctor?.name ?? "—" },
       {
         key: "actions",
@@ -139,6 +181,7 @@ export function EncountersPage() {
       { key: "num", header: "#", width: 80, cell: (row) => dailyNo(row.encounter_number ?? row.id) },
       { key: "patient", header: t("patients.fullName"), cell: patientName },
       { key: "type", header: t("encounters.type"), width: 110, cell: (row) => arabicLabel(row.type) },
+      { key: "place", header: t("workspace.unit"), width: 140, cell: (row) => placeName(row) },
       { key: "doctor", header: t("workspace.doctor"), width: 130, cell: (row) => row.doctor?.name ?? "—" },
       { key: "started", header: t("app.time"), width: 130, cell: (row) => formatDate(row.started_at, true) },
       {
@@ -178,6 +221,8 @@ export function EncountersPage() {
       { key: "num", header: "#", width: 80, cell: (row) => dailyNo(row.encounter_number ?? row.id) },
       { key: "patient", header: t("patients.fullName"), cell: patientName },
       { key: "type", header: t("encounters.type"), width: 110, cell: (row) => arabicLabel(row.type) },
+      { key: "place", header: t("workspace.unit"), width: 140, cell: (row) => placeName(row) },
+      { key: "doctor", header: t("workspace.doctor"), width: 130, cell: (row) => row.doctor?.name ?? "—" },
       {
         key: "status",
         header: t("app.status"),
@@ -190,17 +235,64 @@ export function EncountersPage() {
   );
 
   const title = lockedType === "emergency" ? t("nav.emergency") : t("encounters.title");
+  const identity = isDataEntry
+    ? unitName
+    : isDoctor
+      ? [unitName, user?.display_name].filter(Boolean).join(" — ")
+      : "";
 
   return (
     <div className="flex h-full flex-col">
-      <PageToolbar title={title}>
-        {lockedType ? null : (
+      <PageToolbar
+        title={
+          identity ? (
+            <span className="inline-flex items-center gap-2">
+              <span>{title}</span>
+              <span className="font-normal text-[var(--his-muted)]">{identity}</span>
+            </span>
+          ) : (
+            title
+          )
+        }
+      >
+        {isAdmin ? (
+          <Select
+            value={clinicId}
+            onChange={(event) => {
+              setClinicId(event.target.value);
+              setDoctorId("");
+            }}
+            className="w-44"
+          >
+            <option value="">{t("patients.allClinics")}</option>
+            {clinics.map((row) => (
+              <option key={row.id} value={row.id}>
+                {row.name ?? row.id}
+              </option>
+            ))}
+          </Select>
+        ) : null}
+        {isDataEntry || isAdmin ? (
+          <Select value={doctorId} onChange={(event) => setDoctorId(event.target.value)} className="w-44">
+            <option value="">{t("workspace.doctor")}</option>
+            {doctors.map((row) => (
+              <option key={row.id} value={row.id}>
+                {row.name ?? row.display_name ?? row.id}
+              </option>
+            ))}
+          </Select>
+        ) : null}
+        {lockedType || doctorDesk ? null : (
           <div className="flex gap-1">
             {TYPES.map((value) => (
               <Button
                 key={value || "all"}
                 variant={(kind || "") === value ? "primary" : "default"}
-                onClick={() => setKind(value)}
+                onClick={() => {
+                  setKind(value);
+                  setClinicId("");
+                  setDoctorId("");
+                }}
               >
                 {value ? t(`encounters.${value}`) : t("encounters.allTypes")}
               </Button>

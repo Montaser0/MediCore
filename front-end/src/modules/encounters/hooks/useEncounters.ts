@@ -20,12 +20,12 @@ export function useEncounters(params?: EncountersListParams) {
   });
 }
 
-export function useEncounterQueue(date?: string) {
+export function useEncounterQueue(params?: Pick<EncountersListParams, "date" | "doctor_id" | "clinic_id">) {
   return useQuery({
-    queryKey: ["encounters", "queue", date],
+    queryKey: ["encounters", "queue", params],
     queryFn: async () => {
       try {
-        const res = await encountersApi.queue(date);
+        const res = await encountersApi.queue(params);
         return res.data ?? [];
       } catch {
         return [];

@@ -23,6 +23,7 @@ final class AuthenticatedUserResource extends JsonResource
     public function toArray(Request $request): array
     {
         $staff = $this->staff;
+        $clinic = $staff?->clinic ?? $staff?->doctor?->clinic;
 
         return [
             'id' => $this->id,
@@ -39,6 +40,10 @@ final class AuthenticatedUserResource extends JsonResource
                     'type' => $staff->department->type->value,
                 ]
                 : null,
+            'clinic' => $clinic === null ? null : [
+                'id' => $clinic->id,
+                'name' => $clinic->name,
+            ],
             'staff_id' => $staff?->id,
             'doctor_id' => $staff?->doctor?->id,
             'job_title' => $staff?->job_title,
