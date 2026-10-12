@@ -10,6 +10,9 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('diagnosis-codes', [DiagnosisCodeController::class, 'index'])
         ->middleware('permission:'.Permissions::CLINICAL_DIAGNOSIS_VIEW);
+    Route::post('diagnosis-codes', [DiagnosisCodeController::class, 'store']);
+    Route::patch('diagnosis-codes/{diagnosisCode}', [DiagnosisCodeController::class, 'update']);
+    Route::delete('diagnosis-codes/{diagnosisCode}', [DiagnosisCodeController::class, 'destroy']);
 
     Route::prefix('encounters/{encounter}')->group(function (): void {
         Route::get('vitals', [ClinicalController::class, 'vitals'])

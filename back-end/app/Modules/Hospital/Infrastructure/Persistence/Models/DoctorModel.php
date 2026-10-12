@@ -44,6 +44,29 @@ final class DoctorModel extends BaseModel
         return $this->belongsToMany(ClinicModel::class, 'clinic_doctor', 'doctor_id', 'clinic_id');
     }
 
+    /**
+     * The clinic that supplies this doctor's diagnosis list.
+     * The assigned clinic wins; otherwise every clinic listed on the doctor is used.
+     *
+     * @return list<int>
+     */
+    public function diagnosisClinicIds(): array
+    {
+        if ($this->clinic_id !== null) {
+            return [(int) $this->clinic_id];
+        }
+
+        if (! $this->relationLoaded('clinics')) {
+            $this->load('clinics:clinics.id');
+        }
+
+        return $this->clinics
+            ->map(fn ($clinic) => (int) $clinic->getKey())
+            ->unique()
+            ->values()
+            ->all();
+    }
+
     public function getDisplayNameAttribute(): string
     {
         return 'Dr. '.($this->staff?->full_name ?? '');

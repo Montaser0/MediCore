@@ -11,6 +11,9 @@ export type NamedRow = {
   price?: number;
   specialty?: string;
   department_id?: number;
+  clinic_id?: number;
+  clinic?: { id?: number; name?: string };
+  clinics?: Array<{ id?: number; name?: string }>;
   status?: string;
   is_assignable?: boolean;
 };
@@ -93,6 +96,19 @@ export const journeyApi = {
 
   diagnosis: (encounterId: number, body: Record<string, unknown>) =>
     apiPost(`/encounters/${encounterId}/diagnoses`, clean(body)),
+
+  diagnosisCodes: async (doctorId: number): Promise<NamedRow[]> => {
+    const rows = await list<{ id: number; code?: string; title?: string; category?: string }>(
+      "/diagnosis-codes",
+      { doctor_id: doctorId, per_page: 200 },
+    );
+    return rows.map((row) => ({
+      id: row.id,
+      code: row.code,
+      category: row.category,
+      name: [row.code, row.title].filter(Boolean).join(" — "),
+    }));
+  },
 
   procedure: (encounterId: number, body: Record<string, unknown>) =>
     apiPost(`/encounters/${encounterId}/procedures`, clean(body)),

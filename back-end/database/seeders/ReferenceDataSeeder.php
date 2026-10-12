@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Database\Seeders;
 
 use App\Modules\Billing\Infrastructure\Persistence\Models\ServiceModel;
-use App\Modules\Clinical\Infrastructure\Persistence\Models\DiagnosisCodeModel;
+use App\Modules\Clinical\Infrastructure\Persistence\DiagnosisClinicLinks;
 use App\Modules\Departments\Infrastructure\Persistence\Models\DepartmentModel;
 use App\Modules\Hospital\Infrastructure\Persistence\Models\HospitalModel;
 use App\Modules\Inventory\Infrastructure\Persistence\Models\InventoryItemModel;
@@ -318,39 +318,11 @@ final class ReferenceDataSeeder extends Seeder
     }
 
     /**
-     * مجموعة أولية من تصنيف ICD-10. الفهرس الكامل يُستورد لاحقاً، وهذه تكفي
-     * ليعمل حقل اختيار التشخيص.
+     * مجموعة أولية من التشخيصات، كل رمز مربوط بالعيادات التي تستخدمه.
      */
     private function diagnosisCodes(): void
     {
-        $codes = [
-            ['A09', 'التهاب معدة وأمعاء إنتاني', 'الأمراض الإنتانية'],
-            ['E11', 'داء السكري من النمط الثاني', 'أمراض الغدد الصم'],
-            ['E78.5', 'فرط شحوم الدم', 'أمراض الغدد الصم'],
-            ['I10', 'ارتفاع الضغط الشرياني الأساسي', 'أمراض الدوران'],
-            ['I21', 'احتشاء العضلة القلبية الحاد', 'أمراض الدوران'],
-            ['J06.9', 'التهاب حاد في الطرق التنفسية العلوية', 'الأمراض التنفسية'],
-            ['J18.9', 'ذات الرئة غير محددة العامل', 'الأمراض التنفسية'],
-            ['J45', 'الربو القصبي', 'الأمراض التنفسية'],
-            ['K29.7', 'التهاب المعدة', 'أمراض الجهاز الهضمي'],
-            ['K35', 'التهاب الزائدة الدودية الحاد', 'أمراض الجهاز الهضمي'],
-            ['M54.5', 'ألم أسفل الظهر', 'الأمراض العضلية الهيكلية'],
-            ['N20', 'حصيات الكلية والحالب', 'الأمراض البولية التناسلية'],
-            ['N39.0', 'إنتان الطرق البولية', 'الأمراض البولية التناسلية'],
-            ['O80', 'ولادة طبيعية مفردة', 'الحمل والولادة'],
-            ['R50.9', 'حرارة غير محددة السبب', 'الأعراض والعلامات'],
-            ['R10.4', 'ألم بطني غير محدد', 'الأعراض والعلامات'],
-            ['S52', 'كسر في الساعد', 'الرضوض'],
-            ['S82', 'كسر في الساق', 'الرضوض'],
-            ['Z00.0', 'فحص طبي عام', 'الحالة الصحية'],
-        ];
-
-        foreach ($codes as [$code, $title, $category]) {
-            DiagnosisCodeModel::query()->firstOrCreate(
-                ['system' => 'icd10', 'code' => $code],
-                ['title' => $title, 'category' => $category, 'is_active' => true],
-            );
-        }
+        DiagnosisClinicLinks::ensureDefaults();
     }
 
     private function operations(int $hospitalId): void

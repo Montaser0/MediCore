@@ -16,7 +16,7 @@ final class DoctorController extends ApiController
     public function index(Request $request): JsonResponse
     {
         $doctors = DoctorModel::query()
-            ->with('staff.department')
+            ->with(['staff.department', 'clinic', 'clinics'])
             ->when($request->filled('department_id'), fn ($query) => $query->inDepartment($request->integer('department_id')))
             ->when($request->filled('clinic_id'), fn ($query) => $query->inClinic($request->integer('clinic_id')))
             ->when($request->filled('specialty'), fn ($query) => $query->where('specialty', 'like', '%'.$request->string('specialty').'%'))

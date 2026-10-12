@@ -10,6 +10,7 @@ use App\Core\Support\Contracts\EncounterContext;
 use App\Core\Support\Contracts\TimelineRecorder;
 use App\Modules\Clinical\Domain\Enums\DiagnosisType;
 use App\Modules\Clinical\Infrastructure\Persistence\Models\DiagnosisCodeModel;
+use App\Modules\Hospital\Infrastructure\Persistence\Models\DoctorModel;
 use App\Modules\Clinical\Infrastructure\Persistence\Models\DiagnosisModel;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -36,6 +37,7 @@ final class AddDiagnosisAction
             throw BusinessRuleException::make('التشخيص يجب أن يُنسب إلى طبيب.');
         }
 
+        $this->assertAvailableForDoctor((int) $doctorId, $data);
         $name = $this->resolveName($data);
 
         return DB::transaction(function () use ($encounter, $data, $type, $doctorId, $name): DiagnosisModel {
@@ -70,6 +72,40 @@ final class AddDiagnosisAction
 
             return $diagnosis->load(['code', 'doctor.staff', 'enteredBy.staff', 'enteredBy.roles']);
         });
+    }
+
+    /**
+     * The picked diagnosis must belong to a clinic assigned to the diagnosing doctor.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function assertAvailableForDoctor(int $doctorId, array $data): void
+    {
+        $doctor = DoctorModel::query()->with('clinics:clinics.id')->find($doctorId);
+        $clinicIds = $doctor?->diagnosisClinicIds() ?? [];
+
+        if ($clinicIds === []) {
+            throw BusinessRuleException::make('هذا الطبيب غير مربوط بعيادة.');
+        }
+
+        $codeId = $data['diagnosis_code_id'] ?? null;
+        $allowed = $codeId !== null && DiagnosisCodeModel::query()
+            ->active()
+            ->whereKey((int) $codeId)
+            ->whereHas('clinics', fn ($clinics) => $clinics->whereIn('clinics.id', $clinicIds))
+            ->exists();
+
+        if ($allowed) {
+            return;
+        }
+
+        $hasCatalog = DiagnosisCodeModel::query()->active()->forDoctor($doctorId)->exists();
+
+        throw BusinessRuleException::make(
+            $hasCatalog
+                ? 'هذا التشخيص غير متاح في عيادة الطبيب.'
+                : 'لا توجد تشخيصات مربوطة بعيادة هذا الطبيب.',
+        );
     }
 
     /**

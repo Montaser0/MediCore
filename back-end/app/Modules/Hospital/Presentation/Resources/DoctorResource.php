@@ -26,6 +26,21 @@ final class DoctorResource extends JsonResource
             'license_number' => $this->license_number,
             'specialty' => $this->specialty,
             'clinic_id' => $this->clinic_id,
+            'clinic' => $this->whenLoaded('clinic', fn () => $this->clinic === null ? null : [
+                'id' => $this->clinic->id,
+                'name' => $this->clinic->name,
+            ]),
+            'clinics' => $this->whenLoaded('clinics', function () {
+                $clinics = $this->clinics;
+                if ($this->relationLoaded('clinic') && $this->clinic !== null && ! $clinics->contains('id', $this->clinic->id)) {
+                    $clinics = $clinics->prepend($this->clinic);
+                }
+
+                return $clinics->map(fn ($clinic) => [
+                    'id' => $clinic->id,
+                    'name' => $clinic->name,
+                ])->values();
+            }),
             'department' => $this->whenLoaded('staff', fn () => $this->staff->department === null ? null : [
                 'id' => $this->staff->department->id,
                 'name' => $this->staff->department->name,

@@ -226,6 +226,14 @@ export const modules: NavModule[] = [
     permission: "departments.manage",
   },
   {
+    id: "diagnoses",
+    href: "/dashboard/diagnoses",
+    labelKey: "nav.diagnoses",
+    icon: ClipboardList,
+    category: "admin",
+    permission: "departments.manage",
+  },
+  {
     id: "billing",
     href: "/dashboard/billing",
     labelKey: "nav.billing",
@@ -334,6 +342,7 @@ export const navTree: NavNode[] = [
       { kind: "link", id: "inventory" },
       { kind: "link", id: "staff" },
       { kind: "link", id: "departments" },
+      { kind: "link", id: "diagnoses" },
       { kind: "link", id: "documents" },
     ],
   },

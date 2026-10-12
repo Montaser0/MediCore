@@ -23,6 +23,15 @@ final class DiagnosisCodeResource extends JsonResource
             'code' => $this->code,
             'title' => $this->title,
             'category' => $this->category,
+            'is_active' => $this->is_active,
+            'clinic_ids' => $this->whenLoaded(
+                'clinics',
+                fn () => $this->clinics->pluck('id')->map(fn ($id) => (int) $id)->values(),
+            ),
+            'clinics' => $this->whenLoaded('clinics', fn () => $this->clinics->map(fn ($clinic) => [
+                'id' => $clinic->id,
+                'name' => $clinic->name,
+            ])->values()),
         ];
     }
 }
