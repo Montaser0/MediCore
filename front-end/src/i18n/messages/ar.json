@@ -503,7 +503,7 @@
     "stay": "التنويم والعمليات",
     "diagnosis": "تشخيص",
     "diagnoses": "التشخيصات",
-    "noClinicDiagnoses": "لا توجد تشخيصات مربوطة بعيادة هذا الطبيب",
+    "noClinicDiagnoses": "لا توجد تشخيصات مربوطة بهذه العيادة",
     "pickClinicFirst": "اختر الطبيب لتظهر تشخيصات عيادته",
     "diagnosisNeedsClinic": "اختر عيادة واحدة على الأقل",
     "procedure": "إجراء",

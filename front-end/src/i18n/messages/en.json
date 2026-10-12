@@ -503,7 +503,7 @@
     "stay": "Admission and surgery",
     "diagnosis": "Diagnosis",
     "diagnoses": "Diagnoses",
-    "noClinicDiagnoses": "No diagnoses are linked to this doctor's clinic",
+    "noClinicDiagnoses": "No diagnoses are linked to this clinic",
     "pickClinicFirst": "Choose the doctor to see that clinic's diagnoses",
     "diagnosisNeedsClinic": "Choose at least one clinic",
     "procedure": "Procedure",

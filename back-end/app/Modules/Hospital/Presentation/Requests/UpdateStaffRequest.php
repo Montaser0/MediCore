@@ -22,6 +22,7 @@ final class UpdateStaffRequest extends ApiFormRequest
             'phone' => ['nullable', 'string', 'max:50'],
             'job_title' => ['nullable', 'string', 'max:150'],
             'department_id' => ['nullable', 'integer', 'exists:departments,id'],
+            'clinic_id' => ['nullable', 'integer', 'exists:clinics,id'],
             'is_active' => ['sometimes', 'boolean'],
             'is_doctor' => ['sometimes', 'boolean'],
             'license_number' => ['nullable', 'string', 'max:100'],

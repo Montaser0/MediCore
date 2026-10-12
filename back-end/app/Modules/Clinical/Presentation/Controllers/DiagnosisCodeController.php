@@ -8,6 +8,7 @@ use App\Core\Authorization\Permissions;
 use App\Core\Http\Controllers\ApiController;
 use App\Core\Http\DeactivateRecord;
 use App\Core\Http\Responses\ApiResponse;
+use App\Modules\Clinical\Application\AccountDiagnosisClinics;
 use App\Modules\Clinical\Infrastructure\Persistence\Models\DiagnosisCodeModel;
 use App\Modules\Clinical\Presentation\Requests\StoreDiagnosisCodeRequest;
 use App\Modules\Clinical\Presentation\Requests\UpdateDiagnosisCodeRequest;
@@ -21,15 +22,35 @@ use Illuminate\Http\Request;
  */
 final class DiagnosisCodeController extends ApiController
 {
-    public function index(Request $request): JsonResponse
+    public function index(Request $request, AccountDiagnosisClinics $accountClinics): JsonResponse
     {
+        $limited = $accountClinics->ids();
+
         $codes = DiagnosisCodeModel::query()
             ->with('clinics')
             ->when(! $request->boolean('include_inactive'), fn ($query) => $query->active())
             ->search($request->string('search')->toString())
             ->when($request->filled('category'), fn ($query) => $query->where('category', $request->string('category')))
-            ->when($request->filled('clinic_id'), fn ($query) => $query->forClinic($request->integer('clinic_id')))
-            ->when($request->filled('doctor_id'), fn ($query) => $query->forDoctor($request->integer('doctor_id')))
+            ->when($limited !== null, function ($query) use ($limited): void {
+                if ($limited === []) {
+                    $query->whereRaw('0 = 1');
+
+                    return;
+                }
+
+                $query->whereHas(
+                    'clinics',
+                    fn ($clinics) => $clinics->whereIn('clinics.id', $limited),
+                );
+            })
+            ->when(
+                $limited === null && $request->filled('clinic_id'),
+                fn ($query) => $query->forClinic($request->integer('clinic_id')),
+            )
+            ->when(
+                $limited === null && $request->filled('doctor_id'),
+                fn ($query) => $query->forDoctor($request->integer('doctor_id')),
+            )
             ->orderBy('title')
             ->paginate($this->perPage(50));
 

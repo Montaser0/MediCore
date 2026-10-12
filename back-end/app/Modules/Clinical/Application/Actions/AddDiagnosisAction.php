@@ -8,6 +8,7 @@ use App\Core\Auth\CurrentUser;
 use App\Core\Exceptions\BusinessRuleException;
 use App\Core\Support\Contracts\EncounterContext;
 use App\Core\Support\Contracts\TimelineRecorder;
+use App\Modules\Clinical\Application\AccountDiagnosisClinics;
 use App\Modules\Clinical\Domain\Enums\DiagnosisType;
 use App\Modules\Clinical\Infrastructure\Persistence\Models\DiagnosisCodeModel;
 use App\Modules\Hospital\Infrastructure\Persistence\Models\DoctorModel;
@@ -21,6 +22,7 @@ final class AddDiagnosisAction
         private readonly EncounterContext $encounters,
         private readonly CurrentUser $currentUser,
         private readonly TimelineRecorder $timeline,
+        private readonly AccountDiagnosisClinics $accountClinics,
     ) {}
 
     /**
@@ -81,8 +83,9 @@ final class AddDiagnosisAction
      */
     private function assertAvailableForDoctor(int $doctorId, array $data): void
     {
+        $limited = $this->accountClinics->ids();
         $doctor = DoctorModel::query()->with('clinics:clinics.id')->find($doctorId);
-        $clinicIds = $doctor?->diagnosisClinicIds() ?? [];
+        $clinicIds = $limited ?? ($doctor?->diagnosisClinicIds() ?? []);
 
         if ($clinicIds === []) {
             throw BusinessRuleException::make('هذا الطبيب غير مربوط بعيادة.');

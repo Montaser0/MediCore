@@ -87,8 +87,6 @@ export default function Page() {
           key: "clinic_id",
           label: t("workspace.clinic"),
           optionsSource: "clinics",
-          createOnly: true,
-          when: { key: "role", value: "data_entry" },
           requiredWhen: { key: "role", value: "data_entry" },
         },
         {

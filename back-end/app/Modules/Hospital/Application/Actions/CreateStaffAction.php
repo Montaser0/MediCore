@@ -47,6 +47,7 @@ final class CreateStaffAction
             if (($data['is_doctor'] ?? false) === true) {
                 DoctorModel::query()->create([
                     'staff_id' => $staff->getKey(),
+                    'clinic_id' => $clinicId ?: null,
                     'license_number' => $data['license_number'] ?? null,
                     'specialty' => $data['specialty'] ?? null,
                 ]);

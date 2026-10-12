@@ -173,11 +173,16 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
     const open = encounters.filter((row) => row.is_open);
     return open.sort((a, b) => b.id - a.id)[0] ?? null;
   }, [encounters]);
-  const diagnosisDoctorId = action === "diagnosis" ? num(form.doctor_id) : undefined;
+  const diagnosisDesk = isDoctorDesk(user);
+  const visitClinicId = current?.clinic?.id ?? null;
+  const diagnosisReady = action === "diagnosis";
   const { data: clinicDiagnoses = [], isLoading: diagnosesLoading, isFetched: diagnosesFetched } = useQuery({
-    queryKey: ["diagnosis-codes", "doctor", diagnosisDoctorId ?? null],
-    enabled: diagnosisDoctorId != null && diagnosisDoctorId > 0,
-    queryFn: () => journeyApi.diagnosisCodes(diagnosisDoctorId!),
+    queryKey: ["diagnosis-codes", diagnosisDesk ? "account" : "visit", diagnosisDesk ? user?.id ?? null : visitClinicId],
+    enabled: diagnosisReady,
+    queryFn: () =>
+      journeyApi.diagnosisCodes(
+        diagnosisDesk || visitClinicId == null ? {} : { clinicId: visitClinicId },
+      ),
   });
 
   const activeStay = useMemo(() => {
@@ -214,7 +219,7 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
         (next === "dischargeStay"
           ? { discharge_type: "routine" }
           : next === "diagnosis"
-            ? { type: "primary", doctor_id: current?.doctor?.id ? String(current.doctor.id) : visit.doctor_id }
+            ? { type: "primary" }
             : {}),
     );
   }
@@ -981,7 +986,7 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
                 setField={setField}
                 catalogs={catalogs}
                 clinicDiagnoses={clinicDiagnoses}
-                clinicReady={diagnosisDoctorId != null && diagnosisDoctorId > 0}
+                clinicReady={diagnosisReady}
                 diagnosesLoading={diagnosesLoading}
                 diagnosesFetched={diagnosesFetched}
                 t={tr}
@@ -1060,36 +1065,20 @@ function ActionFields({
           <textarea className="his-input min-h-24 w-full" required value={form.content ?? ""} onChange={(e) => setField("content", e.target.value)} />
         </Field>
       );
-    case "diagnosis": {
-      const doctor = (catalogs?.doctors ?? []).find((row) => String(row.id) === (form.doctor_id ?? ""));
-      const clinicName = doctorClinicLabel(doctor);
+    case "diagnosis":
       return (
-        <>
-          <Field label={t("workspace.doctor")}>
-            <NamedSelect
-              rows={catalogs?.doctors}
-              value={form.doctor_id ?? ""}
-              onChange={(value) => {
-                setField("doctor_id", value);
-                setField("diagnosis_code_id", "");
-              }}
-            />
-          </Field>
-          {clinicName ? <p className="text-[12px]">{clinicName}</p> : null}
-          <Field label={t("workspace.diagnosis")}>
-            <DiagnosisSelect
-              rows={clinicDiagnoses}
-              value={form.diagnosis_code_id ?? ""}
-              onChange={(value) => setField("diagnosis_code_id", value)}
-              clinicReady={clinicReady}
-              loading={diagnosesLoading}
-              fetched={diagnosesFetched}
-              t={t}
-            />
-          </Field>
-        </>
+        <Field label={t("workspace.diagnosis")}>
+          <DiagnosisSelect
+            rows={clinicDiagnoses}
+            value={form.diagnosis_code_id ?? ""}
+            onChange={(value) => setField("diagnosis_code_id", value)}
+            clinicReady={clinicReady}
+            loading={diagnosesLoading}
+            fetched={diagnosesFetched}
+            t={t}
+          />
+        </Field>
       );
-    }
     case "procedure":
       return (
         <Field label={t("workspace.procedure")}>
@@ -1285,12 +1274,6 @@ function ActionFields({
         </div>
       );
   }
-}
-
-function doctorClinicLabel(doctor?: NamedRow) {
-  if (doctor?.clinic?.name) return doctor.clinic.name;
-  const names = (doctor?.clinics ?? []).map((clinic) => clinic.name).filter((name): name is string => Boolean(name));
-  return names.join("، ");
 }
 
 function DiagnosisSelect({

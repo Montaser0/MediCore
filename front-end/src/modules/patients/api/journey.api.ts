@@ -97,10 +97,13 @@ export const journeyApi = {
   diagnosis: (encounterId: number, body: Record<string, unknown>) =>
     apiPost(`/encounters/${encounterId}/diagnoses`, clean(body)),
 
-  diagnosisCodes: async (doctorId: number): Promise<NamedRow[]> => {
+  diagnosisCodes: async (filter: { doctorId?: number; clinicId?: number }): Promise<NamedRow[]> => {
+    const params: Record<string, unknown> = { per_page: 200 };
+    if (filter.doctorId) params.doctor_id = filter.doctorId;
+    if (filter.clinicId) params.clinic_id = filter.clinicId;
     const rows = await list<{ id: number; code?: string; title?: string; category?: string }>(
       "/diagnosis-codes",
-      { doctor_id: doctorId, per_page: 200 },
+      params,
     );
     return rows.map((row) => ({
       id: row.id,

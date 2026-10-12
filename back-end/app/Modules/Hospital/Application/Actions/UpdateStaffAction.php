@@ -22,15 +22,22 @@ final class UpdateStaffAction
                 'phone',
                 'job_title',
                 'department_id',
+                'clinic_id',
                 'is_active',
             ])))->save();
 
             $shouldBeDoctor = $data['is_doctor'] ?? $staff->doctor !== null;
 
             if ($shouldBeDoctor) {
+                $doctorValues = array_intersect_key($data, array_flip(['license_number', 'specialty']));
+
+                if (array_key_exists('clinic_id', $data)) {
+                    $doctorValues['clinic_id'] = $data['clinic_id'] ?: null;
+                }
+
                 DoctorModel::query()->updateOrCreate(
                     ['staff_id' => $staff->getKey()],
-                    array_intersect_key($data, array_flip(['license_number', 'specialty'])),
+                    $doctorValues,
                 );
             }
 
