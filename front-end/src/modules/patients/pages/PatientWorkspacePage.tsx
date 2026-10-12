@@ -258,11 +258,15 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
     const encounterId = current?.id;
     const doctorId = num(form.doctor_id) ?? current?.doctor?.id ?? num(visit.doctor_id);
     switch (key) {
-      case "vitals":
+      case "vitals": {
+        const pressure = parseBloodPressure(form.blood_pressure);
+        if (form.blood_pressure?.trim() && !pressure) {
+          throw new Error(t("workspace.bloodPressureInvalid"));
+        }
         return journeyApi.vitals(encounterId!, {
           temperature: num(form.temperature),
-          systolic_bp: num(form.systolic_bp),
-          diastolic_bp: num(form.diastolic_bp),
+          systolic_bp: pressure?.systolic,
+          diastolic_bp: pressure?.diastolic,
           heart_rate: num(form.heart_rate),
           respiratory_rate: num(form.respiratory_rate),
           oxygen_saturation: num(form.oxygen_saturation),
@@ -270,6 +274,7 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
           height: num(form.height),
           notes: form.notes,
         });
+      }
       case "note":
         return journeyApi.note(encounterId!, {
           note_type: form.note_type || "progress",
@@ -1023,11 +1028,14 @@ function ActionFields({
           <Field label={t("workspace.heartRate")}>
             <Input value={form.heart_rate ?? ""} onChange={(e) => setField("heart_rate", e.target.value)} />
           </Field>
-          <Field label={t("workspace.systolic")}>
-            <Input value={form.systolic_bp ?? ""} onChange={(e) => setField("systolic_bp", e.target.value)} />
-          </Field>
-          <Field label={t("workspace.diastolic")}>
-            <Input value={form.diastolic_bp ?? ""} onChange={(e) => setField("diastolic_bp", e.target.value)} />
+          <Field label={t("workspace.bloodPressure")}>
+            <Input
+              dir="ltr"
+              lang="en-GB"
+              placeholder="120/80"
+              value={form.blood_pressure ?? ""}
+              onChange={(e) => setField("blood_pressure", e.target.value)}
+            />
           </Field>
           <Field label={t("workspace.spo2")}>
             <Input value={form.oxygen_saturation ?? ""} onChange={(e) => setField("oxygen_saturation", e.target.value)} />
@@ -1319,6 +1327,14 @@ function num(value?: string | number | null) {
   if (value === undefined || value === null || value === "") return undefined;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function parseBloodPressure(value?: string) {
+  const normalized = latinDigits(value ?? "").trim();
+  if (!normalized) return undefined;
+  const match = normalized.match(/^(\d{2,3})\s*[/\\-]\s*(\d{2,3})$/);
+  if (!match) return null;
+  return { systolic: Number(match[1]), diastolic: Number(match[2]) };
 }
 
 function localDateTime() {
