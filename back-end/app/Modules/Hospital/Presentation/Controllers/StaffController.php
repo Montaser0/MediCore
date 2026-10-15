@@ -22,6 +22,13 @@ use Illuminate\Support\Facades\DB;
 
 final class StaffController extends ApiController
 {
+    public function access(): JsonResponse
+    {
+        abort_unless(request()->user()?->can(Permissions::STAFF_MANAGE) === true, 403);
+
+        return ApiResponse::data(Permissions::accessCatalogue());
+    }
+
     public function index(Request $request): JsonResponse
     {
         $staff = StaffModel::query()
@@ -52,7 +59,7 @@ final class StaffController extends ApiController
     public function store(StoreStaffRequest $request, CreateStaffAction $action, CreateUserAction $users): JsonResponse
     {
         $staff = DB::transaction(function () use ($request, $action, $users): StaffModel {
-            $data = $request->safe()->except(['username', 'password', 'email', 'role']);
+            $data = $request->safe()->except(['username', 'password', 'email', 'role', 'screens']);
             $role = $this->accountRole($request);
 
             if ($role !== null && empty($data['job_title'])) {
@@ -64,7 +71,7 @@ final class StaffController extends ApiController
             $staff = $action->execute($data);
 
             if ($role !== null) {
-                $users->execute(UserData::fromArray([
+                $account = $users->execute(UserData::fromArray([
                     'username' => $request->string('username')->toString(),
                     'email' => $request->input('email'),
                     'password' => $request->string('password')->toString(),
@@ -72,6 +79,10 @@ final class StaffController extends ApiController
                     'roles' => [$role],
                     'department_ids' => array_values(array_filter([$staff->department_id])),
                 ]));
+
+                if ($request->exists('screens')) {
+                    $account->syncUiAccess($role, $request->input('screens', []));
+                }
             }
 
             return $staff->fresh(['department', 'clinic', 'doctor', 'user.roles']);
@@ -82,7 +93,18 @@ final class StaffController extends ApiController
 
     public function update(UpdateStaffRequest $request, StaffModel $staff, UpdateStaffAction $action): JsonResponse
     {
-        return ApiResponse::resource(new StaffResource($action->execute($staff, $request->validated())));
+        $staff = $action->execute($staff, $request->safe()->except(['screens']));
+
+        if ($request->exists('screens')) {
+            $account = $staff->user()->first();
+            $role = (string) ($account?->getRoleNames()->first() ?? '');
+
+            if ($account !== null && $role !== '') {
+                $account->syncUiAccess($role, $request->input('screens', []));
+            }
+        }
+
+        return ApiResponse::resource(new StaffResource($staff->fresh(['department', 'clinic', 'doctor', 'user.roles'])));
     }
 
     public function destroy(Request $request, StaffModel $staff): JsonResponse

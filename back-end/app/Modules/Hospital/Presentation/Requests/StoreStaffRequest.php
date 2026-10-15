@@ -34,6 +34,8 @@ final class StoreStaffRequest extends ApiFormRequest
             'username' => ['nullable', 'string', 'max:50', 'required_with:role', 'required_if:is_doctor,true', 'unique:users,username'],
             'password' => ['nullable', 'string', 'min:6', 'required_with:role', 'required_if:is_doctor,true'],
             'email' => ['nullable', 'email', 'max:255', 'unique:users,email'],
+            'screens' => ['sometimes', 'array'],
+            'screens.*' => ['string', Rule::in(array_keys(Permissions::screens()))],
         ];
     }
 
@@ -49,6 +51,7 @@ final class StoreStaffRequest extends ApiFormRequest
             'username.required_if' => 'اسم المستخدم مطلوب عند إنشاء حساب.',
             'password.required_with' => 'كلمة المرور مطلوبة عند إنشاء حساب.',
             'password.required_if' => 'كلمة المرور مطلوبة عند إنشاء حساب.',
+            'screens.*.in' => 'إحدى الشاشات المختارة غير معروفة.',
         ];
     }
 }

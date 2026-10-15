@@ -12,6 +12,8 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('hospitals/current', [HospitalController::class, 'current']);
     Route::put('hospitals/{hospital}', [HospitalController::class, 'update']);
 
+    Route::get('staff/access', [StaffController::class, 'access']);
+
     Route::apiResource('staff', StaffController::class)
         ->parameters(['staff' => 'staff'])
         ->only(['index', 'show', 'store', 'update', 'destroy']);

@@ -49,6 +49,8 @@ final class AuthenticatedUserResource extends JsonResource
             'job_title' => $staff?->job_title,
             'roles' => $this->getRoleNames()->all(),
             'permissions' => $this->permissionNames(),
+            'custom_permissions' => $this->usesCustomScreens(),
+            'screens' => $this->usesCustomScreens() ? array_values($this->ui_screens ?? []) : [],
             'accessible_department_ids' => $this->relationLoaded('departments')
                 ? $this->departments->pluck('id')->all()
                 : [],

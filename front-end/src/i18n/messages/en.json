@@ -456,6 +456,17 @@
     "cashier": "Accountant",
     "warehouse": "Warehouse"
   },
+  "access": {
+    "title": "Interface permissions",
+    "hint": "This page lists every module. Tick a module to grant it, or clear it to hide that module from this staff member.",
+    "open": "Permissions",
+    "always": "Always visible",
+    "all": "Select all",
+    "none": "Clear all",
+    "count": "Screens",
+    "needAccount": "Choose an account type to set interface permissions.",
+    "noAccount": "This staff member has no login, so interface permissions do not apply."
+  },
   "settings": {
     "title": "Settings",
     "users": "Users",

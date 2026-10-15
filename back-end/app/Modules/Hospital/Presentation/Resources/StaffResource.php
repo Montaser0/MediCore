@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Hospital\Presentation\Resources;
 
+use App\Core\Authorization\Permissions;
 use App\Modules\Hospital\Infrastructure\Persistence\Models\StaffModel;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -49,6 +50,29 @@ final class StaffResource extends JsonResource
                     ? $this->user->roles->pluck('name')->values()->all()
                     : [],
             ]),
+            'screens' => $this->when($this->relationLoaded('user'), fn () => $this->resolvedScreens()),
         ];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function resolvedScreens(): array
+    {
+        $user = $this->user;
+
+        if ($user === null) {
+            return [];
+        }
+
+        if (is_array($user->ui_screens)) {
+            return array_values($user->ui_screens);
+        }
+
+        $role = $user->relationLoaded('roles')
+            ? $user->roles->pluck('name')->first()
+            : $user->getRoleNames()->first();
+
+        return Permissions::screensForRole((string) $role);
     }
 }

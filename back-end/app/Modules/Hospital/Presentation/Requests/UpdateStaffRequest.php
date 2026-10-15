@@ -6,6 +6,7 @@ namespace App\Modules\Hospital\Presentation\Requests;
 
 use App\Core\Authorization\Permissions;
 use App\Core\Http\Requests\ApiFormRequest;
+use Illuminate\Validation\Rule;
 
 final class UpdateStaffRequest extends ApiFormRequest
 {
@@ -27,6 +28,8 @@ final class UpdateStaffRequest extends ApiFormRequest
             'is_doctor' => ['sometimes', 'boolean'],
             'license_number' => ['nullable', 'string', 'max:100'],
             'specialty' => ['nullable', 'string', 'max:150'],
+            'screens' => ['sometimes', 'array'],
+            'screens.*' => ['string', Rule::in(array_keys(Permissions::screens()))],
         ];
     }
 }

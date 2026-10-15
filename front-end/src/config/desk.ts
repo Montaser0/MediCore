@@ -69,18 +69,67 @@ function mayOpen(user: AuthUser | null, item: NavModule): boolean {
   return required.some((permission) => hasPermission(user, permission));
 }
 
+function usesCustomScreens(user: AuthUser | null): boolean {
+  return user?.custom_permissions === true;
+}
+
+function screenGranted(user: AuthUser | null, item: NavModule): boolean {
+  if (item.id === "home" || item.id === "notifications") return true;
+  return (user?.screens ?? []).includes(item.id);
+}
+
+export function moduleAllowedByEdition(id: string, edition?: EditionMenu | null): boolean {
+  const item = modules.find((entry) => entry.id === id);
+  if (!item || !edition?.ready) return true;
+  return editionAllows(item, edition);
+}
+
+function modulesForPath(path: string): NavModule[] {
+  return modules.filter((item) => {
+    const href = hrefOf(item);
+    return href !== "/dashboard" && (path === href || path.startsWith(`${href}/`));
+  });
+}
+
+function longestMatch(matches: NavModule[]): NavModule {
+  const top = Math.max(...matches.map((item) => hrefOf(item).length));
+  return matches.find((item) => hrefOf(item).length === top) ?? matches[0];
+}
+
+function editionBlocks(path: string, edition?: EditionMenu | null): boolean {
+  if (!edition?.ready || path === "/dashboard") return false;
+  const sale = path === "/dashboard/pharmacy/sale" || path.startsWith("/dashboard/pharmacy/sale/");
+  if (edition.navigation.includes("*") && sale) return true;
+  if (!edition.navigation.includes("*")) {
+    const matches = modulesForPath(path);
+    if (matches.length === 0) return true;
+    const top = Math.max(...matches.map((item) => hrefOf(item).length));
+    const winners = matches.filter((item) => hrefOf(item).length === top);
+    const winner = winners.find((item) => editionAllows(item, edition)) ?? winners[0];
+    if (!editionAllows(winner, edition)) return true;
+  }
+  return false;
+}
+
+function applyEditionLabels(items: NavModule[], edition?: EditionMenu | null): NavModule[] {
+  if (!edition || !ACCOUNT_EDITIONS.has(edition.edition)) return items;
+  return items.map((item) => (item.id === "billing" ? { ...item, labelKey: "nav.account" } : item));
+}
+
 export function visibleModules(user: AuthUser | null, edition?: EditionMenu | null): NavModule[] {
-  const hrefs = deskHrefs(user);
+  const hrefs = usesCustomScreens(user) ? null : deskHrefs(user);
   const byDesk = !hrefs
     ? modules
     : modules.filter((item) => item.href === "/dashboard" || hrefs.includes(hrefOf(item)));
+  const byAccess = usesCustomScreens(user) ? byDesk.filter((item) => screenGranted(user, item)) : byDesk;
 
-  if (!edition?.ready) return byDesk.filter((item) => item.id === "home");
+  if (!edition?.ready) return byAccess.filter((item) => item.id === "home");
 
-  const allowed = byDesk.filter((item) => editionAllows(item, edition) && mayOpen(user, item));
+  const allowed = byAccess.filter(
+    (item) => editionAllows(item, edition) && (usesCustomScreens(user) || mayOpen(user, item)),
+  );
 
-  if (!ACCOUNT_EDITIONS.has(edition.edition)) return allowed;
-  return allowed.map((item) => (item.id === "billing" ? { ...item, labelKey: "nav.account" } : item));
+  return applyEditionLabels(allowed, edition);
 }
 
 export function isDoctorDesk(user: AuthUser | null): boolean {
@@ -89,32 +138,19 @@ export function isDoctorDesk(user: AuthUser | null): boolean {
 }
 
 export function canOpenPath(user: AuthUser | null, path: string, edition?: EditionMenu | null): boolean {
-  if (edition?.ready && path !== "/dashboard") {
-    const sale = path === "/dashboard/pharmacy/sale" || path.startsWith("/dashboard/pharmacy/sale/");
-    if (edition.navigation.includes("*") && sale) return false;
-    if (!edition.navigation.includes("*")) {
-      const matches = modules.filter((item) => {
-        const href = hrefOf(item);
-        return href !== "/dashboard" && (path === href || path.startsWith(`${href}/`));
-      });
-      if (matches.length === 0) return false;
-      const top = Math.max(...matches.map((item) => hrefOf(item).length));
-      const winners = matches.filter((item) => hrefOf(item).length === top);
-      const winner = winners.find((item) => editionAllows(item, edition)) ?? winners[0];
-      if (!editionAllows(winner, edition)) return false;
-    }
+  if (editionBlocks(path, edition)) return false;
+
+  if (usesCustomScreens(user)) {
+    if (path === "/dashboard") return true;
+    if (path === "/dashboard/notifications" || path.startsWith("/dashboard/notifications/")) return true;
+    const matches = modulesForPath(path);
+    if (matches.length === 0) return false;
+    return screenGranted(user, longestMatch(matches));
   }
 
   const hrefs = deskHrefs(user);
-  const matches = modules.filter((item) => {
-    const href = hrefOf(item);
-    return href !== "/dashboard" && (path === href || path.startsWith(`${href}/`));
-  });
-  if (matches.length > 0) {
-    const top = Math.max(...matches.map((item) => hrefOf(item).length));
-    const winner = matches.find((item) => hrefOf(item).length === top);
-    if (winner && !mayOpen(user, winner)) return false;
-  }
+  const matches = modulesForPath(path);
+  if (matches.length > 0 && !mayOpen(user, longestMatch(matches))) return false;
   if (!hrefs) return true;
   if (path === "/dashboard") return true;
   if (isDoctorDesk(user) && (path === "/dashboard/patients/new" || path.startsWith("/dashboard/patients/new/"))) {

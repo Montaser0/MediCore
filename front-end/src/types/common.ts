@@ -64,6 +64,8 @@ export type AuthUser = {
   department?: { id: number; name: string; type?: string } | null;
   clinic?: { id: number; name: string } | null;
   permissions?: string[];
+  custom_permissions?: boolean;
+  screens?: string[];
   roles?: string[] | Array<{ id: number; name: string; display_name?: string }>;
   staff_id?: number | null;
   doctor_id?: number | null;
