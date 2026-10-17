@@ -8,9 +8,11 @@ import { toast } from "sonner";
 import { PageToolbar } from "@/components/ui/PageToolbar";
 import { Button } from "@/components/ui/Button";
 import { apiGet, getErrorMessage } from "@/lib/api/client";
+import { env } from "@/config/environment";
 import { dailyNo } from "@/lib/arabicText";
 import { formatMoney } from "@/lib/utils";
 import { RADIOLOGY_CATEGORIES, type RadiologyCategoryId } from "@/modules/radiology/categories";
+import { printOrderSlip } from "../print/printOrderSlip";
 import { usePatient } from "../hooks/usePatients";
 import { useJourneyAction, usePatientEncounters } from "../hooks/useJourney";
 import { journeyApi, type NamedRow } from "../api/journey.api";
@@ -94,7 +96,7 @@ export function PatientRadiologyOrderPage({ patientId }: { patientId: string }) 
     });
   }
 
-  async function submit() {
+  async function submit(printSlip = false) {
     if (!visit) {
       toast.error(t("workspace.needVisit"));
       return;
@@ -103,8 +105,13 @@ export function PatientRadiologyOrderPage({ patientId }: { patientId: string }) 
       toast.error(t("radiology.pickStudies"));
       return;
     }
+    const preview = printSlip ? window.open("", "_blank", "width=900,height=720") : null;
+    if (printSlip && !preview) {
+      toast.error("اسمح بالنوافذ المنبثقة لطباعة الوصفة");
+      return;
+    }
     try {
-      await run.mutateAsync(() =>
+      const created = (await run.mutateAsync(() =>
         journeyApi.order({
           encounter_id: visit.id,
           type: "radiology",
@@ -117,10 +124,31 @@ export function PatientRadiologyOrderPage({ patientId }: { patientId: string }) 
             with_injection: withInjection,
           })),
         }),
-      );
+      )) as { data?: { order_number?: string } };
+      if (printSlip) {
+        printOrderSlip(
+          {
+            kind: "radiology",
+            orderNumber: created.data?.order_number,
+            hospitalName: env.appName,
+            patientName: patient?.full_name,
+            mrn: patient?.mrn,
+            age: patient?.age == null ? undefined : String(patient.age),
+            gender: patient?.gender === "male" ? "ذكر" : patient?.gender === "female" ? "أنثى" : undefined,
+            phone: patient?.phone ?? undefined,
+            doctor: visit.doctor?.name,
+            clinic: visit.clinic?.name,
+            notes: notes.trim(),
+            injection: withInjection ? injectionPrice : 0,
+            lines: selected.map((row) => ({ name: row.name ?? "—", price: Number(row.price) || 0 })),
+          },
+          preview,
+        );
+      }
       toast.success(t("workspace.saved"));
       router.push(backHref);
     } catch (error) {
+      preview?.close();
       toast.error(getErrorMessage(error));
     }
   }
@@ -213,6 +241,9 @@ export function PatientRadiologyOrderPage({ patientId }: { patientId: string }) 
         />
         <Button type="button" onClick={() => router.push(backHref)}>
           {t("app.cancel")}
+        </Button>
+        <Button type="button" disabled={run.isPending || !visit} onClick={() => void submit(true)}>
+          {t("radiology.prescription")}
         </Button>
         <label className="flex items-center gap-2 text-[12px]">
           <input
