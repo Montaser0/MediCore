@@ -11,7 +11,7 @@ use Illuminate\Validation\Rule;
 
 final class StoreOperationTypeRequest extends ApiFormRequest
 {
-    protected ?string $permission = Permissions::SETTINGS_MANAGE;
+    protected ?string $permission = Permissions::DEPARTMENTS_MANAGE;
 
     /**
      * @return array<string, mixed>
@@ -23,11 +23,12 @@ final class StoreOperationTypeRequest extends ApiFormRequest
 
         return [
             'name' => ['required', 'string', 'max:255'],
-            'code' => ['required', 'string', 'max:50', Rule::unique('operation_types', 'code')->ignore($typeId)],
+            'code' => ['nullable', 'string', 'max:50', Rule::unique('operation_types', 'code')->ignore($typeId)],
+            'clinic_id' => ['required', 'integer', 'exists:clinics,id'],
             'specialty' => ['nullable', 'string', 'max:100'],
             'estimated_duration_minutes' => ['nullable', 'integer', 'min:5', 'max:1440'],
             'risk_level' => ['nullable', Rule::in(['low', 'moderate', 'high', 'critical'])],
-            'price' => ['nullable', 'numeric', 'min:0'],
+            'price' => ['required', 'numeric', 'min:0'],
             'description' => ['nullable', 'string'],
             'is_active' => ['nullable', 'boolean'],
         ];

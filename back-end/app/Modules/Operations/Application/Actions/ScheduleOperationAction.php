@@ -10,6 +10,7 @@ use App\Core\Support\Contracts\EncounterContext;
 use App\Core\Support\Contracts\NotificationDispatcher;
 use App\Core\Support\Contracts\TimelineRecorder;
 use App\Core\Support\Numbering\NumberGenerator;
+use App\Modules\Clinical\Application\AccountDiagnosisClinics;
 use App\Modules\Operations\Domain\Enums\OperationRole;
 use App\Modules\Operations\Domain\Enums\OperationStatus;
 use App\Modules\Operations\Domain\Events\OperationScheduled;
@@ -31,6 +32,7 @@ final class ScheduleOperationAction
         private readonly EncounterContext $encounters,
         private readonly TimelineRecorder $timeline,
         private readonly NotificationDispatcher $notifications,
+        private readonly AccountDiagnosisClinics $accountClinics,
     ) {}
 
     /**
@@ -43,7 +45,15 @@ final class ScheduleOperationAction
         /** @var OperationTypeModel $type */
         $type = OperationTypeModel::query()->findOrFail($data['operation_type_id']);
 
-        $scheduledAt = Carbon::parse($data['scheduled_at']);
+        $this->guardBelongsToClinic($type, $encounter->clinicId);
+
+        $discount = round((float) ($data['discount'] ?? 0), 2);
+        $addition = round((float) ($data['addition'] ?? 0), 2);
+        if ($discount > (float) $type->price + $addition) {
+            throw BusinessRuleException::make('الخصم لا يمكن أن يتجاوز سعر العملية مع الإضافة.');
+        }
+
+        $scheduledAt = isset($data['scheduled_at']) ? Carbon::parse((string) $data['scheduled_at']) : now();
         $duration = (int) ($data['estimated_duration_minutes'] ?? $type->estimated_duration_minutes);
         $endsAt = $scheduledAt->copy()->addMinutes($duration);
 
@@ -53,7 +63,7 @@ final class ScheduleOperationAction
         $this->guardTheatreIsFree($data['theatre_id'] ?? null, $scheduledAt, $endsAt);
         $this->guardTeamIsFree($team, $scheduledAt, $endsAt);
 
-        return DB::transaction(function () use ($encounter, $data, $type, $scheduledAt, $duration, $team): OperationModel {
+        return DB::transaction(function () use ($encounter, $data, $type, $scheduledAt, $duration, $team, $discount, $addition): OperationModel {
             $operation = OperationModel::query()->create([
                 'hospital_id' => $encounter->hospitalId,
                 'patient_id' => $encounter->patientId,
@@ -65,6 +75,8 @@ final class ScheduleOperationAction
                 'scheduled_at' => $scheduledAt,
                 'estimated_duration_minutes' => $duration,
                 'pre_op_diagnosis' => $data['pre_op_diagnosis'] ?? null,
+                'discount' => $discount,
+                'addition' => $addition,
                 'anesthesia_type' => $data['anesthesia_type'] ?? null,
                 'pre_op_notes' => $data['pre_op_notes'] ?? null,
                 'created_by' => $this->currentUser->id(),
@@ -89,18 +101,38 @@ final class ScheduleOperationAction
                 payload: ['operation_number' => $operation->operation_number],
             );
 
-            foreach ($team as $member) {
-                $this->notifications->toUser(
-                    userId: (int) $member['user_id'],
-                    type: 'operation.scheduled',
-                    title: 'أُضفت إلى فريق عملية',
-                    message: $type->name.' '.$scheduledAt->format('d/m/Y H:i'),
-                    link: "/operations/{$operation->getKey()}",
-                );
-            }
+            $this->notifications->toUsers(
+                userIds: array_values(array_unique(array_map(
+                    static fn (array $member): int => (int) $member['user_id'],
+                    $team,
+                ))),
+                type: 'operation.scheduled',
+                title: 'أُضفت إلى فريق عملية',
+                message: $type->name.' '.$scheduledAt->format('d/m/Y H:i'),
+                entityType: OperationModel::class,
+                entityId: (int) $operation->getKey(),
+            );
 
             return $operation->fresh(['type', 'theatre', 'team.user', 'patient']);
         });
+    }
+
+    private function guardBelongsToClinic(OperationTypeModel $type, ?int $visitClinicId): void
+    {
+        $linked = $type->clinics()->pluck('clinics.id')->map(fn ($id) => (int) $id)->all();
+        $allowed = $this->accountClinics->ids();
+
+        if ($allowed !== null) {
+            if ($linked === [] || array_intersect($linked, $allowed) === []) {
+                throw BusinessRuleException::make('هذه العملية غير مربوطة بعيادتك.');
+            }
+
+            return;
+        }
+
+        if ($visitClinicId !== null && $linked !== [] && ! in_array($visitClinicId, $linked, true)) {
+            throw BusinessRuleException::make('هذه العملية غير مربوطة بعيادة الزيارة.');
+        }
     }
 
     private function guardTheatreIsFree(mixed $theatreId, Carbon $startsAt, Carbon $endsAt): void

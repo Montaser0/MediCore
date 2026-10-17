@@ -59,6 +59,7 @@ final class ModuleRegistry
         'Appointments',
         'Encounters',
         'Clinical',
+        'Operations',
         'Billing',
         'Reports',
     ];
@@ -92,9 +93,9 @@ final class ModuleRegistry
      */
     private const NAVIGATION = [
         'hospital' => ['*'],
-        'clinic' => ['home', 'patients', 'appointments', 'booking-link', 'billing', 'departments', 'diagnoses', 'staff', 'reports'],
-        'laboratory' => ['home', 'patients', 'appointments', 'booking-link', 'billing', 'departments', 'diagnoses', 'staff', 'laboratory', 'lab-tests', 'blood-products', 'reports'],
-        'radiology' => ['home', 'patients', 'appointments', 'booking-link', 'billing', 'departments', 'diagnoses', 'staff', 'radiology', 'radiology-services', 'reports'],
+        'clinic' => ['home', 'patients', 'appointments', 'booking-link', 'billing', 'departments', 'diagnoses', 'operation-types', 'staff', 'reports'],
+        'laboratory' => ['home', 'patients', 'appointments', 'booking-link', 'billing', 'departments', 'diagnoses', 'operation-types', 'staff', 'laboratory', 'lab-tests', 'blood-products', 'reports'],
+        'radiology' => ['home', 'patients', 'appointments', 'booking-link', 'billing', 'departments', 'diagnoses', 'operation-types', 'staff', 'radiology', 'radiology-services', 'reports'],
         'pharmacy' => ['home', 'pharmacy-catalog', 'pharmacy-sale', 'pharmacy-return', 'pharmacy-debts', 'pharmacy-warehouses', 'pharmacy-stocktake', 'reports'],
     ];
 

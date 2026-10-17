@@ -44,6 +44,8 @@ final class ModuleRegistryTest extends TestCase
         $this->assertContains('radiology-services', $radiology->navigation());
         $this->assertFalse($clinic->enabled('Laboratory'));
         $this->assertFalse($clinic->enabled('Orders'));
+        $this->assertTrue($clinic->enabled('Operations'));
+        $this->assertContains('operation-types', $clinic->navigation());
     }
 
     public function test_pharmacy_edition_is_the_point_of_sale_only(): void

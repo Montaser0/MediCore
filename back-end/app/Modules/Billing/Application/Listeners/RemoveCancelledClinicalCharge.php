@@ -8,6 +8,7 @@ use App\Modules\Billing\Application\Actions\RemoveSourceChargesAction;
 use App\Modules\Billing\Domain\Enums\ChargeSource;
 use App\Modules\Laboratory\Domain\Events\BloodRequestCancelled;
 use App\Modules\Laboratory\Domain\Events\LabOrderItemCancelled;
+use App\Modules\Operations\Domain\Events\OperationCancelled;
 use App\Modules\Radiology\Domain\Enums\RadiologyItemStatus;
 use App\Modules\Radiology\Domain\Events\RadiologyOrderItemCancelled;
 use App\Modules\Radiology\Infrastructure\Persistence\Models\RadiologyOrderItemModel;
@@ -20,8 +21,14 @@ final class RemoveCancelledClinicalCharge
 {
     public function __construct(private readonly RemoveSourceChargesAction $remove) {}
 
-    public function handle(LabOrderItemCancelled|RadiologyOrderItemCancelled|BloodRequestCancelled $event): void
+    public function handle(LabOrderItemCancelled|RadiologyOrderItemCancelled|BloodRequestCancelled|OperationCancelled $event): void
     {
+        if ($event instanceof OperationCancelled) {
+            $this->remove->execute(ChargeSource::Operation->value, $event->operation->getKey());
+
+            return;
+        }
+
         if ($event instanceof LabOrderItemCancelled) {
             $this->remove->execute(ChargeSource::LabOrderItem->value, $event->item->getKey());
 

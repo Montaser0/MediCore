@@ -8,6 +8,7 @@ use App\Core\Exceptions\BusinessRuleException;
 use App\Core\Support\Contracts\TimelineRecorder;
 use App\Modules\Operations\Domain\Enums\OperationRole;
 use App\Modules\Operations\Domain\Enums\OperationStatus;
+use App\Modules\Operations\Domain\Events\OperationCancelled;
 use App\Modules\Operations\Infrastructure\Persistence\Models\OperationModel;
 use Illuminate\Support\Facades\DB;
 
@@ -54,6 +55,10 @@ final class ChangeOperationStatusAction
             }
 
             $operation->forceFill($attributes)->save();
+
+            if ($target === OperationStatus::Cancelled) {
+                OperationCancelled::dispatch($operation);
+            }
 
             $this->timeline->record(
                 patientId: (int) $operation->patient_id,

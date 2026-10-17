@@ -12,7 +12,7 @@ use App\Modules\Inventory\Infrastructure\Persistence\Models\InventoryItemModel;
 use App\Modules\Inventory\Infrastructure\Persistence\Models\WarehouseModel;
 use App\Modules\Laboratory\Infrastructure\Persistence\Models\LabTestModel;
 use App\Modules\Operations\Infrastructure\Persistence\Models\OperationTheatreModel;
-use App\Modules\Operations\Infrastructure\Persistence\Models\OperationTypeModel;
+use App\Modules\Operations\Infrastructure\Persistence\OperationClinicLinks;
 use App\Modules\Pharmacy\Infrastructure\Persistence\Models\MedicationCategoryModel;
 use App\Modules\Pharmacy\Infrastructure\Persistence\Models\MedicationModel;
 use App\Modules\Radiology\Infrastructure\Persistence\Models\RadiologyServiceModel;
@@ -343,27 +343,6 @@ final class ReferenceDataSeeder extends Seeder
             );
         }
 
-        $types = [
-            // الاسم، الرمز، الاختصاص، المدة المتوقعة بالدقائق، درجة الخطورة، السعر
-            ['استئصال الزائدة الدودية', 'OP-APPX', 'الجراحة العامة', 60, 'moderate', 450000],
-            ['استئصال المرارة بالتنظير', 'OP-LAPCHOLE', 'الجراحة العامة', 90, 'moderate', 850000],
-            ['عملية قيصرية', 'OP-CS', 'النسائية والتوليد', 60, 'moderate', 700000],
-            ['إصلاح فتق', 'OP-HERNIA', 'الجراحة العامة', 75, 'low', 500000],
-            ['استئصال اللوزتين', 'OP-TONSIL', 'الأذن والأنف والحنجرة', 45, 'low', 380000],
-            ['تثبيت كسر بالصفيحة والبراغي', 'OP-ORIF', 'جراحة العظام', 120, 'high', 1200000],
-            ['استئصال الساد', 'OP-CATARACT', 'العينية', 40, 'low', 600000],
-            ['مجازة الشريان التاجي', 'OP-CABG', 'جراحة القلب والصدر', 300, 'critical', 6500000],
-        ];
-
-        foreach ($types as [$name, $code, $specialty, $minutes, $risk, $price]) {
-            OperationTypeModel::query()->firstOrCreate(['code' => $code], [
-                'name' => $name,
-                'specialty' => $specialty,
-                'estimated_duration_minutes' => $minutes,
-                'risk_level' => $risk,
-                'price' => $price,
-                'is_active' => true,
-            ]);
-        }
+        OperationClinicLinks::ensureDefaults();
     }
 }

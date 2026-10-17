@@ -25,14 +25,18 @@ final class ChargeCompletedOperation
         $operation = $event->operation;
         $operation->loadMissing(['type', 'materials.item']);
 
-        $price = (float) ($operation->type?->price ?? 0);
+        $list = (float) ($operation->type?->price ?? 0);
+        $addition = (float) ($operation->addition ?? 0);
+        $discount = (float) ($operation->discount ?? 0);
+        $gross = round($list + $addition, 2);
 
-        if ($price > 0) {
+        if ($gross > 0) {
             $this->createCharge->execute([
                 'encounter_id' => $operation->encounter_id,
                 'description' => $operation->type?->name ?? 'عملية',
                 'quantity' => 1,
-                'unit_price' => $price,
+                'unit_price' => $gross,
+                'discount' => min($discount, $gross),
                 'source_type' => ChargeSource::Operation->value,
                 'source_id' => $operation->getKey(),
             ]);

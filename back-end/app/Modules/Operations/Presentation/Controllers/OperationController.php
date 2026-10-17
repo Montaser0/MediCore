@@ -57,6 +57,21 @@ final class OperationController extends ApiController
         return ApiResponse::created(new OperationResource($action->execute($request->validated())));
     }
 
+    public function cancel(Request $request, OperationModel $operation, ChangeOperationStatusAction $action): JsonResponse
+    {
+        $validated = $request->validate([
+            'reason' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $updated = $action->execute(
+            $operation,
+            OperationStatus::Cancelled,
+            $validated['reason'] ?? 'إلغاء من ملف المريض',
+        );
+
+        return ApiResponse::resource(new OperationResource($updated->load('type')));
+    }
+
     /**
      * Consent is recorded separately from scheduling because it is obtained
      * from the patient, often on a different day.

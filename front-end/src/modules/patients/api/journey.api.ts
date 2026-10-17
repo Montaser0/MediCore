@@ -1,4 +1,5 @@
 import { apiGet, apiPost } from "@/lib/api/client";
+import { formatMoney } from "@/lib/utils";
 import type { EncounterRow } from "@/modules/encounters/api/encounters.api";
 
 export type NamedRow = {
@@ -111,6 +112,16 @@ export const journeyApi = {
       code: row.code,
       category: row.category,
       name: [row.code, row.title].filter(Boolean).join(" — "),
+    }));
+  },
+
+  operationTypes: async (filter: { clinicId?: number }): Promise<NamedRow[]> => {
+    const params: Record<string, unknown> = { per_page: 200 };
+    if (filter.clinicId) params.clinic_id = filter.clinicId;
+    const rows = await list<NamedRow>("/operations/types", params);
+    return rows.map((row) => ({
+      ...row,
+      name: row.price != null ? `${row.name ?? ""} — ${formatMoney(row.price, "0")}` : row.name,
     }));
   },
 

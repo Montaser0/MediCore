@@ -22,6 +22,8 @@ Route::middleware('auth:sanctum')->prefix('operations')->group(function (): void
         ->middleware('permission:'.Permissions::SETTINGS_MANAGE);
 
     Route::post('/', [OperationController::class, 'store']);
+    Route::post('{operation}/cancel', [OperationController::class, 'cancel'])
+        ->middleware('permission:'.Permissions::OPERATIONS_SCHEDULE);
 
     Route::middleware('permission:'.Permissions::OPERATIONS_UPDATE)->group(function (): void {
         Route::post('{operation}/consent', [OperationController::class, 'recordConsent']);

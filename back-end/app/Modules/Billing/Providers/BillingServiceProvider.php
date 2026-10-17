@@ -7,6 +7,7 @@ namespace App\Modules\Billing\Providers;
 use App\Core\Support\PatientRecordRegistry;
 use App\Core\Support\Providers\ModuleServiceProvider;
 use App\Modules\Billing\Application\Listeners\ChargeCompletedOperation;
+use App\Modules\Billing\Application\Listeners\ChargeScheduledOperation;
 use App\Modules\Billing\Application\Listeners\ChargeFulfilledBloodRequest;
 use App\Modules\Billing\Application\Listeners\ChargeCompletedRadiologyReport;
 use App\Modules\Billing\Application\Listeners\ChargeCompletedServiceOrder;
@@ -29,7 +30,9 @@ use App\Modules\Laboratory\Domain\Events\BloodRequestFulfilled;
 use App\Modules\Laboratory\Domain\Events\LabOrderItemCancelled;
 use App\Modules\Laboratory\Domain\Events\LabResultVerified;
 use App\Modules\Radiology\Domain\Events\RadiologyOrderItemCancelled;
+use App\Modules\Operations\Domain\Events\OperationCancelled;
 use App\Modules\Operations\Domain\Events\OperationCompleted;
+use App\Modules\Operations\Domain\Events\OperationScheduled;
 use App\Modules\Orders\Domain\Events\OrderCompleted;
 use App\Modules\Pharmacy\Domain\Events\MedicationDispensed;
 use App\Modules\Radiology\Domain\Events\ReportCompleted;
@@ -49,8 +52,10 @@ final class BillingServiceProvider extends ModuleServiceProvider
         LabOrderItemCancelled::class => [RemoveCancelledClinicalCharge::class],
         RadiologyOrderItemCancelled::class => [RemoveCancelledClinicalCharge::class],
         BloodRequestCancelled::class => [RemoveCancelledClinicalCharge::class],
+        OperationCancelled::class => [RemoveCancelledClinicalCharge::class],
         ReportCompleted::class => [ChargeCompletedRadiologyReport::class],
         PatientDischarged::class => [ChargeInpatientStay::class],
+        OperationScheduled::class => [ChargeScheduledOperation::class],
         OperationCompleted::class => [ChargeCompletedOperation::class],
         EncounterStarted::class => [ChargeStartedEncounter::class],
         ProcedurePerformed::class => [ChargePerformedProcedure::class],

@@ -35,6 +35,8 @@ final class OperationModel extends BaseModel
             'consent_obtained_at' => 'datetime',
             'follow_up_date' => 'date',
             'estimated_duration_minutes' => 'integer',
+            'discount' => 'float',
+            'addition' => 'float',
         ];
     }
 

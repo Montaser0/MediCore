@@ -432,6 +432,7 @@ final class Permissions
             'staff' => self::screen('admin', 'nav.staff', [self::STAFF_MANAGE]),
             'departments' => self::screen('admin', 'nav.departments', [self::DEPARTMENTS_MANAGE]),
             'diagnoses' => self::screen('admin', 'nav.diagnoses', [self::DEPARTMENTS_MANAGE]),
+            'operation-types' => self::screen('admin', 'nav.operationTypes', [self::DEPARTMENTS_MANAGE]),
             'documents' => self::screen('admin', 'nav.documents', [self::DOCUMENTS_VIEW, self::DOCUMENTS_UPLOAD]),
             'billing' => self::screen('finance', 'nav.billing', [
                 self::BILLING_CHARGES_VIEW, self::BILLING_CHARGES_CREATE,

@@ -17,6 +17,8 @@ final class OperationTypeResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $clinic = $this->relationLoaded('clinics') ? $this->clinics->first() : null;
+
         return [
             'id' => $this->id,
             'name' => $this->name,
@@ -27,6 +29,13 @@ final class OperationTypeResource extends JsonResource
             'price' => $this->price,
             'description' => $this->description,
             'is_active' => $this->is_active,
+            'department_id' => $clinic?->department_id,
+            'clinic_id' => $clinic?->id,
+            'clinics' => $this->whenLoaded('clinics', fn () => $this->clinics->map(fn ($clinic) => [
+                'id' => $clinic->id,
+                'name' => $clinic->name,
+                'department_id' => $clinic->department_id,
+            ])->values()),
         ];
     }
 }

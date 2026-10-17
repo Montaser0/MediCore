@@ -161,8 +161,8 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
   const { data: catalogs, refetch: refetchCatalogs } = useCatalogs();
   const run = useJourneyAction(patientId);
 
-  async function cancelOrder(url: string) {
-    if (!window.confirm(t("workspace.cancelOrder"))) return;
+  async function cancelOrder(url: string, message?: string) {
+    if (!window.confirm(message ?? t("workspace.cancelOrder"))) return;
     try {
       await apiPost(url, {});
       toast.success(t("workspace.saved"));
@@ -216,6 +216,12 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
         diagnosisDesk || visitClinicId == null ? {} : { clinicId: visitClinicId },
       ),
   });
+  const { data: clinicOperations = [], isLoading: operationsLoading, isFetched: operationsFetched } = useQuery({
+    queryKey: ["operation-types", diagnosisDesk ? "account" : "visit", diagnosisDesk ? user?.id ?? null : visitClinicId],
+    enabled: action === "surgery",
+    queryFn: () =>
+      journeyApi.operationTypes(diagnosisDesk || visitClinicId == null ? {} : { clinicId: visitClinicId }),
+  });
 
   const activeStay = useMemo(() => {
     return arr(admissions.items).find((row) =>
@@ -252,7 +258,9 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
           ? { discharge_type: "routine" }
           : next === "diagnosis"
             ? { type: "primary" }
-            : {}),
+            : next === "surgery"
+              ? { scheduled_at: localDateTime() }
+              : {}),
     );
   }
 
@@ -395,11 +403,14 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
         });
       case "surgery":
         if (!userId) throw new Error("يجب تسجيل الدخول قبل حجز العملية");
+        if (!num(form.operation_type_id)) throw new Error(t("workspace.noClinicOperations"));
         return journeyApi.scheduleOperation({
           encounter_id: encounterId,
           operation_type_id: num(form.operation_type_id),
           scheduled_at: toSql(form.scheduled_at),
           pre_op_diagnosis: form.pre_op_diagnosis,
+          discount: num(form.discount) ?? 0,
+          addition: num(form.addition) ?? 0,
           team: [{ user_id: userId, role: "surgeon" }],
         });
       case "charge":
@@ -751,6 +762,38 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
                   emptyText={t("app.noData")}
                 />
               </div>
+              {showOperations ? (
+                <div className="his-panel">
+                  <div className="his-panel-header">{t("nav.operations")}</div>
+                  <DataTable
+                    columns={[
+                      { key: "name", header: t("nav.operations"), cell: (row) => text(row.name) },
+                      { key: "price", header: t("crud.price"), width: 120, cell: (row) => formatMoney(row.price, "0") },
+                      { key: "status", header: t("app.status"), width: 120, cell: (row) => arabicLabel(row.status) },
+                      { key: "when", header: t("app.date"), width: 150, cell: (row) => formatDate(String(row.scheduled_at ?? ""), true) },
+                      {
+                        key: "cancel",
+                        header: t("app.actions"),
+                        width: 110,
+                        cell: (row) =>
+                          canSurgery && ["scheduled", "confirmed", "postponed"].includes(String(row.status ?? "")) ? (
+                            <Button
+                              variant="danger"
+                              onClick={() => cancelOrder(`/operations/${row.id}/cancel`, t("workspace.cancelOperation"))}
+                            >
+                              {t("app.cancel")}
+                            </Button>
+                          ) : (
+                            "—"
+                          ),
+                      },
+                    ]}
+                    rows={operations.filter((row) => !current || Number(row.encounter_id) === current.id)}
+                    rowKey={(row, index) => String(row.id ?? index)}
+                    emptyText={t("app.noData")}
+                  />
+                </div>
+              ) : null}
             </div>
           )}
 
@@ -1143,6 +1186,9 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
                 clinicReady={diagnosisReady}
                 diagnosesLoading={diagnosesLoading}
                 diagnosesFetched={diagnosesFetched}
+                clinicOperations={clinicOperations}
+                operationsLoading={operationsLoading}
+                operationsFetched={operationsFetched}
                 t={tr}
               />
               <div className="flex justify-end gap-2 pt-2">
@@ -1170,6 +1216,9 @@ function ActionFields({
   clinicReady,
   diagnosesLoading,
   diagnosesFetched,
+  clinicOperations,
+  operationsLoading,
+  operationsFetched,
   t,
 }: {
   action: ActionKey;
@@ -1180,6 +1229,9 @@ function ActionFields({
   clinicReady: boolean;
   diagnosesLoading: boolean;
   diagnosesFetched: boolean;
+  clinicOperations: NamedRow[];
+  operationsLoading: boolean;
+  operationsFetched: boolean;
   t: (key: string) => string;
 }) {
   const { data: bloodProducts = [], isLoading: bloodProductsLoading } = useQuery({
@@ -1345,7 +1397,18 @@ function ActionFields({
       return (
         <>
           <Field label={t("workspace.operationType")}>
-            <NamedSelect required rows={catalogs?.operationTypes} value={form.operation_type_id ?? ""} onChange={(value) => setField("operation_type_id", value)} />
+            {operationsLoading || !operationsFetched ? (
+              <p className="text-[12px]">{t("app.loading")}</p>
+            ) : clinicOperations.length === 0 ? (
+              <p className="text-[12px]">{t("workspace.noClinicOperations")}</p>
+            ) : (
+              <NamedSelect
+                required
+                rows={clinicOperations}
+                value={form.operation_type_id ?? ""}
+                onChange={(value) => setField("operation_type_id", value)}
+              />
+            )}
           </Field>
           <Field label={t("appointments.scheduledAt")}>
             <Input required type="datetime-local" value={form.scheduled_at ?? ""} onChange={(e) => setField("scheduled_at", e.target.value)} />
@@ -1353,6 +1416,14 @@ function ActionFields({
           <Field label={t("workspace.diagnosis")}>
             <Input value={form.pre_op_diagnosis ?? ""} onChange={(e) => setField("pre_op_diagnosis", e.target.value)} />
           </Field>
+          <div className="grid grid-cols-2 gap-2">
+            <Field label={t("workspace.discount")}>
+              <Input type="number" min={0} value={form.discount ?? ""} onChange={(e) => setField("discount", e.target.value)} />
+            </Field>
+            <Field label={t("workspace.addition")}>
+              <Input type="number" min={0} value={form.addition ?? ""} onChange={(e) => setField("addition", e.target.value)} />
+            </Field>
+          </div>
         </>
       );
     case "charge":

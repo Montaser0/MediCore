@@ -73,11 +73,21 @@ export default function Page() {
                 { key: "id", header: "#", width: 60 },
                 { key: "name", header: t("crud.name"), render: (row) => String(row.name ?? "—") },
                 { key: "code", header: t("crud.code"), width: 100, render: (row) => String(row.code ?? "—") },
+                {
+                  key: "clinic",
+                  header: t("workspace.clinic"),
+                  render: (row) => {
+                    const clinics = row.clinics as Array<{ name?: string }> | undefined;
+                    return clinics?.map((clinic) => clinic.name).filter(Boolean).join("، ") || "—";
+                  },
+                },
                 { key: "price", header: t("crud.price"), width: 110, render: (row) => formatMoney(row.price) },
               ]}
               fields={[
                 { key: "name", label: t("crud.name"), required: true },
                 { key: "code", label: t("crud.code"), required: true },
+                { key: "department_id", label: t("workspace.department"), type: "select", required: true, optionsSource: "departments" },
+                { key: "clinic_id", label: t("workspace.clinic"), type: "select", required: true, optionsSource: "clinics" },
                 { key: "specialty", label: t("crud.type") },
                 { key: "estimated_duration_minutes", label: t("app.time"), type: "number" },
                 {
@@ -86,7 +96,7 @@ export default function Page() {
                   type: "select",
                   options: RISKS.map((value) => ({ value, label: value })),
                 },
-                { key: "price", label: t("crud.price"), type: "number" },
+                { key: "price", label: t("crud.price"), type: "number", required: true },
               ]}
             />
           ),

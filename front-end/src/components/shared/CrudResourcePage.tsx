@@ -123,8 +123,9 @@ export function CrudResourcePage({
     }
     if (field.optionsSource === "clinics") {
       const departmentId = form.department_id ?? "";
+      const scoped = fields.some((item) => item.key === "department_id");
       return clinics
-        .filter((row) => departmentId === "" || String(row.department_id ?? "") === departmentId)
+        .filter((row) => (scoped ? departmentId !== "" && String(row.department_id ?? "") === departmentId : true))
         .map((row) => ({
           value: String(row.id),
           label: String(row.name ?? row.id),
@@ -266,8 +267,15 @@ export function CrudResourcePage({
                 {field.type === "select" || field.optionsSource || field.boolean ? (
                   <Select
                     required={field.required || (field.requiredWhen != null && form[field.requiredWhen.key] === field.requiredWhen.value)}
+                    disabled={field.optionsSource === "clinics" && fields.some((item) => item.key === "department_id") && !form.department_id}
                     value={form[field.key] ?? ""}
-                    onChange={(event) => setForm((current) => ({ ...current, [field.key]: event.target.value }))}
+                    onChange={(event) =>
+                      setForm((current) => {
+                        const next = { ...current, [field.key]: event.target.value };
+                        if (field.key === "department_id") next.clinic_id = "";
+                        return next;
+                      })
+                    }
                   >
                     <option value="">{field.label}</option>
                     {(field.boolean
