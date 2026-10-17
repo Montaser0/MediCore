@@ -388,6 +388,9 @@ final class Permissions
             'lab-tests' => self::screen('diagnostics', 'nav.labTests', [
                 self::LABORATORY_TESTS_MANAGE, self::LABORATORY_ORDERS_VIEW,
             ]),
+            'blood-products' => self::screen('diagnostics', 'nav.bloodProducts', [
+                self::LABORATORY_TESTS_MANAGE, self::LABORATORY_ORDERS_VIEW,
+            ]),
             'radiology' => self::screen('diagnostics', 'nav.radiology', [
                 self::RADIOLOGY_ORDERS_VIEW, self::RADIOLOGY_STUDIES_CREATE,
                 self::RADIOLOGY_IMAGES_UPLOAD, self::RADIOLOGY_REPORTS_CREATE,
@@ -460,7 +463,7 @@ final class Permissions
             'doctor', 'data_entry' => ['patients', 'encounters', 'emergency'],
             'nurse' => ['patients', 'encounters', 'emergency', 'nursing', 'inpatient', 'pharmacy'],
             'lab_technician' => ['laboratory'],
-            'lab_supervisor' => ['laboratory', 'lab-tests'],
+            'lab_supervisor' => ['laboratory', 'lab-tests', 'blood-products'],
             'radiology_technician' => ['radiology'],
             'radiologist' => ['radiology', 'radiology-services'],
             'pharmacist' => [

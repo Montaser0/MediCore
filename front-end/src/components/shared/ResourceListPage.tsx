@@ -132,9 +132,9 @@ export function ResourceListPage({
 export function statusBadge(value: unknown) {
   const v = String(value ?? "—");
   const tone =
-    ["completed", "paid", "active", "verified", "dispensed"].includes(v)
+    ["completed", "paid", "active", "verified", "dispensed", "fulfilled"].includes(v)
       ? "success"
-      : ["pending", "scheduled", "draft", "ordered"].includes(v)
+      : ["pending", "scheduled", "draft", "ordered", "requested"].includes(v)
         ? "warning"
         : ["cancelled", "rejected", "failed"].includes(v)
           ? "danger"

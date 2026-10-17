@@ -13,6 +13,7 @@ import {
   BedDouble,
   CalendarDays,
   Check,
+  Droplet,
   FlaskConical,
   NotebookPen,
   Pill,
@@ -31,7 +32,8 @@ import { useCatalogs, useJourneyAction, usePatientEncounters } from "../hooks/us
 import { journeyApi, type Catalogs, type NamedRow } from "../api/journey.api";
 import { PatientAccountPanel } from "../components/PatientAccountPanel";
 import { formatDate, formatMoney, latinDigits } from "@/lib/utils";
-import { apiDelete, getErrorMessage } from "@/lib/api/client";
+import { apiDelete, apiGet, apiPost, getErrorMessage } from "@/lib/api/client";
+import { BLOOD_GROUPS } from "@/modules/laboratory/blood";
 import { DocumentGallery } from "@/components/shared/DocumentGallery";
 import { useAuthStore } from "@/stores/auth-store";
 import { useEditionStore } from "@/stores/edition-store";
@@ -55,6 +57,7 @@ type ActionKey =
   | "diagnosis"
   | "procedure"
   | "radiology"
+  | "blood"
   | "medication"
   | "nursing"
   | "admit"
@@ -162,6 +165,7 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
   const clinical = asObj(sections.clinical);
   const orders = arr(asObj(sections.orders).recent);
   const lab = arr(asObj(sections.laboratory).recent);
+  const bloodRequests = arr(asObj(sections.blood).recent);
   const radiology = arr(asObj(sections.radiology).recent);
   const pharmacy = asObj(sections.pharmacy);
   const nursing = asObj(sections.nursing);
@@ -307,6 +311,14 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
           name: catalogs?.services?.find((row) => String(row.id) === form.service_id)?.name,
           doctor_id: doctorId,
           description: form.description,
+        });
+      case "blood":
+        return apiPost("/laboratory/blood-requests", {
+          patient_id: Number(patientId),
+          encounter_id: encounterId,
+          blood_product_id: num(form.blood_product_id),
+          blood_group: form.blood_group,
+          units: num(form.units),
         });
       case "radiology":
         return journeyApi.order({
@@ -755,6 +767,28 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
                 />
               </div>
               ) : null}
+              {showLabRecords ? (
+              <div className="his-panel">
+                <div className="his-panel-header">{t("laboratory.bloodRequests")}</div>
+                <DataTable
+                  columns={[
+                    { key: "n", header: "#", width: 50, cell: (_row, index) => String(index + 1) },
+                    { key: "product", header: t("crud.name"), width: 160, cell: (row) => text(row.product) },
+                    { key: "group", header: t("laboratory.bloodGroup"), width: 80, cell: (row) => text(row.blood_group) },
+                    { key: "units", header: t("laboratory.units"), width: 90, cell: (row) => latinDigits(text(row.units, "0")) },
+                    { key: "price", header: t("crud.price"), width: 110, cell: (row) => formatMoney(row.price, "0") },
+                    { key: "confirmed", header: t("laboratory.confirmGroup"), width: 110, cell: (row) => text(row.confirmed_blood_group) },
+                    { key: "bag", header: t("laboratory.bagNumber"), width: 120, cell: (row) => text(row.bag_number) },
+                    { key: "when", header: t("laboratory.issueDate"), width: 120, cell: (row) => formatDate(text(row.issued_at, "") || null) },
+                    { key: "status", header: t("app.status"), width: 100, cell: (row) => arabicLabel(row.status) },
+                    { key: "actor", header: t("patients.actor"), width: 140, cell: (row) => actorOf(row) || "—" },
+                  ]}
+                  rows={bloodRequests}
+                  rowKey={(row, index) => String(row.id ?? index)}
+                  emptyText={t("app.noData")}
+                />
+              </div>
+              ) : null}
               {showRadRecords ? (
               <div className="his-panel">
                 <div className="his-panel-header">{t("nav.radiology")}</div>
@@ -947,6 +981,21 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
               {t("workspace.labAction")}
             </Button>
           ) : null}
+          {showLab ? (
+            <Button
+              variant="danger"
+              onClick={() =>
+                openAction("blood", {
+                  blood_product_id: "",
+                  blood_group: patient?.blood_type ?? "",
+                  units: "1",
+                })
+              }
+            >
+              <Droplet size={13} />
+              {t("laboratory.bloodRequest")}
+            </Button>
+          ) : null}
           {showRadiology ? (
             <Button variant="warning" onClick={() => router.push(`/${locale}/dashboard/patients/${patientId}/radiology`)}>
               <Scan size={13} />
@@ -1046,6 +1095,18 @@ function ActionFields({
   diagnosesFetched: boolean;
   t: (key: string) => string;
 }) {
+  const { data: bloodProducts = [], isLoading: bloodProductsLoading } = useQuery({
+    queryKey: ["/laboratory/blood-products", "order"],
+    enabled: action === "blood",
+    queryFn: async () => {
+      const res = await apiGet<Array<{ id: number; name?: string; price?: number }>>("/laboratory/blood-products", {
+        params: { per_page: 100 },
+      });
+      return Array.isArray(res.data) ? res.data : [];
+    },
+  });
+  const selectedBlood = bloodProducts.find((item) => String(item.id) === (form.blood_product_id ?? ""));
+
   switch (action) {
     case "vitals":
       return (
@@ -1107,6 +1168,50 @@ function ActionFields({
             onChange={(value) => setField("service_id", value)}
           />
         </Field>
+      );
+    case "blood":
+      return (
+        <div className="grid grid-cols-2 gap-2">
+          <Field label={t("laboratory.bloodRequest")}>
+            {bloodProductsLoading ? (
+              <p className="text-[12px]">{t("app.loading")}</p>
+            ) : bloodProducts.length === 0 ? (
+              <p className="text-[12px]">{t("laboratory.noBloodProducts")}</p>
+            ) : (
+              <Select required value={form.blood_product_id ?? ""} onChange={(e) => setField("blood_product_id", e.target.value)}>
+                <option value="">—</option>
+                {bloodProducts.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name} — {formatMoney(item.price, "0")}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </Field>
+          <Field label={t("crud.price")}>
+            <Input
+              readOnly
+              value={
+                selectedBlood
+                  ? formatMoney((Number(selectedBlood.price) || 0) * (num(form.units) || 0), "0")
+                  : ""
+              }
+            />
+          </Field>
+          <Field label={t("laboratory.bloodGroup")}>
+            <Select required value={form.blood_group ?? ""} onChange={(e) => setField("blood_group", e.target.value)}>
+              <option value="">—</option>
+              {BLOOD_GROUPS.map((item) => (
+                <option key={item} value={item}>
+                  {item}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label={t("laboratory.units")}>
+            <Input required type="number" min={1} max={20} value={form.units ?? "1"} onChange={(e) => setField("units", e.target.value)} />
+          </Field>
+        </div>
       );
     case "radiology":
       return (
@@ -1446,6 +1551,7 @@ function dialogTitle(action: ActionKey, t: (key: string) => string) {
     diagnosis: t("workspace.diagnosis"),
     procedure: t("workspace.procedure"),
     radiology: t("nav.radiology"),
+    blood: t("laboratory.bloodRequest"),
     medication: t("workspace.medAction"),
     nursing: t("workspace.nursing"),
     admit: t("workspace.admit"),

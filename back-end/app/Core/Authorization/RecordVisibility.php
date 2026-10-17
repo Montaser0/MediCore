@@ -21,6 +21,7 @@ final class RecordVisibility
             'clinical' => [Permissions::CLINICAL_NOTES_VIEW, Permissions::CLINICAL_VITALS_VIEW, Permissions::CLINICAL_DIAGNOSIS_VIEW],
             'orders' => [Permissions::ORDERS_VIEW],
             'laboratory' => [Permissions::LABORATORY_ORDERS_VIEW],
+            'blood' => [Permissions::LABORATORY_ORDERS_VIEW],
             'radiology' => [Permissions::RADIOLOGY_ORDERS_VIEW],
             'pharmacy' => [Permissions::PHARMACY_PRESCRIPTIONS_VIEW],
             'nursing' => [Permissions::NURSING_NOTES_VIEW],

@@ -4,6 +4,7 @@ import {
   BedDouble,
   FileBarChart,
   FileText,
+  Droplet,
   FlaskConical,
   Hospital,
   LayoutGrid,
@@ -96,6 +97,15 @@ export const modules: NavModule[] = [
     category: "medical",
     permission: "laboratory.tests.manage",
     color: "#2E86C1",
+  },
+  {
+    id: "blood-products",
+    href: "/dashboard/blood-products",
+    labelKey: "nav.bloodProducts",
+    icon: Droplet,
+    category: "medical",
+    permission: "laboratory.tests.manage",
+    color: "#922B21",
   },
   {
     id: "radiology",
@@ -328,6 +338,7 @@ export const navTree: NavNode[] = [
         children: [
           { kind: "link", id: "laboratory" },
           { kind: "link", id: "lab-tests" },
+          { kind: "link", id: "blood-products" },
           { kind: "link", id: "radiology" },
           { kind: "link", id: "radiology-services" },
           { kind: "link", id: "pharmacy" },

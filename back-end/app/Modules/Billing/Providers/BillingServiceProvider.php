@@ -7,6 +7,7 @@ namespace App\Modules\Billing\Providers;
 use App\Core\Support\PatientRecordRegistry;
 use App\Core\Support\Providers\ModuleServiceProvider;
 use App\Modules\Billing\Application\Listeners\ChargeCompletedOperation;
+use App\Modules\Billing\Application\Listeners\ChargeFulfilledBloodRequest;
 use App\Modules\Billing\Application\Listeners\ChargeCompletedRadiologyReport;
 use App\Modules\Billing\Application\Listeners\ChargeCompletedServiceOrder;
 use App\Modules\Billing\Application\Listeners\ChargeDispensedMedication;
@@ -21,6 +22,8 @@ use App\Modules\Clinical\Domain\Events\ProcedurePerformed;
 use App\Modules\Encounters\Domain\Events\EncounterCompleted;
 use App\Modules\Encounters\Domain\Events\EncounterStarted;
 use App\Modules\Inpatient\Domain\Events\PatientDischarged;
+use App\Modules\Laboratory\Domain\Events\BloodRequestCreated;
+use App\Modules\Laboratory\Domain\Events\BloodRequestFulfilled;
 use App\Modules\Laboratory\Domain\Events\LabResultVerified;
 use App\Modules\Operations\Domain\Events\OperationCompleted;
 use App\Modules\Orders\Domain\Events\OrderCompleted;
@@ -37,6 +40,8 @@ final class BillingServiceProvider extends ModuleServiceProvider
     protected array $listen = [
         MedicationDispensed::class => [ChargeDispensedMedication::class],
         LabResultVerified::class => [ChargeVerifiedLabResult::class],
+        BloodRequestCreated::class => [ChargeFulfilledBloodRequest::class],
+        BloodRequestFulfilled::class => [ChargeFulfilledBloodRequest::class],
         ReportCompleted::class => [ChargeCompletedRadiologyReport::class],
         PatientDischarged::class => [ChargeInpatientStay::class],
         OperationCompleted::class => [ChargeCompletedOperation::class],
