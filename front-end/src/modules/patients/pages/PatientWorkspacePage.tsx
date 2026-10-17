@@ -12,12 +12,14 @@ import {
   Activity,
   BedDouble,
   CalendarDays,
+  Check,
   FlaskConical,
   NotebookPen,
   Pill,
   Scan,
   Syringe,
   UserRound,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -736,7 +738,12 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
                   columns={[
                     { key: "n", header: "#", width: 50, cell: (_row, index) => String(index + 1) },
                     { key: "test", header: t("crud.name"), cell: (row) => text(row.test) },
-                    { key: "result", header: t("laboratory.resultValue"), width: 140, cell: (row) => text(row.result_value) },
+                    {
+                      key: "result",
+                      header: t("laboratory.resultValue"),
+                      width: 160,
+                      cell: (row) => <ResultMark value={row.result_value} />,
+                    },
                     { key: "price", header: t("crud.price"), width: 110, cell: (row) => formatMoney(row.price, "0") },
                     { key: "actor", header: t("patients.actor"), width: 140, cell: (row) => actorOf(row) || "—" },
                     { key: "verified", header: t("patients.verifiedBy"), width: 140, cell: (row) => text(row.verified_by) },
@@ -762,7 +769,11 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
                           ? `${text(row.service)} — ${t("radiology.withInjection")}`
                           : text(row.service),
                     },
-                    { key: "impression", header: t("radiology.impression"), cell: (row) => text(row.impression) },
+                    {
+                      key: "impression",
+                      header: t("radiology.impression"),
+                      cell: (row) => <ResultMark value={row.impression} />,
+                    },
                     { key: "images", header: t("radiology.upload"), width: 90, cell: (row) => latinDigits(text(row.image_count, "0")) },
                     { key: "price", header: t("crud.price"), width: 110, cell: (row) => formatMoney(row.price, "0") },
                     { key: "actor", header: t("patients.actor"), width: 140, cell: (row) => actorOf(row) || "—" },
@@ -1403,6 +1414,20 @@ function arr(value: unknown): Rec[] {
 function text(value: unknown, empty = "—") {
   if (value === undefined || value === null || value === "") return empty;
   return String(value);
+}
+
+function ResultMark({ value }: { value: unknown }) {
+  const done = value !== undefined && value !== null && String(value).trim() !== "";
+  return (
+    <span className="inline-flex items-center gap-1">
+      {done ? (
+        <Check size={14} strokeWidth={3} className="shrink-0 text-[#1e8449]" />
+      ) : (
+        <X size={14} strokeWidth={3} className="shrink-0 text-[#c0392b]" />
+      )}
+      <span>{text(value)}</span>
+    </span>
+  );
 }
 
 function visitLabel(type: string | undefined, t: (key: string) => string) {
