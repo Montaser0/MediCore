@@ -19,7 +19,6 @@ final class TransferEncounterRequest extends ApiFormRequest
         return [
             'to_department_id' => ['required', 'integer', 'exists:departments,id'],
             'clinic_id' => ['nullable', 'integer', 'exists:clinics,id'],
-            'doctor_id' => ['nullable', 'integer', 'exists:doctors,id'],
             'to_user_id' => ['nullable', 'integer', 'exists:users,id'],
             'reason' => ['nullable', 'string'],
         ];

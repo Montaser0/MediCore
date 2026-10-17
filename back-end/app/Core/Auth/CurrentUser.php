@@ -64,6 +64,41 @@ final class CurrentUser
     }
 
     /**
+     * Clinics where an unassigned visit should appear for this doctor.
+     *
+     * @return list<int>
+     */
+    public function doctorClinicIds(): array
+    {
+        if ($this->ownDoctorId() === null) {
+            return [];
+        }
+
+        $doctor = $this->model()?->staff?->doctor;
+
+        if ($doctor === null) {
+            return [];
+        }
+
+        $doctor->loadMissing('clinics:clinics.id');
+        $ids = $doctor->clinics
+            ->map(fn ($clinic) => (int) $clinic->getKey())
+            ->all();
+
+        if ($doctor->clinic_id !== null) {
+            $ids[] = (int) $doctor->clinic_id;
+        }
+
+        $staffClinicId = $this->model()?->staff?->clinic_id;
+
+        if ($staffClinicId !== null) {
+            $ids[] = (int) $staffClinicId;
+        }
+
+        return array_values(array_unique(array_map(intval(...), $ids)));
+    }
+
+    /**
      * Doctor and clinic/wing data-entry accounts share the clinical desk:
      * they work inside visits, and do not register patients or open new ones.
      */

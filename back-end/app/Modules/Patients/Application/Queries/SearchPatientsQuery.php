@@ -21,6 +21,7 @@ final class SearchPatientsQuery
     public function execute(array $filters, int $perPage = 25): LengthAwarePaginator
     {
         $doctorId = $this->currentUser->ownDoctorId();
+        $doctorClinics = $this->currentUser->doctorClinicIds();
         $clinicIds = $this->currentUser->dataEntryClinicIds();
         $departmentIds = $this->currentUser->dataEntryDepartmentIds();
 
@@ -84,7 +85,7 @@ final class SearchPatientsQuery
                     fn ($appointments) => $appointments->whereIn('department_id', $departmentIds)->where('status', '!=', 'cancelled'),
                 );
             }))
-            ->when($doctorId !== null, fn ($query) => $query->where(function ($inner) use ($doctorId): void {
+            ->when($doctorId !== null, fn ($query) => $query->where(function ($inner) use ($doctorId, $doctorClinics): void {
                 $inner->whereHas(
                     'encounters',
                     fn ($encounters) => $encounters->where('doctor_id', $doctorId)->where('status', '!=', 'cancelled'),
@@ -92,6 +93,15 @@ final class SearchPatientsQuery
                     'appointments',
                     fn ($appointments) => $appointments->where('doctor_id', $doctorId)->where('status', '!=', 'cancelled'),
                 );
+                if ($doctorClinics !== []) {
+                    $inner->orWhereHas(
+                        'encounters',
+                        fn ($encounters) => $encounters
+                            ->whereNull('doctor_id')
+                            ->whereIn('clinic_id', $doctorClinics)
+                            ->where('status', '!=', 'cancelled'),
+                    );
+                }
             }))
             ->withCount('encounters')
             ->orderByDesc('created_at')

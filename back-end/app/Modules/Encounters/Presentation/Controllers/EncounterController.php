@@ -34,6 +34,7 @@ final class EncounterController extends ApiController
         $ownDoctorId = $currentUser->ownDoctorId();
         if ($ownDoctorId !== null) {
             $filters['doctor_id'] = $ownDoctorId;
+            $filters['shared_clinic_ids'] = $currentUser->doctorClinicIds();
         }
 
         $clinicIds = $currentUser->dataEntryClinicIds();
@@ -73,6 +74,7 @@ final class EncounterController extends ApiController
     public function queue(Request $request, CurrentUser $currentUser): JsonResponse
     {
         $ownDoctorId = $currentUser->ownDoctorId();
+        $doctorClinics = $ownDoctorId !== null ? $currentUser->doctorClinicIds() : [];
         $clinicIds = $currentUser->dataEntryClinicIds();
         $departmentIds = $currentUser->dataEntryDepartmentIds();
         $lockedClinic = $clinicIds !== null ? ($clinicIds[0] ?? null) : null;
@@ -83,8 +85,18 @@ final class EncounterController extends ApiController
             ->queueFor(
                 $request->integer('department_id') ?: null,
                 $lockedClinic ?? ($request->integer('clinic_id') ?: null),
-                $ownDoctorId ?? ($request->integer('doctor_id') ?: null),
+                $ownDoctorId !== null ? null : ($request->integer('doctor_id') ?: null),
             )
+            ->when($ownDoctorId !== null, function ($query) use ($ownDoctorId, $doctorClinics): void {
+                $query->where(function ($inner) use ($ownDoctorId, $doctorClinics): void {
+                    $inner->where('doctor_id', $ownDoctorId);
+                    if ($doctorClinics !== []) {
+                        $inner->orWhere(function ($shared) use ($doctorClinics): void {
+                            $shared->whereNull('doctor_id')->whereIn('clinic_id', $doctorClinics);
+                        });
+                    }
+                });
+            })
             ->when($clinicIds !== null, fn ($query) => $query->whereIn('clinic_id', $clinicIds))
             ->when($departmentIds !== null, fn ($query) => $query->whereIn('department_id', $departmentIds))
             ->when($request->filled('date'), fn ($query) => $query->whereDate('created_at', $request->string('date')->toString()))

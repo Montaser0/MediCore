@@ -29,7 +29,18 @@ final class ListEncountersQuery
                 isset($filters['clinic_ids']) && is_array($filters['clinic_ids']),
                 fn ($query) => $query->whereIn('clinic_id', $filters['clinic_ids']),
             )
-            ->when(isset($filters['doctor_id']), fn ($query) => $query->where('doctor_id', $filters['doctor_id']))
+            ->when(isset($filters['doctor_id']), function ($query) use ($filters): void {
+                $doctorId = (int) $filters['doctor_id'];
+                $clinics = is_array($filters['shared_clinic_ids'] ?? null) ? $filters['shared_clinic_ids'] : [];
+                $query->where(function ($inner) use ($doctorId, $clinics): void {
+                    $inner->where('doctor_id', $doctorId);
+                    if ($clinics !== []) {
+                        $inner->orWhere(function ($shared) use ($clinics): void {
+                            $shared->whereNull('doctor_id')->whereIn('clinic_id', $clinics);
+                        });
+                    }
+                });
+            })
             ->when(isset($filters['status']), fn ($query) => $query->where('status', $filters['status']))
             ->when(isset($filters['type']), fn ($query) => $query->where('type', $filters['type']))
             ->when(isset($filters['open_only']), fn ($query) => $query->open())

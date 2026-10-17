@@ -7,6 +7,7 @@ namespace App\Modules\Clinical\Application\Actions;
 use App\Core\Auth\CurrentUser;
 use App\Core\Exceptions\BusinessRuleException;
 use App\Core\Support\Contracts\EncounterContext;
+use App\Core\Support\Contracts\EncounterSnapshot;
 use App\Core\Support\Contracts\TimelineRecorder;
 use App\Modules\Clinical\Application\AccountDiagnosisClinics;
 use App\Modules\Clinical\Domain\Enums\DiagnosisType;
@@ -37,6 +38,10 @@ final class AddDiagnosisAction
 
         if ($doctorId === null) {
             throw BusinessRuleException::make('التشخيص يجب أن يُنسب إلى طبيب.');
+        }
+
+        if (empty($data['diagnosis_code_id']) && trim((string) ($data['diagnosis_name'] ?? '')) !== '') {
+            $data['diagnosis_code_id'] = $this->rememberForClinic($encounter, trim((string) $data['diagnosis_name']));
         }
 
         $this->assertAvailableForDoctor((int) $doctorId, $data);
@@ -74,6 +79,50 @@ final class AddDiagnosisAction
 
             return $diagnosis->load(['code', 'doctor.staff', 'enteredBy.staff', 'enteredBy.roles']);
         });
+    }
+
+    /**
+     * A name typed by the doctor or data-entry clerk becomes a catalog entry
+     * for the visit's clinic, so it shows up with that clinic's diagnoses.
+     */
+    private function rememberForClinic(EncounterSnapshot $encounter, string $title): int
+    {
+        $clinicId = $this->clinicForCatalog($encounter);
+        $existing = DiagnosisCodeModel::query()
+            ->active()
+            ->where('title', $title)
+            ->whereHas('clinics', fn ($clinics) => $clinics->where('clinics.id', $clinicId))
+            ->first();
+
+        if ($existing !== null) {
+            return (int) $existing->getKey();
+        }
+
+        $code = DiagnosisCodeModel::query()->create([
+            'system' => 'local',
+            'code' => DiagnosisCodeModel::nextLocalCode(),
+            'title' => $title,
+            'is_active' => true,
+        ]);
+        $code->clinics()->sync([$clinicId]);
+
+        return (int) $code->getKey();
+    }
+
+    private function clinicForCatalog(EncounterSnapshot $encounter): int
+    {
+        $allowed = $this->accountClinics->ids();
+        $visitClinic = $encounter->clinicId;
+
+        if ($visitClinic !== null && ($allowed === null || in_array($visitClinic, $allowed, true))) {
+            return $visitClinic;
+        }
+
+        if (is_array($allowed) && count($allowed) === 1) {
+            return $allowed[0];
+        }
+
+        throw BusinessRuleException::make('لا يمكن إضافة التشخيص لأن الزيارة غير مربوطة بعيادة.');
     }
 
     /**

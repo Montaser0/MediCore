@@ -63,7 +63,7 @@ final class DiagnosisCodeController extends ApiController
 
         $code = DiagnosisCodeModel::query()->create([
             'system' => 'local',
-            'code' => $this->nextLocalCode(),
+            'code' => DiagnosisCodeModel::nextLocalCode(),
             'title' => $data['title'],
             'is_active' => true,
         ]);
@@ -85,21 +85,6 @@ final class DiagnosisCodeController extends ApiController
         }
 
         return ApiResponse::resource(new DiagnosisCodeResource($diagnosisCode->load('clinics')));
-    }
-
-    private function nextLocalCode(): string
-    {
-        $latest = DiagnosisCodeModel::query()
-            ->where('system', 'local')
-            ->orderByDesc('id')
-            ->value('code');
-        $number = 1;
-
-        if (is_string($latest) && preg_match('/(\d+)$/', $latest, $matches) === 1) {
-            $number = ((int) $matches[1]) + 1;
-        }
-
-        return 'DX-'.str_pad((string) $number, 4, '0', STR_PAD_LEFT);
     }
 
     public function destroy(Request $request, DiagnosisCodeModel $diagnosisCode): JsonResponse

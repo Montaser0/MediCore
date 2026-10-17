@@ -20,9 +20,10 @@ final class PatientAccess
         $doctorId = $this->currentUser->ownDoctorId();
 
         if ($doctorId !== null) {
+            $doctorClinics = $this->currentUser->doctorClinicIds();
             $allowed = PatientModel::query()
                 ->whereKey($patient->getKey())
-                ->where(function ($inner) use ($doctorId): void {
+                ->where(function ($inner) use ($doctorId, $doctorClinics): void {
                     $inner->whereHas(
                         'encounters',
                         fn ($encounters) => $encounters->where('doctor_id', $doctorId)->where('status', '!=', 'cancelled'),
@@ -30,6 +31,15 @@ final class PatientAccess
                         'appointments',
                         fn ($appointments) => $appointments->where('doctor_id', $doctorId)->where('status', '!=', 'cancelled'),
                     );
+                    if ($doctorClinics !== []) {
+                        $inner->orWhereHas(
+                            'encounters',
+                            fn ($encounters) => $encounters
+                                ->whereNull('doctor_id')
+                                ->whereIn('clinic_id', $doctorClinics)
+                                ->where('status', '!=', 'cancelled'),
+                        );
+                    }
                 })
                 ->exists();
 

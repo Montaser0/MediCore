@@ -324,13 +324,20 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
           note_type: form.note_type || "progress",
           content: form.content,
         });
-      case "diagnosis":
+      case "diagnosis": {
+        const diagnosisName = form.diagnosis_name?.trim();
+        const diagnosisCodeId = num(form.diagnosis_code_id);
+        if (!diagnosisName && !diagnosisCodeId) {
+          throw new Error(t("workspace.diagnosisRequired"));
+        }
         return journeyApi.diagnosis(encounterId!, {
-          diagnosis_code_id: num(form.diagnosis_code_id),
+          diagnosis_code_id: diagnosisName ? undefined : diagnosisCodeId,
+          diagnosis_name: diagnosisName || undefined,
           type: form.type || "primary",
           doctor_id: doctorId,
           notes: form.notes,
         });
+      }
       case "procedure":
         return journeyApi.procedure(encounterId!, {
           service_id: num(form.service_id),
@@ -408,7 +415,6 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
         return journeyApi.transferVisit(encounterId!, {
           to_department_id: num(form.department_id),
           clinic_id: num(form.clinic_id),
-          doctor_id: num(form.doctor_id),
           reason: form.reason,
         });
       case "allergy":
@@ -1226,17 +1232,26 @@ function ActionFields({
       );
     case "diagnosis":
       return (
-        <Field label={t("workspace.diagnosis")}>
-          <DiagnosisSelect
-            rows={clinicDiagnoses}
-            value={form.diagnosis_code_id ?? ""}
-            onChange={(value) => setField("diagnosis_code_id", value)}
-            clinicReady={clinicReady}
-            loading={diagnosesLoading}
-            fetched={diagnosesFetched}
-            t={t}
-          />
-        </Field>
+        <div className="grid gap-2">
+          <Field label={t("workspace.diagnosis")}>
+            <DiagnosisSelect
+              rows={clinicDiagnoses}
+              value={form.diagnosis_code_id ?? ""}
+              onChange={(value) => setField("diagnosis_code_id", value)}
+              clinicReady={clinicReady}
+              loading={diagnosesLoading}
+              fetched={diagnosesFetched}
+              t={t}
+            />
+          </Field>
+          <Field label={t("workspace.newDiagnosis")}>
+            <Input
+              value={form.diagnosis_name ?? ""}
+              placeholder={t("workspace.newDiagnosisHint")}
+              onChange={(event) => setField("diagnosis_name", event.target.value)}
+            />
+          </Field>
+        </div>
       );
     case "procedure":
       return (
@@ -1368,20 +1383,41 @@ function ActionFields({
           <textarea required className="his-input min-h-20 w-full" value={form.discharge_summary ?? ""} onChange={(e) => setField("discharge_summary", e.target.value)} />
         </Field>
       );
-    case "transfer":
+    case "transfer": {
+      const transferClinics = (catalogs?.clinics ?? []).filter(
+        (row) => !form.department_id || String(row.department_id ?? "") === String(form.department_id),
+      );
       return (
         <>
           <Field label={t("workspace.department")}>
-            <NamedSelect required rows={catalogs?.departments} value={form.department_id ?? ""} onChange={(value) => setField("department_id", value)} />
+            <NamedSelect
+              required
+              rows={catalogs?.departments}
+              value={form.department_id ?? ""}
+              onChange={(value) => {
+                setField("department_id", value);
+                setField("clinic_id", "");
+              }}
+            />
           </Field>
-          <Field label={t("workspace.doctor")}>
-            <NamedSelect rows={catalogs?.doctors} value={form.doctor_id ?? ""} onChange={(value) => setField("doctor_id", value)} />
+          <Field label={t("workspace.clinic")}>
+            <NamedSelect
+              required={transferClinics.length > 0}
+              rows={transferClinics}
+              value={form.clinic_id ?? ""}
+              onChange={(value) => {
+                setField("clinic_id", value);
+                const clinic = (catalogs?.clinics ?? []).find((row) => String(row.id) === value);
+                if (clinic?.department_id) setField("department_id", String(clinic.department_id));
+              }}
+            />
           </Field>
           <Field label={t("workspace.reason")}>
             <Input value={form.reason ?? ""} onChange={(e) => setField("reason", e.target.value)} />
           </Field>
         </>
       );
+    }
     case "allergy":
       return (
         <>
@@ -1495,7 +1531,7 @@ function DiagnosisSelect({
   if (rows.length === 0) {
     return <p className="text-[12px]">{t("workspace.noClinicDiagnoses")}</p>;
   }
-  return <NamedSelect required rows={rows} value={value} onChange={onChange} />;
+  return <NamedSelect rows={rows} value={value} onChange={onChange} />;
 }
 
 function NamedSelect({

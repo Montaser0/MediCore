@@ -8,7 +8,9 @@ use App\Core\Auth\CurrentUser;
 use App\Core\Exceptions\BusinessRuleException;
 use App\Core\Support\Contracts\NotificationDispatcher;
 use App\Core\Support\Contracts\TimelineRecorder;
+use App\Modules\Departments\Infrastructure\Persistence\Models\ClinicModel;
 use App\Modules\Departments\Infrastructure\Persistence\Models\DepartmentModel;
+use App\Modules\Identity\Infrastructure\Persistence\Models\UserModel;
 use App\Modules\Encounters\Domain\Enums\TransferStatus;
 use App\Modules\Encounters\Domain\Events\EncounterTransferred;
 use App\Modules\Encounters\Infrastructure\Persistence\Models\EncounterModel;
@@ -41,12 +43,13 @@ final class TransferEncounterAction
         }
 
         $toDepartmentId = (int) $data['to_department_id'];
+        $clinicId = $this->clinicForDepartment($toDepartmentId, $data['clinic_id'] ?? null);
 
-        if ($encounter->department_id === $toDepartmentId) {
-            throw BusinessRuleException::make('المريض موجود في هذا القسم مسبقاً.');
+        if ((int) $encounter->department_id === $toDepartmentId && (int) $encounter->clinic_id === (int) $clinicId) {
+            throw BusinessRuleException::make('المريض موجود في هذه العيادة مسبقاً.');
         }
 
-        return DB::transaction(function () use ($encounter, $data, $toDepartmentId): EncounterTransferModel {
+        return DB::transaction(function () use ($encounter, $data, $toDepartmentId, $clinicId): EncounterTransferModel {
             $fromDepartmentId = $encounter->department_id;
 
             $transfer = EncounterTransferModel::query()->create([
@@ -64,8 +67,8 @@ final class TransferEncounterAction
             // queue picks it up immediately.
             $encounter->forceFill([
                 'department_id' => $toDepartmentId,
-                'clinic_id' => $data['clinic_id'] ?? null,
-                'doctor_id' => $data['doctor_id'] ?? null,
+                'clinic_id' => $clinicId,
+                'doctor_id' => null,
             ])->save();
 
             $toDepartment = DepartmentModel::query()->find($toDepartmentId);
@@ -81,17 +84,89 @@ final class TransferEncounterAction
                 departmentId: $toDepartmentId,
             );
 
+            $this->notifyClinic($clinicId, $toDepartmentId, $encounter);
+
+            return $transfer->load(['fromDepartment', 'toDepartment']);
+        });
+    }
+
+    /**
+     * A data-entry account only lists patients of its clinic. A department
+     * transfer without a clinic would leave the visit invisible to that account.
+     */
+    private function clinicForDepartment(int $departmentId, mixed $requested): ?int
+    {
+        $hasClinics = ClinicModel::query()->where('department_id', $departmentId)->exists();
+
+        if ($requested === null || $requested === '') {
+            if ($hasClinics) {
+                throw BusinessRuleException::make('اختر عيادة القسم.');
+            }
+
+            return null;
+        }
+
+        $clinicId = (int) $requested;
+        $belongs = ClinicModel::query()
+            ->whereKey($clinicId)
+            ->where('department_id', $departmentId)
+            ->exists();
+
+        if (! $belongs) {
+            throw BusinessRuleException::make('العيادة لا تتبع القسم المختار.');
+        }
+
+        return $clinicId;
+    }
+
+    private function notifyClinic(?int $clinicId, int $departmentId, EncounterModel $encounter): void
+    {
+        $title = 'وصل مريض منقول';
+        $message = 'نُقل مريض إلى عيادتكم.';
+
+        if ($clinicId === null) {
             $this->notifications->toDepartment(
-                departmentId: $toDepartmentId,
+                departmentId: $departmentId,
                 type: NotificationType::PatientTransferred->value,
-                title: 'وصل مريض منقول',
+                title: $title,
                 message: 'نُقل مريض إلى قسمكم.',
                 entityType: EncounterModel::class,
                 entityId: $encounter->getKey(),
             );
 
-            return $transfer->load(['fromDepartment', 'toDepartment']);
-        });
+            return;
+        }
+
+        $userIds = UserModel::query()
+            ->where(function ($query) use ($clinicId): void {
+                $query->whereHas('staff', fn ($staff) => $staff->where('clinic_id', $clinicId))
+                    ->orWhereHas('staff.doctor', fn ($doctor) => $doctor->inClinic($clinicId));
+            })
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        if ($userIds === []) {
+            $this->notifications->toDepartment(
+                departmentId: $departmentId,
+                type: NotificationType::PatientTransferred->value,
+                title: $title,
+                message: 'نُقل مريض إلى قسمكم.',
+                entityType: EncounterModel::class,
+                entityId: $encounter->getKey(),
+            );
+
+            return;
+        }
+
+        $this->notifications->toUsers(
+            userIds: $userIds,
+            type: NotificationType::PatientTransferred->value,
+            title: $title,
+            message: $message,
+            entityType: EncounterModel::class,
+            entityId: $encounter->getKey(),
+        );
     }
 
     public function updateStatus(EncounterTransferModel $transfer, TransferStatus $target): EncounterTransferModel

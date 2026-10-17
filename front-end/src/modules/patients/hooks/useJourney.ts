@@ -35,6 +35,8 @@ export function useJourneyAction(patientId: string) {
         qc.invalidateQueries({ queryKey: ["pharmacy"] }),
         qc.invalidateQueries({ queryKey: ["nursing"] }),
         qc.invalidateQueries({ queryKey: ["journey-catalogs"] }),
+        qc.invalidateQueries({ queryKey: ["diagnosis-codes"] }),
+        qc.invalidateQueries({ queryKey: ["/diagnosis-codes"] }),
       ]);
     },
   });
