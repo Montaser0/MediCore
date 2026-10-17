@@ -158,6 +158,4 @@ export const journeyApi = {
 
   contact: (patientId: number | string, body: Record<string, unknown>) =>
     apiPost(`/patients/${patientId}/contacts`, clean(body)),
-
-  appointment: (body: Record<string, unknown>) => apiPost("/appointments", clean(body)),
 };

@@ -11,7 +11,6 @@ import { dailyNo, localize } from "@/lib/arabicText";
 import {
   Activity,
   BedDouble,
-  CalendarDays,
   Check,
   Droplet,
   FlaskConical,
@@ -68,7 +67,6 @@ type ActionKey =
   | "allergy"
   | "condition"
   | "contact"
-  | "appointment"
   | "dischargeStay"
   | "pay"
   | "installment";
@@ -84,11 +82,9 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
   const router = useRouter();
   const userId = useAuthStore((s) => s.user?.id);
   const can = useAuthStore((s) => s.hasPermission);
-  const canCreateAppointment = can("appointments.create");
   const user = useAuthStore((s) => s.user);
   const doctorDesk = isDoctorDesk(user);
   const showBilling = canSeeBilling(user);
-  const canBook = canCreateAppointment && !doctorDesk;
   const canUpdatePatient = can("patients.update");
   const canOpenVisit = can("encounters.create") && !doctorDesk;
   const canTransfer = can("encounters.transfer");
@@ -245,7 +241,7 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
   function openAction(next: ActionKey, seed?: Record<string, string>) {
     if (
       !current &&
-      !["allergy", "condition", "contact", "appointment", "pay", "installment"].includes(next)
+      !["allergy", "condition", "contact", "pay", "installment"].includes(next)
     ) {
       toast.error(t("workspace.needVisit"));
       return;
@@ -445,14 +441,6 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
           relationship: form.relationship,
           phone: form.phone,
           is_emergency_contact: true,
-        });
-      case "appointment":
-        return journeyApi.appointment({
-          patient_id: Number(patientId),
-          department_id: num(form.department_id),
-          doctor_id: num(form.doctor_id),
-          scheduled_at: toSql(form.scheduled_at),
-          reason: form.reason,
         });
       case "dischargeStay":
         return journeyApi.dischargeStay(Number(activeStay?.id), {
@@ -1086,7 +1074,7 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
           )}
         </div>
 
-        {canVitals || canNote || canDiagnosis || showLab || showRadiology || showPrescribe || showSurgery || showAdmit || canBook || showCharge ? (
+        {canVitals || canNote || canDiagnosis || showLab || showRadiology || showPrescribe || showSurgery || showAdmit || showCharge ? (
         <div className="his-action-bar">
           {canVitals ? (
             <Button variant="danger" onClick={() => openAction("vitals")}>
@@ -1148,12 +1136,6 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
             <Button onClick={() => openAction("admit")}>
               <BedDouble size={13} />
               {t("workspace.admit")}
-            </Button>
-          ) : null}
-          {canBook ? (
-            <Button onClick={() => openAction("appointment")}>
-              <CalendarDays size={13} />
-              {t("appointments.new")}
             </Button>
           ) : null}
           {showCharge ? <Button onClick={() => openAction("charge")}>{t("workspace.charge")}</Button> : null}
@@ -1240,6 +1222,26 @@ function ActionFields({
     queryFn: async () => {
       const res = await apiGet<Array<{ id: number; name?: string; price?: number }>>("/laboratory/blood-products", {
         params: { per_page: 100 },
+      });
+      return Array.isArray(res.data) ? res.data : [];
+    },
+  });
+
+  const { data: wards = [], isLoading: wardsLoading } = useQuery({
+    queryKey: ["inpatient", "wards", "admit"],
+    enabled: action === "admit",
+    queryFn: async () => {
+      const res = await apiGet<NamedRow[]>("/inpatient/wards");
+      return Array.isArray(res.data) ? res.data : [];
+    },
+  });
+
+  const { data: wardBeds = [], isLoading: bedsLoading, isFetched: bedsFetched } = useQuery({
+    queryKey: ["inpatient", "beds", "admit", form.ward_id ?? ""],
+    enabled: action === "admit" && Boolean(form.ward_id),
+    queryFn: async () => {
+      const res = await apiGet<NamedRow[]>("/inpatient/beds", {
+        params: { ward_id: form.ward_id, available_only: 1, per_page: 200 },
       });
       return Array.isArray(res.data) ? res.data : [];
     },
@@ -1384,12 +1386,36 @@ function ActionFields({
           <Field label={t("workspace.admitReason")}>
             <Input required value={form.admission_reason ?? ""} onChange={(e) => setField("admission_reason", e.target.value)} />
           </Field>
+          <Field label={t("inpatient.wards")}>
+            {wardsLoading ? (
+              <p className="text-[12px]">{t("app.loading")}</p>
+            ) : wards.length === 0 ? (
+              <p className="text-[12px]">{t("inpatient.noWards")}</p>
+            ) : (
+              <NamedSelect
+                rows={wards}
+                value={form.ward_id ?? ""}
+                onChange={(value) => {
+                  setField("ward_id", value);
+                  setField("bed_id", "");
+                }}
+              />
+            )}
+          </Field>
           <Field label={t("workspace.bed")}>
-            <NamedSelect
-              rows={(catalogs?.beds ?? []).filter((bed) => bed.status === "available")}
-              value={form.bed_id ?? ""}
-              onChange={(value) => setField("bed_id", value)}
-            />
+            {!form.ward_id ? (
+              <p className="text-[12px]">{t("workspace.pickWardFirst")}</p>
+            ) : bedsLoading || !bedsFetched ? (
+              <p className="text-[12px]">{t("app.loading")}</p>
+            ) : wardBeds.length === 0 ? (
+              <p className="text-[12px]">{t("workspace.noWardBeds")}</p>
+            ) : (
+              <NamedSelect
+                rows={wardBeds}
+                value={form.bed_id ?? ""}
+                onChange={(value) => setField("bed_id", value)}
+              />
+            )}
           </Field>
         </>
       );
@@ -1517,23 +1543,6 @@ function ActionFields({
           </Field>
           <Field label={t("workspace.relationship")}>
             <Input value={form.relationship ?? ""} onChange={(e) => setField("relationship", e.target.value)} />
-          </Field>
-        </>
-      );
-    case "appointment":
-      return (
-        <>
-          <Field label={t("workspace.department")}>
-            <NamedSelect rows={catalogs?.departments} value={form.department_id ?? ""} onChange={(value) => setField("department_id", value)} />
-          </Field>
-          <Field label={t("workspace.doctor")}>
-            <NamedSelect rows={catalogs?.doctors} value={form.doctor_id ?? ""} onChange={(value) => setField("doctor_id", value)} />
-          </Field>
-          <Field label={t("appointments.scheduledAt")}>
-            <Input required type="datetime-local" value={form.scheduled_at ?? ""} onChange={(e) => setField("scheduled_at", e.target.value)} />
-          </Field>
-          <Field label={t("workspace.reason")}>
-            <Input value={form.reason ?? ""} onChange={(e) => setField("reason", e.target.value)} />
           </Field>
         </>
       );
@@ -1739,7 +1748,6 @@ function dialogTitle(action: ActionKey, t: (key: string) => string) {
     allergy: t("patients.allergies"),
     condition: t("patients.conditions"),
     contact: t("patients.contacts"),
-    appointment: t("appointments.new"),
     dischargeStay: t("workspace.dischargeStay"),
     pay: t("billing.pay"),
     installment: t("billing.installments"),
