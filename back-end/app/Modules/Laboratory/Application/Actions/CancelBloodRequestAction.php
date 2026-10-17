@@ -17,6 +17,10 @@ final class CancelBloodRequestAction
             throw BusinessRuleException::make('هذا الطلب ملغى مسبقاً.');
         }
 
+        if ($request->status === BloodRequestStatus::Fulfilled) {
+            throw BusinessRuleException::make('لا يمكن إلغاء الطلب بعد إرسال النتيجة.');
+        }
+
         $request->forceFill(['status' => BloodRequestStatus::Cancelled])->save();
         BloodRequestCancelled::dispatch($request);
 

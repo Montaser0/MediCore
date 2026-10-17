@@ -22,6 +22,10 @@ final class CancelLabOrderItemAction
             throw BusinessRuleException::make('هذا الطلب ملغى مسبقاً.');
         }
 
+        if (in_array($item->status, [LabOrderItemStatus::ResultReady, LabOrderItemStatus::Verified], true)) {
+            throw BusinessRuleException::make('لا يمكن إلغاء الطلب بعد إرسال النتيجة.');
+        }
+
         $item = $this->changeStatus->execute($item, LabOrderItemStatus::Cancelled);
 
         if ($reason !== null) {

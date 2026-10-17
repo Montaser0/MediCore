@@ -789,13 +789,13 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
                       header: t("app.actions"),
                       width: 90,
                       cell: (row) =>
-                        canCancelOrder && String(row.status ?? "") !== "cancelled" ? (
+                        canCancelOrder && !["cancelled", "result_ready", "verified"].includes(String(row.status ?? "")) ? (
                           <Button variant="danger" onClick={() => cancelOrder(`/laboratory/items/${row.id}/cancel`)}>
                             {t("app.cancel")}
                           </Button>
-                        ) : (
+                        ) : String(row.status ?? "") === "cancelled" ? (
                           arabicLabel(row.status)
-                        ),
+                        ) : null,
                     },
                   ]}
                   rows={lab}
@@ -824,7 +824,7 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
                       header: t("app.actions"),
                       width: 90,
                       cell: (row) =>
-                        canCancelOrder && String(row.status ?? "") !== "cancelled" ? (
+                        canCancelOrder && !["cancelled", "fulfilled"].includes(String(row.status ?? "")) ? (
                           <Button variant="danger" onClick={() => cancelOrder(`/laboratory/blood-requests/${row.id}/cancel`)}>
                             {t("app.cancel")}
                           </Button>
@@ -866,13 +866,13 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
                       header: t("app.actions"),
                       width: 90,
                       cell: (row) =>
-                        canCancelOrder && String(row.status ?? "") !== "cancelled" ? (
+                        canCancelOrder && !["cancelled", "reported"].includes(String(row.status ?? "")) ? (
                           <Button variant="danger" onClick={() => cancelOrder(`/radiology/items/${row.id}/cancel`)}>
                             {t("app.cancel")}
                           </Button>
-                        ) : (
+                        ) : String(row.status ?? "") === "cancelled" ? (
                           arabicLabel(row.status)
-                        ),
+                        ) : null,
                     },
                   ]}
                   rows={radiology}

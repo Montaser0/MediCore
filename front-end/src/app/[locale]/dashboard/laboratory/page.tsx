@@ -106,6 +106,7 @@ export default function Page() {
                 actionsHeader={t("app.operations")}
                 removeLabel={t("app.delete")}
                 onRemove={focused ? undefined : (row) => apiPost(`/laboratory/items/${row.id}/cancel`, {})}
+                canRemove={(row) => !["cancelled", "result_ready", "verified"].includes(String(row.status ?? ""))}
                 extraActions={(row) => (
                   <>
                     <Button variant="success" onClick={() => setItem(row)}>

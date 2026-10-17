@@ -17,6 +17,10 @@ final class CancelRadiologyOrderItemAction
             throw BusinessRuleException::make('هذا الطلب ملغى مسبقاً.');
         }
 
+        if ($item->status === RadiologyItemStatus::Reported) {
+            throw BusinessRuleException::make('لا يمكن إلغاء الطلب بعد إرسال النتيجة.');
+        }
+
         $item->forceFill(['status' => RadiologyItemStatus::Cancelled->value])->save();
         RadiologyOrderItemCancelled::dispatch($item);
 

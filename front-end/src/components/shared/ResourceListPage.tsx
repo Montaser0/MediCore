@@ -23,6 +23,7 @@ export function ResourceListPage({
   searchParam = "search",
   params,
   onRemove,
+  canRemove,
   removeLabel,
   extraActions,
   actionsHeader,
@@ -39,6 +40,7 @@ export function ResourceListPage({
   searchParam?: string;
   params?: Record<string, string | number | boolean>;
   onRemove?: (row: Row) => Promise<unknown>;
+  canRemove?: (row: Row) => boolean;
   removeLabel?: string;
   extraActions?: (row: Row) => React.ReactNode;
   actionsHeader?: string;
@@ -87,7 +89,7 @@ export function ResourceListPage({
         cell: (row: Row) => (
           <div className="flex flex-wrap gap-1">
             {extraActions?.(row)}
-            {onRemove ? (
+            {onRemove && (canRemove?.(row) ?? true) ? (
               <Button variant="danger" onClick={() => remove(row)}>
                 {removeLabel ?? t("delete")}
               </Button>
@@ -97,7 +99,7 @@ export function ResourceListPage({
       });
     }
     return mapped;
-  }, [columns, onRemove, removeLabel, extraActions, actionsHeader, t]);
+  }, [columns, onRemove, canRemove, removeLabel, extraActions, actionsHeader, t]);
 
   return (
     <div className="flex h-full flex-col">
