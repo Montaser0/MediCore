@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { useLocale, useTranslations } from "next-intl";
@@ -15,6 +15,7 @@ import { useCreatePatient, usePatients } from "../hooks/usePatients";
 import { journeyApi, type NamedRow } from "../api/journey.api";
 import { apiGet, getErrorMessage } from "@/lib/api/client";
 import { dailyNo } from "@/lib/arabicText";
+import { readNationalId } from "@/lib/nationalId";
 
 type RegisterDepartment = NamedRow & {
   type?: string;
@@ -27,6 +28,8 @@ export function PatientCreatePage() {
   const router = useRouter();
   const create = useCreatePatient();
   const [saving, setSaving] = useState(false);
+  const [lookupId, setLookupId] = useState("");
+  const nationalIdRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState({
     first_name: "",
@@ -46,15 +49,16 @@ export function PatientCreatePage() {
     doctor_id: "",
   });
 
-  const lookup = [form.national_id, form.phone, `${form.first_name} ${form.last_name}`]
+  const nationalId = form.national_id.trim();
+  const lookup = [nationalId, form.phone, `${form.first_name} ${form.last_name}`]
     .map((value) => value.trim())
     .find((value) => value.length >= 3);
-  const { data: matches } = usePatients(
+  const { data: matches, isFetching: lookingUp, isFetched: lookupDone } = usePatients(
     lookup ? { search: lookup, per_page: 5 } : undefined,
     Boolean(lookup),
   );
   const existing = (matches?.rows ?? []).filter((patient) => {
-    if (form.national_id.trim() && patient.national_id === form.national_id.trim()) return true;
+    if (nationalId && readNationalId(patient.national_id ?? "") === nationalId) return true;
     if (
       form.phone.trim() &&
       patient.phone === form.phone.trim() &&
@@ -98,6 +102,58 @@ export function PatientCreatePage() {
   function set<K extends keyof typeof form>(key: K, value: string) {
     setForm((f) => ({ ...f, [key]: value }));
   }
+
+  function searchNationalId(raw: string) {
+    const value = readNationalId(raw);
+    set("national_id", value);
+    setLookupId(value);
+  }
+
+  useEffect(() => {
+    nationalIdRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    let buffer = "";
+    let last = 0;
+
+    function onKeyDown(event: KeyboardEvent) {
+      const target = event.target as HTMLElement | null;
+      const tag = target?.tagName;
+      const typingElsewhere =
+        tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || Boolean(target?.isContentEditable);
+      if (typingElsewhere) return;
+
+      const now = performance.now();
+      if (event.key === "Enter") {
+        if (buffer.length >= 3 && now - last < 50) {
+          event.preventDefault();
+          const value = readNationalId(buffer);
+          setForm((current) => ({ ...current, national_id: value }));
+          setLookupId(value);
+          nationalIdRef.current?.focus();
+        }
+        buffer = "";
+        return;
+      }
+
+      if (event.key.length !== 1 || event.ctrlKey || event.altKey || event.metaKey) return;
+      if (now - last > 40) buffer = "";
+      buffer += event.key;
+      last = now;
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  const nationalMiss =
+    lookupId.length >= 3 &&
+    lookupId === nationalId &&
+    lookup === nationalId &&
+    lookupDone &&
+    !lookingUp &&
+    existing.length === 0;
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -179,6 +235,7 @@ export function PatientCreatePage() {
                   <div key={patient.id} className="flex items-center justify-between gap-2">
                     <span className="text-[12px]">
                       {patient.full_name} — {dailyNo(patient.mrn)}
+                      {patient.national_id ? ` — ${patient.national_id}` : ""}
                     </span>
                     <Button
                       variant="primary"
@@ -194,6 +251,33 @@ export function PatientCreatePage() {
         ) : null}
         <Panel title="البيانات الأساسية">
           <div className="his-field-grid">
+            <Field label={t("patients.nationalId")}>
+              <div className="flex gap-1">
+                <Input
+                  ref={nationalIdRef}
+                  dir="ltr"
+                  lang="en"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  spellCheck={false}
+                  className="his-latin-num w-36!"
+                  placeholder={t("patients.nationalId")}
+                  value={form.national_id}
+                  onChange={(e) => set("national_id", readNationalId(e.target.value))}
+                  onKeyDown={(e) => {
+                    if (e.key !== "Enter") return;
+                    e.preventDefault();
+                    searchNationalId(e.currentTarget.value);
+                  }}
+                />
+                <Button type="button" onClick={() => searchNationalId(nationalIdRef.current?.value ?? form.national_id)}>
+                  {t("app.search")}
+                </Button>
+              </div>
+              {nationalMiss ? (
+                <p className="mt-1 text-[12px]">{t("patients.nationalIdNotFound")}</p>
+              ) : null}
+            </Field>
             <Field label={t("patients.firstName")}>
               <Input required value={form.first_name} onChange={(e) => set("first_name", e.target.value)} />
             </Field>
@@ -214,9 +298,6 @@ export function PatientCreatePage() {
             </Field>
             <Field label={t("patients.dob")}>
               <Input type="date" value={form.date_of_birth} onChange={(e) => set("date_of_birth", e.target.value)} />
-            </Field>
-            <Field label={t("patients.nationalId")}>
-              <Input value={form.national_id} onChange={(e) => set("national_id", e.target.value)} />
             </Field>
             <Field label={t("patients.phone")}>
               <Input value={form.phone} onChange={(e) => set("phone", e.target.value)} />

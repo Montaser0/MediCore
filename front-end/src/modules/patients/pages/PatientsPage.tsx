@@ -17,6 +17,7 @@ import type { Patient } from "@/types/common";
 import { formatDate } from "@/lib/utils";
 import { arabicLabel } from "@/i18n/arabicLabels";
 import { dailyNo } from "@/lib/arabicText";
+import { readNationalId } from "@/lib/nationalId";
 import { apiGet, getErrorMessage } from "@/lib/api/client";
 import { isDoctorDesk } from "@/config/desk";
 import { useAuthStore } from "@/stores/auth-store";
@@ -74,6 +75,12 @@ export function PatientsPage() {
             {dailyNo(r.mrn)}
           </Link>
         ),
+      },
+      {
+        key: "national_id",
+        header: t("patients.nationalId"),
+        width: 140,
+        cell: (r: Patient) => r.national_id ?? "—",
       },
       {
         key: "name",
@@ -183,6 +190,12 @@ export function PatientsPage() {
     [t, locale, deletePatient, canUpdatePatient, canDeletePatient],
   );
 
+  function runSearch(value = search) {
+    const next = readNationalId(value);
+    setSearch(next);
+    setQ(next);
+  }
+
   async function saveEdit(event: FormEvent) {
     event.preventDefault();
     if (!editing) return;
@@ -201,15 +214,19 @@ export function PatientsPage() {
         <div className="flex items-center gap-1 border border-[var(--his-border)] bg-white px-1">
           <Search size={13} className="text-[var(--his-muted)]" />
           <Input
+            autoComplete="off"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter") setQ(search);
+              if (e.key === "Enter") {
+                e.preventDefault();
+                runSearch(e.currentTarget.value);
+              }
             }}
             placeholder={t("patients.searchPlaceholder")}
             className="border-0! w-64 h-6!"
           />
-          <Button onClick={() => setQ(search)}>{t("app.search")}</Button>
+          <Button onClick={() => runSearch()}>{t("app.search")}</Button>
         </div>
         <Select
           className="w-40"
@@ -264,6 +281,23 @@ export function PatientsPage() {
               {editing.full_name} — {dailyNo(editing.mrn)}
             </div>
             <Input
+              dir="ltr"
+              lang="en"
+              inputMode="numeric"
+              autoComplete="off"
+              className="his-latin-num"
+              placeholder={t("patients.nationalIdScan")}
+              value={form.national_id}
+              onChange={(event) =>
+                setForm((current) => ({ ...current, national_id: readNationalId(event.target.value) }))
+              }
+              onKeyDown={(event) => {
+                if (event.key !== "Enter") return;
+                event.preventDefault();
+                setForm((current) => ({ ...current, national_id: readNationalId(event.currentTarget.value) }));
+              }}
+            />
+            <Input
               placeholder={t("patients.phone")}
               value={form.phone}
               onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))}
@@ -272,11 +306,6 @@ export function PatientsPage() {
               placeholder={t("patients.city")}
               value={form.city}
               onChange={(event) => setForm((current) => ({ ...current, city: event.target.value }))}
-            />
-            <Input
-              placeholder={t("patients.nationalId")}
-              value={form.national_id}
-              onChange={(event) => setForm((current) => ({ ...current, national_id: event.target.value }))}
             />
             <div className="flex justify-end gap-1">
               <Button type="button" onClick={() => setEditing(null)}>
