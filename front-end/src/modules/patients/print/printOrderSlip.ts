@@ -1,3 +1,4 @@
+import { printWhenReady, systemLogoUrl } from "@/lib/brand";
 import { formatDate } from "@/lib/utils";
 
 export type OrderSlipLine = {
@@ -29,8 +30,7 @@ export function printOrderSlip(slip: OrderSlip, preview?: Window | null) {
   target.document.open();
   target.document.write(render(slip));
   target.document.close();
-  target.focus();
-  window.setTimeout(() => target.print(), 250);
+  printWhenReady(target);
   return target;
 }
 
@@ -49,7 +49,8 @@ function render(slip: OrderSlip) {
   <style>
     @page { size: A5; margin: 10mm; }
     * { box-sizing: border-box; }
-    body { margin: 0; color: #111; font-family: Tahoma, "Segoe UI", Arial, sans-serif; font-size: 13px; }
+    body { margin: 0; color: #111; background: #fff; font-family: Tahoma, "Segoe UI", Arial, sans-serif; font-size: 13px; }
+    .logo { display: block; height: 72px; width: auto; margin: 0 auto 6px; background: transparent; }
     h1 { margin: 0; text-align: center; font-size: 20px; }
     h2 { margin: 4px 0 10px; text-align: center; font-size: 16px; }
     .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; margin-bottom: 10px; }
@@ -64,6 +65,7 @@ function render(slip: OrderSlip) {
   </style>
 </head>
 <body>
+  <img class="logo" src="${esc(systemLogoUrl())}" alt="" />
   <h1>${esc(slip.hospitalName || "المستشفى")}</h1>
   <h2>${esc(title)}</h2>
   <div class="meta">

@@ -1,4 +1,5 @@
 import { apiGet } from "@/lib/api/client";
+import { printWhenReady, systemLogoUrl } from "@/lib/brand";
 import { dailyNo, localize } from "@/lib/arabicText";
 import { formatDate, formatMoney } from "@/lib/utils";
 
@@ -74,8 +75,7 @@ export async function printInvoice(invoiceId: number, kind: PrintKind) {
     preview.document.open();
     preview.document.write(render(res.data, kind));
     preview.document.close();
-    preview.focus();
-    window.setTimeout(() => preview.print(), 250);
+    printWhenReady(preview);
   } catch (error) {
     preview.close();
     throw error;
@@ -108,6 +108,7 @@ function thermalBody(invoice: InvoiceDocument) {
   const lines = invoice.items ?? [];
 
   return `
+    <img class="logo" src="${esc(systemLogoUrl())}" alt="" />
     <h1>${esc(hospital?.name || "المستشفى")}</h1>
     <p class="center">${esc(joinParts([hospital?.address, hospital?.city, hospital?.phone]))}</p>
     <p class="center strong">فاتورة</p>
@@ -147,10 +148,13 @@ function a4Body(invoice: InvoiceDocument) {
 
   return `
     <header>
-      <div>
+      <div class="brand">
+        <img class="logo" src="${esc(systemLogoUrl())}" alt="" />
+        <div>
         <h1>${esc(hospital?.name || "المستشفى")}</h1>
         <p>${esc(joinParts([hospital?.address, hospital?.city]))}</p>
         <p>${esc(hospital?.phone || "")}</p>
+        </div>
       </div>
       <div class="doc">
         <strong>فاتورة</strong>
@@ -324,6 +328,7 @@ const thermalCss = `
   * { box-sizing: border-box; font-feature-settings: "locl" 0; }
   html, body { margin: 0; padding: 0; width: 72mm; color: #000; background: #fff; }
   body { font-family: Tahoma, "Segoe UI", Arial, sans-serif; font-size: 12px; line-height: 1.35; }
+  .logo { display: block; height: 52px; width: auto; margin: 0 auto 4px; background: transparent; }
   h1 { font-size: 16px; text-align: center; margin: 0 0 4px; }
   p { margin: 2px 0; }
   .center { text-align: center; }
@@ -341,8 +346,10 @@ const thermalCss = `
 const a4Css = `
   @page { size: A4; margin: 14mm; }
   * { box-sizing: border-box; font-feature-settings: "locl" 0; }
-  body { margin: 0; color: #1a1a1a; font-family: Tahoma, "Segoe UI", Arial, sans-serif; font-size: 13px; }
+  body { margin: 0; color: #1a1a1a; background: #fff; font-family: Tahoma, "Segoe UI", Arial, sans-serif; font-size: 13px; }
   header { display: flex; justify-content: space-between; gap: 16px; border-bottom: 3px solid #1b4f8c; padding-bottom: 10px; }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .logo { height: 72px; width: auto; background: transparent; }
   h1 { margin: 0 0 4px; font-size: 22px; color: #1b4f8c; }
   h2 { margin: 18px 0 6px; font-size: 15px; }
   header p, .doc p { margin: 2px 0; }
