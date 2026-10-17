@@ -122,17 +122,27 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
   const showAccount = showBilling && !doctorDesk && moduleOn("Billing");
   const showClinical =
     can("clinical.notes.view") || can("clinical.vitals.view") || can("clinical.diagnosis.view");
-  const showOrderRecords = can("orders.view") && moduleOn("Orders");
   const showLabRecords = can("laboratory.orders.view") && moduleOn("Laboratory");
   const showRadRecords = can("radiology.orders.view") && moduleOn("Radiology");
-  const showOrdersTab = showOrderRecords || showLabRecords || showRadRecords;
   const showPharmacyTab = can("pharmacy.prescriptions.view") && featureOn("pharmacy.prescriptions");
+  const showOrdersTab = showLabRecords || showRadRecords || showPharmacyTab;
   const showNursingTab = can("nursing.notes.view") && moduleOn("Nursing");
   const showStayTab = can("inpatient.view") && moduleOn("Inpatient");
   const showOperations = can("operations.view") && moduleOn("Operations");
   const showDocs = can("documents.view");
   const qc = useQueryClient();
   const [tab, setTab] = useState<TabKey>("file");
+  const [orderDesk, setOrderDesk] = useState<"lab" | "radiology" | "pharmacy">("lab");
+  const activeOrderDesk =
+    (orderDesk === "lab" && showLabRecords) ||
+    (orderDesk === "radiology" && showRadRecords) ||
+    (orderDesk === "pharmacy" && showPharmacyTab)
+      ? orderDesk
+      : showLabRecords
+        ? "lab"
+        : showRadRecords
+          ? "radiology"
+          : "pharmacy";
   const [action, setAction] = useState<ActionKey | null>(null);
   const [form, setForm] = useState<Record<string, string>>({});
   const [visit, setVisit] = useState({
@@ -180,7 +190,6 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
 
   const sections = (file?.sections ?? {}) as Rec;
   const clinical = asObj(sections.clinical);
-  const orders = arr(asObj(sections.orders).recent);
   const lab = arr(asObj(sections.laboratory).recent);
   const bloodRequests = arr(asObj(sections.blood).recent);
   const radiology = arr(asObj(sections.radiology).recent);
@@ -741,28 +750,26 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
 
           {tab === "orders" && showOrdersTab && (
             <div className="grid gap-2">
-              {showOrderRecords ? (
-              <div className="his-panel">
-                <div className="his-panel-header">{t("workspace.orders")}</div>
-                <DataTable
-                  columns={[
-                    { key: "n", header: "#", width: 50, cell: (_row, index) => String(index + 1) },
-                    { key: "type", header: t("crud.type"), width: 110, cell: (row) => arabicLabel(row.type) },
-                    { key: "item", header: t("crud.name"), cell: (row) => (arr(row.items).length ? arr(row.items).map((item) => text(item)).join("، ") : "—") },
-                    { key: "number", header: t("crud.code"), width: 150, cell: (row) => localize(row.order_number) || "—" },
-                    { key: "status", header: t("app.status"), width: 110, cell: (row) => arabicLabel(row.status) },
-                    { key: "actor", header: t("patients.actor"), width: 150, cell: (row) => actorOf(row) || "—" },
-                    { key: "when", header: t("app.date"), width: 140, cell: (row) => timelineWhen(row.ordered_at) },
-                  ]}
-                  rows={orders}
-                  rowKey={(row, index) => String(row.id ?? index)}
-                  emptyText={t("app.noData")}
-                />
+              <div className="his-tabs px-1">
+                {showLabRecords ? (
+                  <button type="button" className={`his-tab ${activeOrderDesk === "lab" ? "active" : ""}`} onClick={() => setOrderDesk("lab")}>
+                    {t("nav.laboratory")}
+                  </button>
+                ) : null}
+                {showRadRecords ? (
+                  <button type="button" className={`his-tab ${activeOrderDesk === "radiology" ? "active" : ""}`} onClick={() => setOrderDesk("radiology")}>
+                    {t("nav.radiology")}
+                  </button>
+                ) : null}
+                {showPharmacyTab ? (
+                  <button type="button" className={`his-tab ${activeOrderDesk === "pharmacy" ? "active" : ""}`} onClick={() => setOrderDesk("pharmacy")}>
+                    {t("nav.pharmacy")}
+                  </button>
+                ) : null}
               </div>
-              ) : null}
-              {showLabRecords ? (
+              {activeOrderDesk === "lab" && showLabRecords ? (
               <div className="his-panel">
-                <div className="his-panel-header">{t("nav.laboratory")}</div>
+                <div className="his-panel-header">{t("nav.labTests")}</div>
                 <DataTable
                   columns={[
                     { key: "n", header: "#", width: 50, cell: (_row, index) => String(index + 1) },
@@ -797,7 +804,7 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
                 />
               </div>
               ) : null}
-              {showLabRecords ? (
+              {activeOrderDesk === "lab" && showLabRecords ? (
               <div className="his-panel">
                 <div className="his-panel-header">{t("laboratory.bloodRequests")}</div>
                 <DataTable
@@ -830,7 +837,7 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
                 />
               </div>
               ) : null}
-              {showRadRecords ? (
+              {activeOrderDesk === "radiology" && showRadRecords ? (
               <div className="his-panel">
                 <div className="his-panel-header">{t("nav.radiology")}</div>
                 <DataTable
@@ -870,6 +877,26 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
                   ]}
                   rows={radiology}
                   rowKey={(row, index) => String(row.id ?? index)}
+                  emptyText={t("app.noData")}
+                />
+              </div>
+              ) : null}
+              {activeOrderDesk === "pharmacy" && showPharmacyTab ? (
+              <div className="his-panel">
+                <div className="his-panel-header">{t("pharmacy.prescriptions")}</div>
+                <DataTable
+                  columns={[
+                    { key: "n", header: "#", width: 50, cell: (_row, index) => String(index + 1) },
+                    { key: "number", header: t("crud.code"), width: 150, cell: (row) => localize(row.prescription_number) || "—" },
+                    { key: "name", header: t("pharmacy.medications"), cell: (row) => text(row.name) },
+                    { key: "quantity", header: t("workspace.quantity"), width: 80, cell: (row) => latinDigits(text(row.quantity, "0")) },
+                    { key: "price", header: t("crud.price"), width: 110, cell: (row) => formatMoney(row.price, "0") },
+                    { key: "status", header: t("app.status"), width: 120, cell: (row) => arabicLabel(row.status) },
+                    { key: "actor", header: t("patients.actor"), width: 150, cell: (row) => actorOf(row) || "—" },
+                    { key: "when", header: t("app.date"), width: 140, cell: (row) => timelineWhen(row.prescribed_at) },
+                  ]}
+                  rows={prescriptionRows(arr(pharmacy.prescriptions))}
+                  rowKey={(row, index) => `${text(row.prescription_number, "rx")}-${index}`}
                   emptyText={t("app.noData")}
                 />
               </div>
