@@ -7,7 +7,6 @@ namespace App\Modules\Laboratory\Application\Actions;
 use App\Core\Auth\CurrentUser;
 use App\Core\Exceptions\BusinessRuleException;
 use App\Core\Support\Contracts\EncounterContext;
-use App\Core\Support\Contracts\NotificationDispatcher;
 use App\Core\Support\Contracts\OrderCoordinator;
 use App\Core\Support\Contracts\TimelineRecorder;
 use App\Modules\Laboratory\Domain\Enums\LabOrderItemStatus;
@@ -28,7 +27,6 @@ final class VerifyLabResultAction
         private readonly OrderCoordinator $orders,
         private readonly EncounterContext $encounters,
         private readonly TimelineRecorder $timeline,
-        private readonly NotificationDispatcher $notifications,
     ) {}
 
     public function execute(LabResultModel $result): LabResultModel
@@ -78,16 +76,6 @@ final class VerifyLabResultAction
                     },
                     departmentId: $order->department_id,
                     payload: ['lab_result_id' => $result->getKey(), 'order_id' => $order->getKey()],
-                );
-
-                $this->notifications->toUsers(
-                    userIds: (int) $order->ordered_by,
-                    type: 'laboratory.result_verified',
-                    title: 'نتيجة التحليل جاهزة',
-                    message: ($item->test?->name ?? 'تحليل').' تم اعتمادها',
-                    entityType: 'lab_result',
-                    entityId: $result->getKey(),
-                    payload: ['order_id' => $order->getKey(), 'flag' => $result->flag->value],
                 );
             }
 

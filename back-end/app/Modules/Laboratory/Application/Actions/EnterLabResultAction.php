@@ -68,6 +68,8 @@ final class EnterLabResultAction
 
             if ($flag->requiresImmediateNotification()) {
                 $this->alertCriticalResult($item, $result);
+            } else {
+                $this->alertOrderingDoctor($item, $result);
             }
 
             $this->notifyAwaitingVerification($item, $result);
@@ -164,17 +166,45 @@ final class EnterLabResultAction
             return;
         }
 
+        $order->loadMissing('encounter.patient');
+
         $this->notifications->toUsers(
             userIds: (int) $order->ordered_by,
             type: 'laboratory.critical_result',
             title: 'نتيجة تحليل حرجة',
-            message: ($item->test?->name ?? 'تحليل').' نتيجتها حرجة',
+            message: trim(($item->test?->name ?? 'تحليل').' — '.($order->encounter?->patient?->full_name ?? '')),
             entityType: 'lab_result',
             entityId: $result->getKey(),
             payload: [
                 'lab_order_item_id' => $item->getKey(),
                 'order_id' => $order->getKey(),
+                'patient_id' => $order->encounter?->patient_id,
                 'flag' => $result->flag->value,
+            ],
+        );
+    }
+
+    private function alertOrderingDoctor(LabOrderItemModel $item, LabResultModel $result): void
+    {
+        $order = $item->labOrder?->order;
+
+        if ($order === null) {
+            return;
+        }
+
+        $order->loadMissing('encounter.patient');
+
+        $this->notifications->toUsers(
+            userIds: (int) $order->ordered_by,
+            type: 'laboratory.result_ready',
+            title: 'وصلت نتيجة تحليل',
+            message: trim(($item->test?->name ?? 'تحليل').' — '.($order->encounter?->patient?->full_name ?? '')),
+            entityType: 'lab_result',
+            entityId: $result->getKey(),
+            payload: [
+                'lab_order_item_id' => $item->getKey(),
+                'order_id' => $order->getKey(),
+                'patient_id' => $order->encounter?->patient_id,
             ],
         );
     }

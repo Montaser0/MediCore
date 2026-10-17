@@ -121,11 +121,24 @@ final class CreateOrderAction
      */
     private function announce(OrderModel $order, OrderType $type, OrderPriority $priority): void
     {
+        $order->loadMissing('encounter.patient');
+
         $title = $priority->requiresAlert()
             ? $priority->label().' — طلب '.$type->label()
             : 'طلب '.$type->label().' جديد';
 
+        $patientName = $order->encounter?->patient?->full_name;
         $message = $order->items->pluck('name')->implode('، ');
+
+        if ($patientName) {
+            $message = $patientName.' — '.$message;
+        }
+
+        $payload = [
+            'priority' => $priority->value,
+            'order_type' => $type->value,
+            'patient_id' => $order->encounter?->patient_id,
+        ];
 
         if ($order->department_id !== null) {
             $this->notifications->toDepartment(
@@ -135,7 +148,7 @@ final class CreateOrderAction
                 message: $message,
                 entityType: 'order',
                 entityId: $order->getKey(),
-                payload: ['priority' => $priority->value, 'order_type' => $type->value],
+                payload: $payload,
             );
 
             return;
@@ -148,7 +161,7 @@ final class CreateOrderAction
             message: $message,
             entityType: 'order',
             entityId: $order->getKey(),
-            payload: ['priority' => $priority->value, 'order_type' => $type->value],
+            payload: $payload,
         );
     }
 

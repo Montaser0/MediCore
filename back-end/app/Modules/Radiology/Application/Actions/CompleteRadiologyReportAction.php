@@ -61,6 +61,8 @@ final class CompleteRadiologyReportAction
                 ],
             );
 
+            $this->tellOrderingDoctor($study, $report);
+
             if ($finalise) {
                 $this->release($study, $report);
             }
@@ -105,15 +107,32 @@ final class CompleteRadiologyReportAction
                 'is_critical' => $report->is_critical,
             ],
         );
+    }
+
+    private function tellOrderingDoctor(RadiologyStudyModel $study, RadiologyReportModel $report): void
+    {
+        $order = $study->radiologyOrder?->order;
+
+        if ($order === null || trim((string) ($report->impression ?: $report->findings)) === '') {
+            return;
+        }
+
+        $order->loadMissing('encounter.patient');
+        $serviceName = $study->orderItem?->service?->name ?? 'فحص أشعة';
+        $patientName = $order->encounter?->patient?->full_name;
 
         $this->notifications->toUsers(
             userIds: (int) $order->ordered_by,
             type: $report->is_critical ? 'radiology.critical_report' : 'radiology.report_ready',
-            title: $report->is_critical ? 'نتيجة أشعة حرجة' : 'تقرير الأشعة جاهز',
-            message: $serviceName.' تم إصدار التقرير',
+            title: $report->is_critical ? 'نتيجة أشعة حرجة' : 'وصلت نتيجة أشعة',
+            message: trim($serviceName.($patientName ? ' — '.$patientName : '')),
             entityType: 'radiology_report',
             entityId: $report->getKey(),
-            payload: ['study_id' => $study->getKey(), 'order_id' => $order->getKey()],
+            payload: [
+                'study_id' => $study->getKey(),
+                'order_id' => $order->getKey(),
+                'patient_id' => $order->encounter?->patient_id,
+            ],
         );
     }
 }

@@ -97,14 +97,18 @@ final class CreatePrescriptionAction
                 payload: ['prescription_id' => $prescription->getKey(), 'status' => $status->value],
             );
 
-            if ($status === PrescriptionStatus::Active) {
+            if ($status === PrescriptionStatus::Active && empty($data['order_id'])) {
+                $prescription->loadMissing('encounter.patient');
+                $patientName = $prescription->encounter?->patient?->full_name;
+
                 $this->notifications->toPermissionHolders(
                     permission: 'pharmacy.dispensing.create',
                     type: 'pharmacy.prescription_created',
                     title: 'وصفة جديدة للصرف',
-                    message: 'عدد البنود '.$prescription->items->count(),
+                    message: trim(($patientName ? $patientName.' — ' : '').'عدد البنود '.$prescription->items->count()),
                     entityType: 'prescription',
                     entityId: $prescription->getKey(),
+                    payload: ['patient_id' => $encounter->patientId],
                 );
             }
 

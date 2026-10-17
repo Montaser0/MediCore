@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
-import { Bell, LogOut, Menu, User } from "lucide-react";
+import { LogOut, Menu, User } from "lucide-react";
 import { env } from "@/config/environment";
 import { useAuthStore } from "@/stores/auth-store";
 import { useUiStore } from "@/stores/ui-store";
+import { NotificationBell } from "./NotificationBell";
 
 export function AppHeader() {
   const t = useTranslations("app");
@@ -34,9 +35,7 @@ export function AppHeader() {
       </div>
 
       <div className="flex items-center gap-3 text-[12px]">
-        <button type="button" className="flex h-8 w-8 items-center justify-center hover:bg-white/10">
-          <Bell size={16} />
-        </button>
+        <NotificationBell />
         <div className="flex items-center gap-2 border-s border-white/25 ps-3">
           <User size={14} />
           <span>{user?.display_name ?? user?.name ?? user?.username ?? t("user")}</span>
