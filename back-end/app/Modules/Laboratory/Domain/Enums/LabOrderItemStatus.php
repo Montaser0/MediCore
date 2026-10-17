@@ -28,7 +28,8 @@ enum LabOrderItemStatus: string
             self::SampleCollected => [self::Processing, self::ResultReady, self::Cancelled],
             self::Processing => [self::ResultReady, self::Cancelled],
             self::ResultReady => [self::Verified, self::Processing, self::Cancelled],
-            self::Verified, self::Cancelled => [],
+            self::Verified => [self::Cancelled],
+            self::Cancelled => [],
         };
     }
 

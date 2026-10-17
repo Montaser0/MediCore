@@ -43,6 +43,8 @@ Route::middleware('auth:sanctum')->prefix('laboratory')->group(function (): void
 
     Route::post('blood-requests', [BloodRequestController::class, 'store']);
     Route::post('blood-requests/{bloodRequest}/result', [BloodRequestController::class, 'fulfill']);
+    Route::post('blood-requests/{bloodRequest}/cancel', [BloodRequestController::class, 'cancel'])
+        ->middleware('permission:'.Permissions::ORDERS_CANCEL);
 
     Route::post('items/{labItem}/result', [LabResultController::class, 'store']);
     Route::post('results/{labResult}/verify', [LabResultController::class, 'verify'])

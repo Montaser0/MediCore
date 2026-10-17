@@ -16,15 +16,19 @@ use App\Modules\Billing\Application\Listeners\ChargePerformedProcedure;
 use App\Modules\Billing\Application\Listeners\ChargeStartedEncounter;
 use App\Modules\Billing\Application\Listeners\ChargeVerifiedLabResult;
 use App\Modules\Billing\Application\Listeners\IssueClosedEncounterInvoice;
+use App\Modules\Billing\Application\Listeners\RemoveCancelledClinicalCharge;
 use App\Modules\Billing\Domain\Events\ChargeRaised;
 use App\Modules\Billing\Infrastructure\PatientRecord\BillingRecordContributor;
 use App\Modules\Clinical\Domain\Events\ProcedurePerformed;
 use App\Modules\Encounters\Domain\Events\EncounterCompleted;
 use App\Modules\Encounters\Domain\Events\EncounterStarted;
 use App\Modules\Inpatient\Domain\Events\PatientDischarged;
+use App\Modules\Laboratory\Domain\Events\BloodRequestCancelled;
 use App\Modules\Laboratory\Domain\Events\BloodRequestCreated;
 use App\Modules\Laboratory\Domain\Events\BloodRequestFulfilled;
+use App\Modules\Laboratory\Domain\Events\LabOrderItemCancelled;
 use App\Modules\Laboratory\Domain\Events\LabResultVerified;
+use App\Modules\Radiology\Domain\Events\RadiologyOrderItemCancelled;
 use App\Modules\Operations\Domain\Events\OperationCompleted;
 use App\Modules\Orders\Domain\Events\OrderCompleted;
 use App\Modules\Pharmacy\Domain\Events\MedicationDispensed;
@@ -42,6 +46,9 @@ final class BillingServiceProvider extends ModuleServiceProvider
         LabResultVerified::class => [ChargeVerifiedLabResult::class],
         BloodRequestCreated::class => [ChargeFulfilledBloodRequest::class],
         BloodRequestFulfilled::class => [ChargeFulfilledBloodRequest::class],
+        LabOrderItemCancelled::class => [RemoveCancelledClinicalCharge::class],
+        RadiologyOrderItemCancelled::class => [RemoveCancelledClinicalCharge::class],
+        BloodRequestCancelled::class => [RemoveCancelledClinicalCharge::class],
         ReportCompleted::class => [ChargeCompletedRadiologyReport::class],
         PatientDischarged::class => [ChargeInpatientStay::class],
         OperationCompleted::class => [ChargeCompletedOperation::class],

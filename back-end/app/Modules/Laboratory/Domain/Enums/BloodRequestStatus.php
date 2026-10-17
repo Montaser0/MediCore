@@ -8,12 +8,14 @@ enum BloodRequestStatus: string
 {
     case Requested = 'requested';
     case Fulfilled = 'fulfilled';
+    case Cancelled = 'cancelled';
 
     public function label(): string
     {
         return match ($this) {
             self::Requested => 'مطلوب',
             self::Fulfilled => 'مؤكد',
+            self::Cancelled => 'ملغى',
         };
     }
 

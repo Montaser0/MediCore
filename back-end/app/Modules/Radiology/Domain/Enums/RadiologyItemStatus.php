@@ -23,7 +23,8 @@ enum RadiologyItemStatus: string
             self::Scheduled => [self::InProgress, self::Cancelled],
             self::InProgress => [self::Completed, self::Cancelled],
             self::Completed => [self::Reported, self::Cancelled],
-            self::Reported, self::Cancelled => [],
+            self::Reported => [self::Cancelled],
+            self::Cancelled => [],
         };
     }
 

@@ -537,6 +537,7 @@
     "activeVisit": "Open visit",
     "needVisit": "Open a visit and assign a doctor or department first",
     "saved": "Saved to the patient record",
+    "cancelOrder": "Cancel this request and remove it from the patient account?",
     "chiefComplaint": "Chief complaint",
     "discharge": "Discharge",
     "dischargeInstructions": "Discharge instructions",

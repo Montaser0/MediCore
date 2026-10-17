@@ -6,11 +6,11 @@ namespace App\Modules\Laboratory\Application\Actions;
 
 use App\Core\Exceptions\BusinessRuleException;
 use App\Modules\Laboratory\Domain\Enums\LabOrderItemStatus;
+use App\Modules\Laboratory\Domain\Events\LabOrderItemCancelled;
 use App\Modules\Laboratory\Infrastructure\Persistence\Models\LabOrderItemModel;
 
 /**
- * Cancels a single test on a request. A verified result cannot be cancelled:
- * the record of what was reported has to stay.
+ * Cancels a single test and drops its charge from the patient account.
  */
 final class CancelLabOrderItemAction
 {
@@ -18,8 +18,8 @@ final class CancelLabOrderItemAction
 
     public function execute(LabOrderItemModel $item, ?string $reason = null): LabOrderItemModel
     {
-        if ($item->status === LabOrderItemStatus::Verified) {
-            throw BusinessRuleException::make('لا يمكن إلغاء نتيجة معتمدة.');
+        if ($item->status === LabOrderItemStatus::Cancelled) {
+            throw BusinessRuleException::make('هذا الطلب ملغى مسبقاً.');
         }
 
         $item = $this->changeStatus->execute($item, LabOrderItemStatus::Cancelled);
@@ -27,6 +27,8 @@ final class CancelLabOrderItemAction
         if ($reason !== null) {
             $item->result?->forceFill(['comment' => trim(($item->result->comment ?? '')."\nCancelled: ".$reason)])->save();
         }
+
+        LabOrderItemCancelled::dispatch($item);
 
         return $item;
     }

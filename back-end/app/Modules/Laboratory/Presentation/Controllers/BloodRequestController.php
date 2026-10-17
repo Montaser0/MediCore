@@ -6,6 +6,7 @@ namespace App\Modules\Laboratory\Presentation\Controllers;
 
 use App\Core\Http\Controllers\ApiController;
 use App\Core\Http\Responses\ApiResponse;
+use App\Modules\Laboratory\Application\Actions\CancelBloodRequestAction;
 use App\Modules\Laboratory\Application\Actions\CreateBloodRequestAction;
 use App\Modules\Laboratory\Application\Actions\FulfillBloodRequestAction;
 use App\Modules\Laboratory\Application\Queries\BloodRequestQuery;
@@ -33,6 +34,11 @@ final class BloodRequestController extends ApiController
         return ApiResponse::created(new BloodRequestResource(
             $action->execute($request->validated())
         ));
+    }
+
+    public function cancel(BloodRequestModel $bloodRequest, CancelBloodRequestAction $action): JsonResponse
+    {
+        return ApiResponse::resource(new BloodRequestResource($action->execute($bloodRequest)));
     }
 
     public function fulfill(

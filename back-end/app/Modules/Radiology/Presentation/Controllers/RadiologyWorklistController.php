@@ -7,8 +7,8 @@ namespace App\Modules\Radiology\Presentation\Controllers;
 use App\Core\Authorization\Permissions;
 use App\Core\Http\Controllers\ApiController;
 use App\Core\Http\Responses\ApiResponse;
+use App\Modules\Radiology\Application\Actions\CancelRadiologyOrderItemAction;
 use App\Modules\Radiology\Application\Queries\RadiologyWorklistQuery;
-use App\Modules\Radiology\Domain\Enums\RadiologyItemStatus;
 use App\Modules\Radiology\Infrastructure\Persistence\Models\RadiologyOrderItemModel;
 use App\Modules\Radiology\Presentation\Resources\RadiologyOrderItemResource;
 use Illuminate\Http\JsonResponse;
@@ -40,12 +40,14 @@ final class RadiologyWorklistController extends ApiController
         ])));
     }
 
-    public function cancel(Request $request, RadiologyOrderItemModel $radiologyItem): JsonResponse
+    public function cancel(Request $request, RadiologyOrderItemModel $radiologyItem, CancelRadiologyOrderItemAction $action): JsonResponse
     {
-        abort_unless($request->user()?->can(Permissions::RADIOLOGY_ORDERS_VIEW) === true, 403);
+        abort_unless(
+            $request->user()?->can(Permissions::ORDERS_CANCEL) === true
+                || $request->user()?->can(Permissions::RADIOLOGY_ORDERS_VIEW) === true,
+            403,
+        );
 
-        $radiologyItem->forceFill(['status' => RadiologyItemStatus::Cancelled->value])->save();
-
-        return ApiResponse::resource(new RadiologyOrderItemResource($radiologyItem->load('service')));
+        return ApiResponse::resource(new RadiologyOrderItemResource($action->execute($radiologyItem)->load('service')));
     }
 }

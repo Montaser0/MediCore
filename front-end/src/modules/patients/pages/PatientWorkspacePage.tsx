@@ -98,6 +98,7 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
   const canNote = can("clinical.notes.create");
   const canDiagnosis = can("clinical.diagnosis.create");
   const canOrder = can("orders.create");
+  const canCancelOrder = can("orders.cancel");
   const canPrescribe = can("pharmacy.prescriptions.create");
   const canSurgery = can("operations.schedule");
   const canAdmit = can("inpatient.admit");
@@ -149,6 +150,22 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
   const { data: encounters = [] } = usePatientEncounters(patientId);
   const { data: catalogs, refetch: refetchCatalogs } = useCatalogs();
   const run = useJourneyAction(patientId);
+
+  async function cancelOrder(url: string) {
+    if (!window.confirm(t("workspace.cancelOrder"))) return;
+    try {
+      await apiPost(url, {});
+      toast.success(t("workspace.saved"));
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["patients"] }),
+        qc.invalidateQueries({ queryKey: ["/laboratory/worklist"] }),
+        qc.invalidateQueries({ queryKey: ["/laboratory/blood-requests"] }),
+        qc.invalidateQueries({ queryKey: ["/radiology/worklist"] }),
+      ]);
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    }
+  }
 
   async function removeFact(url: string) {
     if (!window.confirm(t("crud.confirmDelete"))) return;
@@ -760,6 +777,19 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
                     { key: "actor", header: t("patients.actor"), width: 140, cell: (row) => actorOf(row) || "—" },
                     { key: "verified", header: t("patients.verifiedBy"), width: 140, cell: (row) => text(row.verified_by) },
                     { key: "when", header: t("app.date"), width: 140, cell: (row) => timelineWhen(row.reported_at) },
+                    {
+                      key: "cancel",
+                      header: t("app.actions"),
+                      width: 90,
+                      cell: (row) =>
+                        canCancelOrder && String(row.status ?? "") !== "cancelled" ? (
+                          <Button variant="danger" onClick={() => cancelOrder(`/laboratory/items/${row.id}/cancel`)}>
+                            {t("app.cancel")}
+                          </Button>
+                        ) : (
+                          arabicLabel(row.status)
+                        ),
+                    },
                   ]}
                   rows={lab}
                   rowKey={(row, index) => String(row.id ?? index)}
@@ -782,6 +812,17 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
                     { key: "when", header: t("laboratory.issueDate"), width: 120, cell: (row) => formatDate(text(row.issued_at, "") || null) },
                     { key: "status", header: t("app.status"), width: 100, cell: (row) => arabicLabel(row.status) },
                     { key: "actor", header: t("patients.actor"), width: 140, cell: (row) => actorOf(row) || "—" },
+                    {
+                      key: "cancel",
+                      header: t("app.actions"),
+                      width: 90,
+                      cell: (row) =>
+                        canCancelOrder && String(row.status ?? "") !== "cancelled" ? (
+                          <Button variant="danger" onClick={() => cancelOrder(`/laboratory/blood-requests/${row.id}/cancel`)}>
+                            {t("app.cancel")}
+                          </Button>
+                        ) : null,
+                    },
                   ]}
                   rows={bloodRequests}
                   rowKey={(row, index) => String(row.id ?? index)}
@@ -813,6 +854,19 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
                     { key: "actor", header: t("patients.actor"), width: 140, cell: (row) => actorOf(row) || "—" },
                     { key: "verified", header: t("patients.verifiedBy"), width: 140, cell: (row) => text(row.verified_by) },
                     { key: "when", header: t("app.date"), width: 140, cell: (row) => timelineWhen(row.reported_at) },
+                    {
+                      key: "cancel",
+                      header: t("app.actions"),
+                      width: 90,
+                      cell: (row) =>
+                        canCancelOrder && String(row.status ?? "") !== "cancelled" ? (
+                          <Button variant="danger" onClick={() => cancelOrder(`/radiology/items/${row.id}/cancel`)}>
+                            {t("app.cancel")}
+                          </Button>
+                        ) : (
+                          arabicLabel(row.status)
+                        ),
+                    },
                   ]}
                   rows={radiology}
                   rowKey={(row, index) => String(row.id ?? index)}
