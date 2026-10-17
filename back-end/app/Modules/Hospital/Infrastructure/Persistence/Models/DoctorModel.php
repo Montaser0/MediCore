@@ -82,14 +82,33 @@ final class DoctorModel extends BaseModel
     }
 
     /**
+     * Doctors pinned to this clinic, plus department doctors who have no clinic yet.
+     * Registration filters by the selected clinic, so an unassigned doctor in the
+     * same department would otherwise never appear in the list.
+     *
      * @param  Builder<DoctorModel>  $query
      * @return Builder<DoctorModel>
      */
     public function scopeInClinic(Builder $query, int $clinicId): Builder
     {
-        return $query->where(function (Builder $inner) use ($clinicId): void {
-            $inner->where('clinic_id', $clinicId)
+        $departmentId = ClinicModel::query()->whereKey($clinicId)->value('department_id');
+
+        return $query->where(function (Builder $inner) use ($clinicId, $departmentId): void {
+            $inner->where('doctors.clinic_id', $clinicId)
                 ->orWhereHas('clinics', fn (Builder $clinics) => $clinics->whereKey($clinicId));
+
+            if ($departmentId === null) {
+                return;
+            }
+
+            $inner->orWhere(function (Builder $open) use ($departmentId): void {
+                $open->whereNull('doctors.clinic_id')
+                    ->whereDoesntHave('clinics')
+                    ->whereHas(
+                        'staff',
+                        fn (Builder $staff) => $staff->where('department_id', $departmentId),
+                    );
+            });
         });
     }
 }
