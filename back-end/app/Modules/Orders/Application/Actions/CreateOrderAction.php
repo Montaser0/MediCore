@@ -11,6 +11,7 @@ use App\Core\Support\Contracts\NotificationDispatcher;
 use App\Core\Support\Contracts\TimelineRecorder;
 use App\Core\Support\Numbering\NumberGenerator;
 use App\Core\Support\OrderFulfillerRegistry;
+use App\Modules\Orders\Domain\Enums\OrderItemStatus;
 use App\Modules\Orders\Domain\Enums\OrderPriority;
 use App\Modules\Orders\Domain\Enums\OrderStatus;
 use App\Modules\Orders\Domain\Enums\OrderType;
@@ -63,25 +64,37 @@ final class CreateOrderAction
                 'ordered_at' => now(),
             ]);
 
+            $created = [];
+
             foreach ($items as $item) {
-                $order->items()->create([
+                $created[] = $order->items()->create([
                     'service_type' => $item['service_type'] ?? $type->serviceType(),
                     'service_id' => $item['service_id'] ?? null,
                     'name' => (string) $item['name'],
                     'quantity' => $item['quantity'] ?? 1,
                     'instructions' => $item['instructions'] ?? null,
+                    'status' => OrderItemStatus::Pending->value,
                 ]);
             }
 
-            $order->load('items');
+            $order->setRelation('items', collect($created));
 
             // The receiving department creates its own records inside the same
             // transaction, so an order and its lab/radiology rows appear together.
             $this->fulfillers->for($type->value)?->fulfil(
                 $order->getKey(),
-                $order->items->map(fn ($item) => $item->only([
-                    'id', 'service_type', 'service_id', 'name', 'quantity', 'instructions',
-                ]))->all(),
+                collect($created)->values()->map(function ($item, int $index) use ($items) {
+                    $source = array_values($items)[$index] ?? [];
+                    $payload = $item->only([
+                        'id', 'service_type', 'service_id', 'name', 'quantity', 'instructions',
+                    ]);
+
+                    if (array_key_exists('with_injection', $source)) {
+                        $payload['with_injection'] = filter_var($source['with_injection'], FILTER_VALIDATE_BOOLEAN);
+                    }
+
+                    return $payload;
+                })->all(),
             );
 
             OrderCreated::dispatch($order);

@@ -21,6 +21,7 @@ final class RadiologyOrderItemModel extends BaseModel
     {
         return [
             'status' => RadiologyItemStatus::class,
+            'with_injection' => 'boolean',
         ];
     }
 

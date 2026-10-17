@@ -13,6 +13,13 @@ final class RadiologyOrderModel extends BaseModel
 {
     protected $table = 'radiology_orders';
 
+    protected function casts(): array
+    {
+        return [
+            'injection_price' => 'float',
+        ];
+    }
+
     public function order(): BelongsTo
     {
         return $this->belongsTo(OrderModel::class, 'order_id');

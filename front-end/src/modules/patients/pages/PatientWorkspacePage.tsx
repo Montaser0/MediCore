@@ -754,7 +754,14 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
                 <DataTable
                   columns={[
                     { key: "n", header: "#", width: 50, cell: (_row, index) => String(index + 1) },
-                    { key: "service", header: t("crud.name"), cell: (row) => text(row.service) },
+                    {
+                      key: "service",
+                      header: t("crud.name"),
+                      cell: (row) =>
+                        row.with_injection
+                          ? `${text(row.service)} — ${t("radiology.withInjection")}`
+                          : text(row.service),
+                    },
                     { key: "impression", header: t("radiology.impression"), cell: (row) => text(row.impression) },
                     { key: "images", header: t("radiology.upload"), width: 90, cell: (row) => latinDigits(text(row.image_count, "0")) },
                     { key: "price", header: t("crud.price"), width: 110, cell: (row) => formatMoney(row.price, "0") },

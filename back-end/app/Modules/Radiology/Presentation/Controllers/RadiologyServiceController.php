@@ -8,6 +8,7 @@ use App\Core\Authorization\Permissions;
 use App\Core\Http\Controllers\ApiController;
 use App\Core\Http\DeactivateRecord;
 use App\Core\Http\Responses\ApiResponse;
+use App\Modules\Radiology\Application\Services\RadiologyInjectionPrice;
 use App\Modules\Radiology\Infrastructure\Persistence\Models\RadiologyServiceModel;
 use App\Modules\Radiology\Presentation\Requests\StoreRadiologyServiceRequest;
 use App\Modules\Radiology\Presentation\Resources\RadiologyServiceResource;
@@ -39,6 +40,24 @@ final class RadiologyServiceController extends ApiController
                 ->pluck('modality')
                 ->all()
         );
+    }
+
+    public function injectionPrice(RadiologyInjectionPrice $prices): JsonResponse
+    {
+        return ApiResponse::data(['price' => $prices->amount()]);
+    }
+
+    public function updateInjectionPrice(Request $request, RadiologyInjectionPrice $prices): JsonResponse
+    {
+        abort_unless($request->user()?->can(Permissions::RADIOLOGY_SERVICES_MANAGE) === true, 403);
+
+        $validated = $request->validate([
+            'price' => ['required', 'numeric', 'min:0'],
+        ]);
+
+        return ApiResponse::data([
+            'price' => $prices->save((float) $validated['price']),
+        ]);
     }
 
     public function store(StoreRadiologyServiceRequest $request): JsonResponse

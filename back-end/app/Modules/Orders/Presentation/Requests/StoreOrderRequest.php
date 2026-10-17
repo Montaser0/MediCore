@@ -32,6 +32,7 @@ final class StoreOrderRequest extends ApiFormRequest
             'items.*.name' => ['required', 'string', 'max:255'],
             'items.*.quantity' => ['nullable', 'numeric', 'min:0.01'],
             'items.*.instructions' => ['nullable', 'string', 'max:1000'],
+            'items.*.with_injection' => ['nullable', 'boolean'],
         ];
     }
 }

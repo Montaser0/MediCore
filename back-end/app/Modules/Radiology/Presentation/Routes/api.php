@@ -14,8 +14,10 @@ Route::middleware('auth:sanctum')->prefix('radiology')->group(function (): void 
     Route::middleware('permission:'.Permissions::ORDERS_VIEW)->group(function (): void {
         Route::get('services', [RadiologyServiceController::class, 'index']);
         Route::get('services/modalities', [RadiologyServiceController::class, 'modalities']);
+        Route::get('injection-price', [RadiologyServiceController::class, 'injectionPrice']);
     });
 
+    Route::put('injection-price', [RadiologyServiceController::class, 'updateInjectionPrice']);
     Route::post('services', [RadiologyServiceController::class, 'store']);
     Route::patch('services/{radiology_service}', [RadiologyServiceController::class, 'update']);
     Route::delete('services/{radiology_service}', [RadiologyServiceController::class, 'destroy']);

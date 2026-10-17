@@ -38,17 +38,37 @@ final class RadiologyRecordContributor implements PatientRecordContributor
             ->limit(25)
             ->get();
 
+        $injectionOn = [];
+
+        foreach ($recent as $item) {
+            $orderId = (int) $item->radiology_order_id;
+            $injection = (float) ($item->radiologyOrder?->injection_price ?? 0);
+
+            if ($injection <= 0) {
+                continue;
+            }
+
+            $injectionOn[$orderId] = min($injectionOn[$orderId] ?? $item->getKey(), $item->getKey());
+        }
+
         return [
             'total' => (clone $base)->count(),
             'pending' => (clone $base)->open()->count(),
             'reported' => (clone $base)->where('status', RadiologyItemStatus::Reported->value)->count(),
-            'recent' => $recent->map(function (RadiologyOrderItemModel $item) {
+            'recent' => $recent->map(function (RadiologyOrderItemModel $item) use ($injectionOn) {
                 $study = $item->studies->last();
+                $orderId = (int) $item->radiology_order_id;
+                $price = (float) ($item->service?->price ?? 0);
+
+                if (($injectionOn[$orderId] ?? null) === $item->getKey()) {
+                    $price += (float) ($item->radiologyOrder?->injection_price ?? 0);
+                }
 
                 return [
                     'id' => $item->getKey(),
                     'service' => $item->service?->name,
-                    'price' => $item->service?->price,
+                    'with_injection' => (bool) $item->with_injection,
+                    'price' => $price,
                     'modality' => $item->service?->modality,
                     'status' => $item->status->value,
                     'order_number' => $item->radiologyOrder?->order?->order_number,

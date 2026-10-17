@@ -27,7 +27,10 @@ export function RadiologyPage() {
       {
         key: "service",
         header: t("radiology.study"),
-        cell: (r) => r.service_name ?? "—",
+        cell: (r) => {
+          const name = r.service?.name ?? r.service_name ?? "—";
+          return r.with_injection ? `${name} — ${t("radiology.withInjection")}` : name;
+        },
       },
       {
         key: "modality",

@@ -3,7 +3,9 @@ import { apiGet } from "@/lib/api/client";
 export type RadiologyWorklistRow = {
   id: number;
   status?: string;
+  with_injection?: boolean;
   service_name?: string;
+  service?: { name?: string; price?: number };
   modality?: string;
   priority?: string;
   scheduled_at?: string;

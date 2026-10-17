@@ -21,6 +21,7 @@ final class RadiologyOrderItemResource extends JsonResource
 
         return [
             'id' => $this->id,
+            'with_injection' => $this->with_injection,
             'status' => $this->status->value,
             'status_label' => $this->status->label(),
             'clinical_indication' => $this->radiologyOrder?->clinical_indication,

@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { useLocale, useTranslations } from "next-intl";
+import { differenceInYears, format, isValid, parse, subYears } from "date-fns";
 import { toast } from "sonner";
 import axios from "axios";
 import { PageToolbar } from "@/components/ui/PageToolbar";
@@ -16,6 +17,7 @@ import { journeyApi, type NamedRow } from "../api/journey.api";
 import { apiGet, getErrorMessage } from "@/lib/api/client";
 import { dailyNo } from "@/lib/arabicText";
 import { readNationalId } from "@/lib/nationalId";
+import { latinDigits } from "@/lib/utils";
 
 type RegisterDepartment = NamedRow & {
   type?: string;
@@ -38,6 +40,7 @@ export function PatientCreatePage() {
     mother_name: "",
     gender: "male",
     date_of_birth: "",
+    age: "",
     national_id: "",
     phone: "",
     city: "",
@@ -101,6 +104,25 @@ export function PatientCreatePage() {
 
   function set<K extends keyof typeof form>(key: K, value: string) {
     setForm((f) => ({ ...f, [key]: value }));
+  }
+
+  function setDateOfBirth(value: string) {
+    if (value && value > format(startOfToday(), "yyyy-MM-dd")) return;
+    setForm((current) => ({
+      ...current,
+      date_of_birth: value,
+      age: ageFromDateOfBirth(value),
+    }));
+  }
+
+  function setAge(raw: string) {
+    const digits = latinDigits(raw).replace(/\D/g, "").slice(0, 3);
+    if (digits !== "" && Number(digits) > MAX_PATIENT_AGE) return;
+    setForm((current) => ({
+      ...current,
+      age: digits,
+      date_of_birth: dateOfBirthFromAge(digits),
+    }));
   }
 
   function searchNationalId(raw: string) {
@@ -297,7 +319,23 @@ export function PatientCreatePage() {
               </Select>
             </Field>
             <Field label={t("patients.dob")}>
-              <Input type="date" value={form.date_of_birth} onChange={(e) => set("date_of_birth", e.target.value)} />
+              <Input
+                type="date"
+                max={format(new Date(), "yyyy-MM-dd")}
+                value={form.date_of_birth}
+                onChange={(e) => setDateOfBirth(e.target.value)}
+              />
+            </Field>
+            <Field label={t("patients.age")}>
+              <Input
+                type="number"
+                min={0}
+                max={MAX_PATIENT_AGE}
+                step={1}
+                inputMode="numeric"
+                value={form.age}
+                onChange={(e) => setAge(e.target.value)}
+              />
             </Field>
             <Field label={t("patients.phone")}>
               <Input value={form.phone} onChange={(e) => set("phone", e.target.value)} />
@@ -372,6 +410,33 @@ export function PatientCreatePage() {
       </form>
     </div>
   );
+}
+
+const MAX_PATIENT_AGE = 150;
+
+function ageFromDateOfBirth(iso: string) {
+  if (!iso) return "";
+  const birth = parse(iso, "yyyy-MM-dd", new Date());
+  if (!isValid(birth)) return "";
+  const today = startOfToday();
+  birth.setHours(0, 0, 0, 0);
+  if (birth > today) return "";
+  const age = differenceInYears(today, birth);
+  if (age < 0 || age > MAX_PATIENT_AGE) return "";
+  return String(age);
+}
+
+function dateOfBirthFromAge(ageText: string) {
+  if (ageText === "") return "";
+  const age = Number(ageText);
+  if (!Number.isInteger(age) || age < 0 || age > MAX_PATIENT_AGE) return "";
+  return format(subYears(startOfToday(), age), "yyyy-MM-dd");
+}
+
+function startOfToday() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return today;
 }
 
 function isVisitDepartment(row: RegisterDepartment) {

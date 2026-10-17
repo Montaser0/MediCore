@@ -114,7 +114,10 @@ export default function Page() {
                   {
                     key: "service",
                     header: t("radiology.study"),
-                    render: (row) => String((row.service as { name?: string } | undefined)?.name ?? row.service_name ?? "—"),
+                    render: (row) => {
+                      const name = String((row.service as { name?: string } | undefined)?.name ?? row.service_name ?? "—");
+                      return row.with_injection ? `${name} — ${t("radiology.withInjection")}` : name;
+                    },
                   },
                   {
                     key: "price",

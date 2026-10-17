@@ -42,12 +42,21 @@ export function PatientRadiologyOrderPage({ patientId }: { patientId: string }) 
   const { data: encounters = [] } = usePatientEncounters(patientId);
   const [picked, setPicked] = useState<number[]>([]);
   const [notes, setNotes] = useState("");
+  const [withInjection, setWithInjection] = useState(false);
 
   const { data: studies = [], isLoading } = useQuery({
     queryKey: ["/radiology/services", "order-sheet"],
     queryFn: async () => {
       const res = await apiGet<NamedRow[]>("/radiology/services", { params: { per_page: 200 } });
       return Array.isArray(res.data) ? res.data : [];
+    },
+  });
+
+  const { data: injectionPrice = 0 } = useQuery({
+    queryKey: ["/radiology/injection-price"],
+    queryFn: async () => {
+      const res = await apiGet<{ price?: number }>("/radiology/injection-price");
+      return Number(res.data?.price) || 0;
     },
   });
 
@@ -68,7 +77,9 @@ export function PatientRadiologyOrderPage({ patientId }: { patientId: string }) 
   );
 
   const selected = studies.filter((row) => picked.includes(row.id));
-  const total = selected.reduce((sum, row) => sum + (Number(row.price) || 0), 0);
+
+  const studiesTotal = selected.reduce((sum, row) => sum + (Number(row.price) || 0), 0);
+  const total = studiesTotal + (withInjection ? injectionPrice : 0);
   const backHref = `/${locale}/dashboard/patients/${patientId}`;
 
   function toggle(id: number) {
@@ -103,6 +114,7 @@ export function PatientRadiologyOrderPage({ patientId }: { patientId: string }) 
             service_type: "radiology_service",
             service_id: row.id,
             name: row.name,
+            with_injection: withInjection,
           })),
         }),
       );
@@ -170,6 +182,7 @@ export function PatientRadiologyOrderPage({ patientId }: { patientId: string }) 
                       >
                         <input type="checkbox" checked={on} onChange={() => toggle(row.id)} />
                         <span className="min-w-0 flex-1">{row.name}</span>
+                        <span className="shrink-0 text-[var(--his-muted)]">{formatMoney(row.price, "0")}</span>
                       </label>
                     );
                   })
@@ -190,6 +203,7 @@ export function PatientRadiologyOrderPage({ patientId }: { patientId: string }) 
         <span className="text-[12px]">
           {t("radiology.selected")}: {selected.length}
           {selected.length > 0 ? ` — ${formatMoney(total, "0")}` : ""}
+          {withInjection && selected.length > 0 ? ` (${t("radiology.withInjection")} ${formatMoney(injectionPrice, "0")})` : ""}
         </span>
         <input
           className="his-input max-w-md"
@@ -200,6 +214,14 @@ export function PatientRadiologyOrderPage({ patientId }: { patientId: string }) 
         <Button type="button" onClick={() => router.push(backHref)}>
           {t("app.cancel")}
         </Button>
+        <label className="flex items-center gap-2 text-[12px]">
+          <input
+            type="checkbox"
+            checked={withInjection}
+            onChange={(event) => setWithInjection(event.target.checked)}
+          />
+          {t("radiology.withInjection")}
+        </label>
         <Button type="submit" variant="primary" disabled={run.isPending || !visit}>
           {t("app.save")}
         </Button>

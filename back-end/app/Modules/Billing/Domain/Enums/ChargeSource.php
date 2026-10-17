@@ -14,6 +14,7 @@ enum ChargeSource: string
     case Consultation = 'consultation';
     case LabOrderItem = 'lab_order_item';
     case RadiologyOrderItem = 'radiology_order_item';
+    case RadiologyInjection = 'radiology_injection';
     case MedicationDispense = 'medication_dispense';
     case Procedure = 'procedure';
     case Operation = 'operation';
@@ -28,6 +29,7 @@ enum ChargeSource: string
             self::Consultation => 'استشارة',
             self::LabOrderItem => 'تحليل مخبري',
             self::RadiologyOrderItem => 'صورة أشعة',
+            self::RadiologyInjection => 'حقن',
             self::MedicationDispense => 'دواء',
             self::Procedure => 'إجراء',
             self::Operation => 'عملية',

@@ -24,7 +24,7 @@ final class OrderItemResource extends JsonResource
             'name' => $this->name,
             'quantity' => $this->quantity,
             'instructions' => $this->instructions,
-            'status' => $this->status->value,
+            'status' => $this->status?->value,
         ];
     }
 }

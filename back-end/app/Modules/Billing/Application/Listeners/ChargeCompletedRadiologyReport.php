@@ -34,17 +34,37 @@ final class ChargeCompletedRadiologyReport
 
         $price = (float) ($item->service?->price ?? 0);
 
-        if ($price <= 0) {
+        if ($price > 0) {
+            $description = $item->service?->name ?? 'فحص أشعة';
+
+            if ($item->with_injection) {
+                $description .= ' — مع حقن';
+            }
+
+            $this->createCharge->execute([
+                'encounter_id' => $order->encounter_id,
+                'description' => $description,
+                'quantity' => 1,
+                'unit_price' => $price,
+                'source_type' => ChargeSource::RadiologyOrderItem->value,
+                'source_id' => $item->getKey(),
+            ]);
+        }
+
+        $injection = (float) ($report->study?->radiologyOrder?->injection_price ?? 0);
+        $radiologyOrderId = $report->study?->radiology_order_id;
+
+        if ($injection <= 0 || $radiologyOrderId === null) {
             return;
         }
 
         $this->createCharge->execute([
             'encounter_id' => $order->encounter_id,
-            'description' => $item->service?->name ?? 'فحص أشعة',
+            'description' => 'حقن',
             'quantity' => 1,
-            'unit_price' => $price,
-            'source_type' => ChargeSource::RadiologyOrderItem->value,
-            'source_id' => $item->getKey(),
+            'unit_price' => $injection,
+            'source_type' => ChargeSource::RadiologyInjection->value,
+            'source_id' => $radiologyOrderId,
         ]);
     }
 }

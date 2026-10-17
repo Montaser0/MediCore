@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { RefreshCw } from "lucide-react";
 import { toast } from "sonner";
-import { apiDelete, apiGet, apiPatch, apiPost, getErrorMessage } from "@/lib/api/client";
+import { apiDelete, apiGet, apiPatch, apiPost, apiPut, getErrorMessage } from "@/lib/api/client";
 import { PageToolbar } from "@/components/ui/PageToolbar";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -31,6 +31,16 @@ export function RadiologyCatalogPage() {
   const [q, setQ] = useState("");
   const [draft, setDraft] = useState(empty);
   const [saving, setSaving] = useState(false);
+  const [injectionPrice, setInjectionPrice] = useState<string | null>(null);
+  const [savingInjection, setSavingInjection] = useState(false);
+
+  const { data: savedInjection = 0 } = useQuery({
+    queryKey: ["/radiology/injection-price"],
+    queryFn: async () => {
+      const res = await apiGet<{ price?: number }>("/radiology/injection-price");
+      return Number(res.data?.price) || 0;
+    },
+  });
 
   const { data: rows = [], isLoading, refetch, isFetching } = useQuery({
     queryKey: ["/radiology/services", "catalog", category, q],
@@ -117,9 +127,41 @@ export function RadiologyCatalogPage() {
     }
   }
 
+  async function saveInjection(event: FormEvent) {
+    event.preventDefault();
+    setSavingInjection(true);
+    try {
+      const raw = injectionPrice ?? (savedInjection ? String(savedInjection) : "");
+      const price = raw === "" ? 0 : Number(raw);
+      await apiPut("/radiology/injection-price", { price: Number.isFinite(price) ? price : 0 });
+      setInjectionPrice(String(Number.isFinite(price) ? price : 0));
+      toast.success(t("workspace.saved"));
+      await qc.invalidateQueries({ queryKey: ["/radiology/injection-price"] });
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    } finally {
+      setSavingInjection(false);
+    }
+  }
+
   return (
     <div className="flex h-full flex-col">
       <PageToolbar title={t("nav.radiologyServices")}>
+        <form onSubmit={saveInjection} className="flex items-center gap-1">
+          <span className="whitespace-nowrap text-[12px]">{t("radiology.injectionPrice")}</span>
+          <div className="w-20">
+            <Input
+              type="number"
+              min={0}
+              placeholder={t("crud.price")}
+              value={injectionPrice ?? (savedInjection ? String(savedInjection) : "")}
+              onChange={(event) => setInjectionPrice(event.target.value)}
+            />
+          </div>
+          <Button type="submit" variant="primary" disabled={savingInjection}>
+            {t("app.save")}
+          </Button>
+        </form>
         <Input
           value={search}
           onChange={(event) => setSearch(event.target.value)}
