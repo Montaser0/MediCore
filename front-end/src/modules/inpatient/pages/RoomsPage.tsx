@@ -67,6 +67,11 @@ function statusTone(status?: string): "success" | "warning" | "danger" | "info" 
   return "default";
 }
 
+function statusSelectClass(status?: string) {
+  const tone = statusTone(status);
+  return tone === "default" ? undefined : `his-select-${tone}`;
+}
+
 export function RoomsPage() {
   const t = useTranslations();
   const canManage = useAuthStore((state) => state.hasPermission)("inpatient.beds.manage");
@@ -286,10 +291,11 @@ export function RoomsPage() {
                               <Select
                                 value={bed.status ?? "available"}
                                 disabled={savingBed === bed.id}
+                                className={statusSelectClass(bed.status)}
                                 onChange={(event) => changeStatus(bed, event.target.value as BedStatus)}
                               >
                                 {BED_STATUSES.map((status) => (
-                                  <option key={status} value={status}>
+                                  <option key={status} value={status} className={statusSelectClass(status)}>
                                     {arabicLabel(status)}
                                   </option>
                                 ))}

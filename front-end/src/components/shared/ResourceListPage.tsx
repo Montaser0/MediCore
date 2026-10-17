@@ -134,14 +134,14 @@ export function ResourceListPage({
 export function statusBadge(value: unknown) {
   const v = String(value ?? "—");
   const tone =
-    ["completed", "paid", "active", "verified", "dispensed", "fulfilled"].includes(v)
+    ["completed", "paid", "active", "verified", "dispensed", "fulfilled", "discharged"].includes(v)
       ? "success"
-      : ["pending", "scheduled", "draft", "ordered", "requested"].includes(v)
+      : ["pending", "scheduled", "draft", "ordered", "requested", "transferred"].includes(v)
         ? "warning"
         : ["cancelled", "rejected", "failed"].includes(v)
           ? "danger"
           : "info";
-  return <Badge tone={tone as "success"}>{arabicLabel(v)}</Badge>;
+  return <Badge tone={tone}>{arabicLabel(v)}</Badge>;
 }
 
 export function dateCell(value: unknown, withTime = false) {
