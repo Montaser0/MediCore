@@ -1105,7 +1105,6 @@ function ActionFields({
       return Array.isArray(res.data) ? res.data : [];
     },
   });
-  const selectedBlood = bloodProducts.find((item) => String(item.id) === (form.blood_product_id ?? ""));
 
   switch (action) {
     case "vitals":
@@ -1182,21 +1181,11 @@ function ActionFields({
                 <option value="">—</option>
                 {bloodProducts.map((item) => (
                   <option key={item.id} value={item.id}>
-                    {item.name} — {formatMoney(item.price, "0")}
+                    {item.name}
                   </option>
                 ))}
               </Select>
             )}
-          </Field>
-          <Field label={t("crud.price")}>
-            <Input
-              readOnly
-              value={
-                selectedBlood
-                  ? formatMoney((Number(selectedBlood.price) || 0) * (num(form.units) || 0), "0")
-                  : ""
-              }
-            />
           </Field>
           <Field label={t("laboratory.bloodGroup")}>
             <Select required value={form.blood_group ?? ""} onChange={(e) => setField("blood_group", e.target.value)}>
