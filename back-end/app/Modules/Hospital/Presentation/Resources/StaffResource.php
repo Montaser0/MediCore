@@ -34,11 +34,8 @@ final class StaffResource extends JsonResource
                 'name' => $this->department->name,
                 'type' => $this->department->type->value,
             ]),
-            'clinic_id' => $this->clinic_id,
-            'clinic' => $this->whenLoaded('clinic', fn () => $this->clinic === null ? null : [
-                'id' => $this->clinic->id,
-                'name' => $this->clinic->name,
-            ]),
+            'clinic_id' => $this->visibleClinicId(),
+            'clinic' => $this->visibleClinic(),
             'doctor' => $this->whenLoaded('doctor', fn () => $this->doctor === null ? null : [
                 'id' => $this->doctor->id,
                 'license_number' => $this->doctor->license_number,
@@ -53,6 +50,30 @@ final class StaffResource extends JsonResource
             ]),
             'screens' => $this->when($this->relationLoaded('user'), fn () => $this->resolvedScreens()),
         ];
+    }
+
+    /**
+     * @return array{id: int, name: string}|null
+     */
+    private function visibleClinic(): ?array
+    {
+        $clinic = null;
+
+        if ($this->relationLoaded('clinic') && $this->clinic !== null) {
+            $clinic = $this->clinic;
+        } elseif ($this->relationLoaded('doctor') && $this->doctor?->relationLoaded('clinic')) {
+            $clinic = $this->doctor->clinic;
+        }
+
+        return $clinic === null ? null : [
+            'id' => $clinic->id,
+            'name' => $clinic->name,
+        ];
+    }
+
+    private function visibleClinicId(): ?int
+    {
+        return $this->visibleClinic()['id'] ?? ($this->clinic_id !== null ? (int) $this->clinic_id : null);
     }
 
     /**

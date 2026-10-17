@@ -96,13 +96,16 @@ export function StaffPage() {
   const [form, setForm] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
-  const { data: rows = [], isLoading, refetch, isFetching } = useQuery({
+  const { data: rows = [], isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ["/staff", q],
     queryFn: async () => {
       const res = await apiGet<Row[]>("/staff", {
         params: q ? { search: q, per_page: 50 } : { per_page: 50 },
       });
-      return Array.isArray(res.data) ? res.data : [];
+      if (!Array.isArray(res.data)) {
+        throw new Error("استجابة قائمة الكوادر غير متوقعة");
+      }
+      return res.data;
     },
   });
 
@@ -200,18 +203,25 @@ export function StaffPage() {
     }
   }
 
-  const selectedDepartment = departments.find((row) => String(row.id ?? "") === (form.department_id ?? ""));
-  const clinicOptions = (() => {
-    const embedded = selectedDepartment?.clinics ?? [];
+  function clinicsFor(departmentId: string) {
+    if (departmentId === "") return [];
+    const department = departments.find((row) => String(row.id ?? "") === departmentId);
+    const embedded = Array.isArray(department?.clinics) ? department.clinics : [];
     const merged = new Map<string, ClinicOption>();
-    for (const clinic of [...clinics, ...embedded]) {
-      if (clinic.id == null) continue;
-      const departmentId = clinicDepartmentId(clinic);
-      if ((form.department_id ?? "") !== "" && departmentId !== form.department_id) continue;
-      merged.set(String(clinic.id), clinic);
+    for (const clinic of embedded) {
+      if (clinic.id != null) merged.set(String(clinic.id), clinic);
+    }
+    for (const clinic of clinics) {
+      if (clinic.id != null && clinicDepartmentId(clinic) === departmentId) {
+        merged.set(String(clinic.id), clinic);
+      }
     }
     return [...merged.values()];
-  })();
+  }
+
+  const clinicOptions = clinicsFor(form.department_id ?? "");
+  const accountBeingEdited = editing ? accountRole(editing) : (form.role ?? "");
+  const clinicRequired = (accountBeingEdited === "doctor" || accountBeingEdited === "data_entry") && clinicOptions.length > 0;
 
   const columns = useMemo<Column<Row>[]>(
     () => [
@@ -286,6 +296,9 @@ export function StaffPage() {
         </Button>
       </PageToolbar>
       <div className="flex-1 p-2">
+        {isError ? (
+          <p className="mb-2 text-[13px] text-[var(--his-danger)]">{getErrorMessage(error)}</p>
+        ) : null}
         <DataTable columns={columns} rows={rows} rowKey={(row, index) => Number(row.id ?? index)} loading={isLoading} emptyText={t("app.noData")} />
       </div>
       {open ? (
@@ -314,11 +327,16 @@ export function StaffPage() {
                 value={form.department_id ?? ""}
                 onChange={(event) => {
                   const departmentId = event.target.value;
-                  setForm((current) => ({
-                    ...current,
-                    department_id: departmentId,
-                    clinic_id: current.department_id === departmentId ? (current.clinic_id ?? "") : "",
-                  }));
+                  const nextClinics = clinicsFor(departmentId);
+                  setForm((current) => {
+                    const kept = current.department_id === departmentId ? (current.clinic_id ?? "") : "";
+                    const stillThere = nextClinics.some((clinic) => String(clinic.id) === kept);
+                    return {
+                      ...current,
+                      department_id: departmentId,
+                      clinic_id: stillThere ? kept : nextClinics.length === 1 ? String(nextClinics[0].id) : "",
+                    };
+                  });
                 }}
               >
                 <option value="">{t("workspace.department")}</option>
@@ -332,7 +350,7 @@ export function StaffPage() {
             <label className="grid gap-1 text-[12px]">
               <span>{t("workspace.clinic")}</span>
               <Select
-                required={!editing && form.role === "data_entry"}
+                required={clinicRequired}
                 value={form.clinic_id ?? ""}
                 onChange={(event) => setForm((current) => ({ ...current, clinic_id: event.target.value }))}
               >

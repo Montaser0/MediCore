@@ -28,7 +28,11 @@ final class DepartmentResource extends JsonResource
             'is_clinical' => $this->type->isClinical(),
             'description' => $this->description,
             'is_active' => $this->is_active,
-            'clinics' => ClinicResource::collection($this->whenLoaded('clinics')),
+            'clinics' => $this->whenLoaded('clinics', fn () => $this->clinics->map(fn ($clinic) => [
+                'id' => $clinic->id,
+                'department_id' => $clinic->department_id,
+                'name' => $clinic->name,
+            ])->values()),
         ];
     }
 }

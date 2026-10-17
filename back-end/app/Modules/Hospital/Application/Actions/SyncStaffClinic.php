@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Modules\Hospital\Application\Actions;
 
 use App\Modules\Departments\Infrastructure\Persistence\Models\ClinicModel;
+use App\Modules\Hospital\Infrastructure\Persistence\Models\DoctorModel;
 use App\Modules\Hospital\Infrastructure\Persistence\Models\StaffModel;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Keeps the employee clinic, the doctor clinic, and the clinic roster aligned.
@@ -58,7 +60,7 @@ final class SyncStaffClinic
 
     private function persist(StaffModel $staff, ?int $clinicId): StaffModel
     {
-        if ((int) ($staff->clinic_id ?? 0) !== (int) ($clinicId ?? 0)) {
+        if (Schema::hasColumn('staff', 'clinic_id') && (int) ($staff->clinic_id ?? 0) !== (int) ($clinicId ?? 0)) {
             $staff->clinic_id = $clinicId;
             $staff->save();
             $staff->unsetRelation('clinic');
@@ -66,19 +68,30 @@ final class SyncStaffClinic
         }
 
         $doctor = $staff->doctor;
-        if ($doctor === null || (int) ($doctor->clinic_id ?? 0) === (int) ($clinicId ?? 0)) {
+        if ($doctor === null) {
             return $staff;
         }
 
-        $doctor->clinic_id = $clinicId;
-        $doctor->save();
-
-        if ($clinicId === null) {
-            $doctor->clinics()->detach();
-        } else {
-            $doctor->clinics()->sync([$clinicId]);
+        if (Schema::hasColumn('doctors', 'clinic_id') && (int) ($doctor->clinic_id ?? 0) !== (int) ($clinicId ?? 0)) {
+            $doctor->clinic_id = $clinicId;
+            $doctor->save();
         }
 
+        $this->syncRoster($doctor, $clinicId);
+
         return $staff;
+    }
+
+    private function syncRoster(DoctorModel $doctor, ?int $clinicId): void
+    {
+        if (! Schema::hasTable('clinic_doctor')) {
+            return;
+        }
+
+        $linked = $doctor->clinics()->pluck('clinics.id')->map(fn ($id) => (int) $id)->all();
+        $desired = $clinicId === null ? [] : [$clinicId];
+        if ($linked !== $desired) {
+            $doctor->clinics()->sync($desired);
+        }
     }
 }

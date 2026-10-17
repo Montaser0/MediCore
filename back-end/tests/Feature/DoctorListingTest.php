@@ -10,6 +10,8 @@ use App\Modules\Identity\Infrastructure\Persistence\Models\UserModel;
 use Database\Seeders\HospitalSeeder;
 use Database\Seeders\PermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -94,6 +96,75 @@ final class DoctorListingTest extends TestCase
             ->assertJsonFragment([
                 'id' => $clinic->getKey(),
                 'name' => 'عيادة الأسنان',
+            ]);
+    }
+
+    public function test_chosen_clinic_stays_linked_to_the_doctor_after_saving_screens(): void
+    {
+        $this->seed([PermissionSeeder::class, HospitalSeeder::class]);
+
+        $admin = UserModel::factory()->withRole('admin')->create();
+        Sanctum::actingAs($admin);
+
+        $clinic = ClinicModel::query()->where('code', 'IM-CARD')->firstOrFail();
+        $hospitalId = HospitalModel::query()->value('id');
+
+        $created = $this->postJson('/api/staff', [
+            'hospital_id' => $hospitalId,
+            'first_name' => 'ليلى',
+            'last_name' => 'القلب',
+            'department_id' => $clinic->department_id,
+            'clinic_id' => $clinic->getKey(),
+            'role' => 'doctor',
+            'username' => 'heart.doc',
+            'password' => 'secret1',
+        ])->assertCreated();
+
+        $staffId = $created->json('data.id');
+        $doctorId = $created->json('data.doctor.id');
+        $created->assertJsonPath('data.clinic.id', $clinic->getKey());
+
+        $this->patchJson("/api/staff/{$staffId}", [
+            'screens' => ['patients'],
+        ])->assertOk()
+            ->assertJsonPath('data.clinic.id', $clinic->getKey());
+
+        $this->assertDatabaseHas('clinic_doctor', [
+            'clinic_id' => $clinic->getKey(),
+            'doctor_id' => $doctorId,
+        ]);
+    }
+
+    public function test_staff_list_stays_available_when_clinic_roster_is_missing(): void
+    {
+        $this->seed([PermissionSeeder::class, HospitalSeeder::class]);
+
+        $admin = UserModel::factory()->withRole('admin')->create();
+        Sanctum::actingAs($admin);
+
+        $clinic = ClinicModel::query()->where('code', 'DN-GEN')->firstOrFail();
+        $hospitalId = HospitalModel::query()->value('id');
+
+        $created = $this->postJson('/api/staff', [
+            'hospital_id' => $hospitalId,
+            'first_name' => 'محمد',
+            'last_name' => 'المحمد',
+            'department_id' => $clinic->department_id,
+            'role' => 'doctor',
+            'username' => 'tooth.list',
+            'password' => 'secret1',
+        ])->assertCreated();
+
+        $staffId = $created->json('data.id');
+        DB::table('staff')->where('id', $staffId)->update(['clinic_id' => null]);
+        DB::table('doctors')->where('staff_id', $staffId)->update(['clinic_id' => null]);
+        Schema::drop('clinic_doctor');
+
+        $this->getJson('/api/staff')
+            ->assertOk()
+            ->assertJsonFragment([
+                'first_name' => 'محمد',
+                'last_name' => 'المحمد',
             ]);
     }
 }
