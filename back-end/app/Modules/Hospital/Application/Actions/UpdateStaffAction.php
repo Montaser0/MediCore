@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\DB;
 
 final class UpdateStaffAction
 {
+    public function __construct(private readonly SyncStaffClinic $clinics) {}
+
     /**
      * @param  array<string, mixed>  $data
      */
@@ -31,17 +33,16 @@ final class UpdateStaffAction
             if ($shouldBeDoctor) {
                 $doctorValues = array_intersect_key($data, array_flip(['license_number', 'specialty']));
 
-                if (array_key_exists('clinic_id', $data)) {
-                    $doctorValues['clinic_id'] = $data['clinic_id'] ?: null;
-                }
-
                 DoctorModel::query()->updateOrCreate(
                     ['staff_id' => $staff->getKey()],
                     $doctorValues,
                 );
+                $staff->unsetRelation('doctor');
             }
 
-            return $staff->fresh(['department', 'doctor']);
+            $this->clinics->ensure($staff);
+
+            return $staff->fresh(['department', 'clinic', 'doctor']);
         });
     }
 }

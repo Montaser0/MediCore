@@ -43,13 +43,31 @@ const ROLE_LABELS = {
   warehouse: "staffRoles.warehouse",
 } as const;
 
+type ClinicOption = {
+  id?: number;
+  name?: string;
+  department_id?: number;
+  department?: { id?: number };
+};
+
 type Row = Record<string, unknown> & {
   id?: number;
+  clinic_id?: number;
   screens?: string[];
   user?: { username?: string; roles?: string[] } | null;
   department?: { id?: number; name?: string };
   clinic?: { id?: number; name?: string };
+  clinics?: ClinicOption[];
 };
+
+function clinicDepartmentId(clinic: ClinicOption) {
+  return String(clinic.department_id ?? clinic.department?.id ?? "");
+}
+
+function savedClinicId(row: Row) {
+  const id = row.clinic?.id ?? row.clinic_id;
+  return id != null ? String(id) : "";
+}
 
 function accountRole(row: Row): string {
   return row.user?.roles?.[0] ?? "";
@@ -99,7 +117,7 @@ export function StaffPage() {
   const { data: clinics = [] } = useQuery({
     queryKey: ["/clinics", "staff-options"],
     queryFn: async () => {
-      const res = await apiGet<Array<Row & { department_id?: number }>>("/clinics");
+      const res = await apiGet<ClinicOption[]>("/clinics");
       return Array.isArray(res.data) ? res.data : [];
     },
   });
@@ -118,7 +136,7 @@ export function StaffPage() {
       employee_number: String(row.employee_number ?? ""),
       phone: String(row.phone ?? ""),
       department_id: row.department?.id != null ? String(row.department.id) : "",
-      clinic_id: row.clinic?.id != null ? String(row.clinic.id) : "",
+      clinic_id: savedClinicId(row),
     });
     setOpen(true);
   }
@@ -147,10 +165,11 @@ export function StaffPage() {
 
     const payload: Record<string, unknown> = {};
     if (!editing) payload.hospital_id = hospitalId;
-    for (const key of ["first_name", "last_name", "employee_number", "phone", "department_id", "clinic_id"] as const) {
+    for (const key of ["first_name", "last_name", "employee_number", "phone", "department_id"] as const) {
       const value = (form[key] ?? "").trim();
       if (value !== "") payload[key] = key.endsWith("_id") ? Number(value) : value;
     }
+    payload.clinic_id = (form.clinic_id ?? "").trim() === "" ? null : Number(form.clinic_id);
     if (!editing && form.role) {
       payload.role = form.role;
       payload.username = form.username ?? "";
@@ -181,9 +200,18 @@ export function StaffPage() {
     }
   }
 
-  const clinicOptions = clinics.filter(
-    (row) => form.department_id === "" || String(row.department_id ?? "") === form.department_id,
-  );
+  const selectedDepartment = departments.find((row) => String(row.id ?? "") === (form.department_id ?? ""));
+  const clinicOptions = (() => {
+    const embedded = selectedDepartment?.clinics ?? [];
+    const merged = new Map<string, ClinicOption>();
+    for (const clinic of [...clinics, ...embedded]) {
+      if (clinic.id == null) continue;
+      const departmentId = clinicDepartmentId(clinic);
+      if ((form.department_id ?? "") !== "" && departmentId !== form.department_id) continue;
+      merged.set(String(clinic.id), clinic);
+    }
+    return [...merged.values()];
+  })();
 
   const columns = useMemo<Column<Row>[]>(
     () => [
@@ -284,7 +312,14 @@ export function StaffPage() {
               <span>{t("workspace.department")}</span>
               <Select
                 value={form.department_id ?? ""}
-                onChange={(event) => setForm((current) => ({ ...current, department_id: event.target.value, clinic_id: "" }))}
+                onChange={(event) => {
+                  const departmentId = event.target.value;
+                  setForm((current) => ({
+                    ...current,
+                    department_id: departmentId,
+                    clinic_id: current.department_id === departmentId ? (current.clinic_id ?? "") : "",
+                  }));
+                }}
               >
                 <option value="">{t("workspace.department")}</option>
                 {departments.map((row) => (

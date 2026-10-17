@@ -9,6 +9,7 @@ use App\Core\Http\Controllers\ApiController;
 use App\Core\Http\DeactivateRecord;
 use App\Core\Http\Responses\ApiResponse;
 use App\Modules\Hospital\Application\Actions\CreateStaffAction;
+use App\Modules\Hospital\Application\Actions\SyncStaffClinic;
 use App\Modules\Hospital\Application\Actions\UpdateStaffAction;
 use App\Modules\Hospital\Infrastructure\Persistence\Models\StaffModel;
 use App\Modules\Hospital\Presentation\Requests\StoreStaffRequest;
@@ -29,7 +30,7 @@ final class StaffController extends ApiController
         return ApiResponse::data(Permissions::accessCatalogue());
     }
 
-    public function index(Request $request): JsonResponse
+    public function index(Request $request, SyncStaffClinic $clinics): JsonResponse
     {
         $staff = StaffModel::query()
             ->with(['department', 'clinic', 'doctor', 'user.roles'])
@@ -48,12 +49,16 @@ final class StaffController extends ApiController
             ->orderBy('last_name')
             ->paginate($this->perPage());
 
+        $staff->getCollection()->each(fn (StaffModel $member) => $clinics->ensure($member));
+
         return ApiResponse::paginated(StaffResource::collection($staff), $staff);
     }
 
-    public function show(StaffModel $staff): JsonResponse
+    public function show(StaffModel $staff, SyncStaffClinic $clinics): JsonResponse
     {
-        return ApiResponse::resource(new StaffResource($staff->load(['department', 'clinic', 'doctor', 'user.roles'])));
+        $staff->load(['department', 'clinic', 'doctor', 'user.roles']);
+
+        return ApiResponse::resource(new StaffResource($clinics->ensure($staff)));
     }
 
     public function store(StoreStaffRequest $request, CreateStaffAction $action, CreateUserAction $users): JsonResponse

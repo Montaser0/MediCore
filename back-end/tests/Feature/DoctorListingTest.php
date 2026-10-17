@@ -55,4 +55,45 @@ final class DoctorListingTest extends TestCase
         $this->assertTrue($names->contains('هاني الأنف'));
         $this->assertFalse($names->contains('سامر الأسنان'));
     }
+
+    public function test_staff_in_a_single_clinic_department_keeps_that_clinic(): void
+    {
+        $this->seed([PermissionSeeder::class, HospitalSeeder::class]);
+
+        $admin = UserModel::factory()->withRole('admin')->create();
+        Sanctum::actingAs($admin);
+
+        $clinic = ClinicModel::query()->where('code', 'DN-GEN')->firstOrFail();
+        $hospitalId = HospitalModel::query()->value('id');
+
+        $created = $this->postJson('/api/staff', [
+            'hospital_id' => $hospitalId,
+            'first_name' => 'محمد',
+            'last_name' => 'المحمد',
+            'employee_number' => '001',
+            'department_id' => $clinic->department_id,
+            'role' => 'doctor',
+            'username' => 'tooth.doc',
+            'password' => 'secret1',
+        ])->assertCreated();
+
+        $created->assertJsonPath('data.clinic.id', $clinic->getKey());
+        $created->assertJsonPath('data.clinic.name', 'عيادة الأسنان');
+
+        $staffId = $created->json('data.id');
+
+        $this->patchJson("/api/staff/{$staffId}", [
+            'first_name' => 'محمد',
+            'department_id' => $clinic->department_id,
+            'clinic_id' => null,
+        ])->assertOk()
+            ->assertJsonPath('data.clinic.id', $clinic->getKey());
+
+        $this->getJson('/api/staff')
+            ->assertOk()
+            ->assertJsonFragment([
+                'id' => $clinic->getKey(),
+                'name' => 'عيادة الأسنان',
+            ]);
+    }
 }

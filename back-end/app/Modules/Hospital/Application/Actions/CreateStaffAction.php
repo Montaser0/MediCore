@@ -16,7 +16,10 @@ use Illuminate\Support\Facades\DB;
  */
 final class CreateStaffAction
 {
-    public function __construct(private readonly NumberGenerator $numbers) {}
+    public function __construct(
+        private readonly NumberGenerator $numbers,
+        private readonly SyncStaffClinic $clinics,
+    ) {}
 
     /**
      * @param  array<string, mixed>  $data
@@ -52,6 +55,8 @@ final class CreateStaffAction
                     'specialty' => $data['specialty'] ?? null,
                 ]);
             }
+
+            $this->clinics->ensure($staff);
 
             return $staff->fresh(['department', 'clinic', 'doctor']);
         });

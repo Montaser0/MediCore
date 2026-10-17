@@ -92,11 +92,11 @@ export function PatientCreatePage() {
     ? clinics.filter((row) => String(row.department_id ?? "") === form.department_id)
     : [];
   const { data: doctors = [] } = useQuery({
-    queryKey: ["/doctors", "register", form.clinic_id],
-    enabled: Boolean(form.clinic_id),
+    queryKey: ["/doctors", "register", form.department_id],
+    enabled: Boolean(form.department_id),
     queryFn: async () => {
       const res = await apiGet<NamedRow[]>("/doctors", {
-        params: { per_page: 200, clinic_id: form.clinic_id },
+        params: { per_page: 200, department_id: form.department_id },
       });
       return Array.isArray(res.data) ? res.data : [];
     },
@@ -394,7 +394,7 @@ export function PatientCreatePage() {
               <Select
                 required
                 value={form.doctor_id}
-                disabled={!form.clinic_id}
+                disabled={!form.department_id}
                 onChange={(e) => set("doctor_id", e.target.value)}
               >
                 <option value="">{t("appointments.doctor")}</option>
