@@ -6,6 +6,10 @@ namespace App\Core\Excel;
 
 use App\Core\Authorization\Permissions;
 use App\Core\Exceptions\DomainException;
+use App\Modules\Assets\Application\Actions\RegisterAssetAction;
+use App\Modules\Assets\Domain\Enums\AssetCategory;
+use App\Modules\Assets\Domain\Enums\AssetStatus;
+use App\Modules\Assets\Infrastructure\Persistence\Models\ItAssetModel;
 use App\Modules\Appointments\Infrastructure\Persistence\Models\AppointmentModel;
 use App\Modules\Audit\Infrastructure\Persistence\Models\AuditLogModel;
 use App\Modules\Billing\Infrastructure\Persistence\Models\InvoiceModel;
@@ -60,6 +64,19 @@ trait FillsExcelSheets
                 ['key' => 'description', 'header' => 'الوصف'],
                 ['key' => 'is_active', 'header' => 'فعال'],
             ], $this->exportDepartments(...), $this->importDepartment(...)),
+            $this->book('assets', 'أصول القسم التقني', Permissions::ASSETS_VIEW, Permissions::ASSETS_MANAGE, [
+                ['key' => 'asset_code', 'header' => 'رقم الأصل'],
+                ['key' => 'barcode', 'header' => 'الباركود'],
+                ['key' => 'category', 'header' => 'النوع', 'required' => true],
+                ['key' => 'brand', 'header' => 'الشركة'],
+                ['key' => 'model_name', 'header' => 'الموديل'],
+                ['key' => 'received_by', 'header' => 'العهدة لدى'],
+                ['key' => 'department', 'header' => 'القسم'],
+                ['key' => 'location', 'header' => 'المكان'],
+                ['key' => 'delivered_on', 'header' => 'تاريخ التسليم', 'required' => true],
+                ['key' => 'notes', 'header' => 'ملاحظات'],
+                ['key' => 'status', 'header' => 'الحالة'],
+            ], $this->exportAssets(...), $this->importAsset(...)),
             $this->book('inventory-items', 'الأصناف', Permissions::INVENTORY_STOCK_VIEW, Permissions::INVENTORY_ITEMS_MANAGE, [
                 ['key' => 'name', 'header' => 'الاسم', 'required' => true],
                 ['key' => 'sku', 'header' => 'الرمز', 'required' => true],
@@ -1475,6 +1492,139 @@ trait FillsExcelSheets
             'متابعة', 'follow_up', 'follow-up' => 'follow_up',
             default => throw new InvalidArgumentException('نوع الزيارة غير معروف: '.$label),
         };
+    }
+
+    /**
+     * @return iterable<int, array<string, scalar|null>>
+     */
+    private function exportAssets(): iterable
+    {
+        $query = ItAssetModel::query()
+            ->with('department')
+            ->where('hospital_id', $this->hospitalId())
+            ->where('is_active', true)
+            ->orderBy('asset_code');
+        $this->guardCount($query);
+
+        foreach ($query->get() as $asset) {
+            $category = $asset->category;
+            $status = $asset->status;
+
+            yield [
+                'asset_code' => $asset->asset_code,
+                'barcode' => $asset->barcode,
+                'category' => $category instanceof AssetCategory ? $category->label() : (string) $category,
+                'brand' => $asset->brand,
+                'model_name' => $asset->model_name,
+                'received_by' => $asset->received_by,
+                'department' => $asset->department?->name,
+                'location' => $asset->location,
+                'delivered_on' => $asset->delivered_on?->toDateString(),
+                'notes' => $asset->notes,
+                'status' => $status instanceof AssetStatus ? $status->label() : (string) $status,
+            ];
+        }
+    }
+
+    /**
+     * @param  array<string, string>  $row
+     */
+    private function importAsset(array $row): string
+    {
+        $hospitalId = $this->hospitalId();
+        $code = $this->nullable($row, 'asset_code');
+        $barcode = $this->nullable($row, 'barcode');
+        $existing = null;
+
+        if ($code !== null) {
+            $existing = ItAssetModel::query()->where('hospital_id', $hospitalId)->where('asset_code', $code)->first();
+        }
+
+        if (! $existing instanceof ItAssetModel && $barcode !== null) {
+            $existing = ItAssetModel::query()->where('hospital_id', $hospitalId)->where('barcode', $barcode)->first();
+        }
+
+        if ($code !== null) {
+            $clash = ItAssetModel::query()->where('hospital_id', $hospitalId)->where('asset_code', $code);
+
+            if ($existing instanceof ItAssetModel) {
+                $clash->whereKeyNot($existing->getKey());
+            }
+
+            if ($clash->exists()) {
+                throw new InvalidArgumentException('رقم الأصل مستخدم: '.$code);
+            }
+        }
+
+        $deliveredOn = $this->dateValue($row, 'delivered_on');
+
+        if ($deliveredOn === null) {
+            throw new InvalidArgumentException('تاريخ التسليم مطلوب.');
+        }
+
+        $departmentLabel = $this->nullable($row, 'department');
+        $departmentId = $departmentLabel === null ? null : (int) $this->department($departmentLabel)->getKey();
+        $location = $this->nullable($row, 'location');
+        $holder = $this->nullable($row, 'received_by');
+        $category = $this->assetCategory($this->required($row, 'category', 'النوع'));
+
+        if ($existing instanceof ItAssetModel && $existing->status !== AssetStatus::InStock) {
+            $departmentChanged = (int) ($departmentId ?? 0) !== (int) ($existing->department_id ?? 0);
+            $locationChanged = (string) ($location ?? '') !== (string) ($existing->location ?? '');
+
+            if ($departmentChanged || $locationChanged) {
+                throw new InvalidArgumentException('غيّر القسم أو المكان من إجراء التسليم أو الإرجاع.');
+            }
+
+            $departmentId = $existing->department_id === null ? null : (int) $existing->department_id;
+            $location = $existing->location;
+        }
+
+        $attributes = [
+            'category' => $category->value,
+            'brand' => $this->nullable($row, 'brand'),
+            'model_name' => $this->nullable($row, 'model_name'),
+            'department_id' => $departmentId,
+            'location' => $location,
+            'received_by' => $holder,
+            'delivered_on' => $deliveredOn,
+            'notes' => $this->nullable($row, 'notes'),
+        ];
+
+        if (! $existing instanceof ItAssetModel) {
+            app(RegisterAssetAction::class)->execute([
+                ...$attributes,
+                'hospital_id' => $hospitalId,
+                'asset_code' => $code,
+            ], $this->currentUser->id());
+
+            return 'created';
+        }
+
+        if ($code !== null) {
+            $attributes['asset_code'] = $code;
+        }
+
+        if (in_array($existing->status, [AssetStatus::InStock, AssetStatus::Assigned], true)) {
+            $attributes['status'] = $holder === null ? AssetStatus::InStock : AssetStatus::Assigned;
+        }
+
+        $existing->fill($attributes)->save();
+
+        return 'updated';
+    }
+
+    private function assetCategory(string $label): AssetCategory
+    {
+        $label = trim($label);
+
+        foreach (AssetCategory::cases() as $case) {
+            if ($label === $case->value || $label === $case->label()) {
+                return $case;
+            }
+        }
+
+        throw new InvalidArgumentException('نوع الأصل غير معروف: '.$label);
     }
 
     private function visitLabel(string $value): string

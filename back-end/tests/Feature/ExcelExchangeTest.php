@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Core\Excel\Xlsx;
+use App\Modules\Assets\Application\Support\AssetBarcode;
+use App\Modules\Assets\Infrastructure\Persistence\Models\ItAssetModel;
 use App\Modules\Departments\Infrastructure\Persistence\Models\DepartmentModel;
 use App\Modules\Hospital\Infrastructure\Persistence\Models\HospitalModel;
 use App\Modules\Identity\Infrastructure\Persistence\Models\UserModel;
@@ -100,6 +102,51 @@ final class ExcelExchangeTest extends TestCase
 
         $this->assertSame(1, DepartmentModel::query()->where('code', 'RAD-X')->count());
         $this->assertDatabaseHas('departments', ['code' => 'KEEP-D']);
+    }
+
+    public function test_asset_sheet_creates_then_updates_without_replacing_the_barcode(): void
+    {
+        $this->seed([PermissionSeeder::class, HospitalSeeder::class, AdminUserSeeder::class]);
+        Sanctum::actingAs(UserModel::query()->where('username', 'admin')->firstOrFail());
+
+        $this->importBook('assets', [
+            ['النوع', 'تاريخ التسليم'],
+            ['لابتوب', ''],
+        ])->assertOk()
+            ->assertJsonPath('data.created', 0)
+            ->assertJsonPath('data.failed', 1);
+
+        $created = $this->importBook('assets', [
+            ['النوع', 'الشركة', 'الموديل', 'العهدة لدى', 'تاريخ التسليم'],
+            ['لابتوب', 'Dell', 'Latitude', 'أحمد علي', '2026-10-21'],
+        ]);
+
+        $created->assertOk()
+            ->assertJsonPath('data.created', 1)
+            ->assertJsonPath('data.failed', 0);
+
+        $asset = ItAssetModel::query()->firstOrFail();
+        $barcode = (string) $asset->barcode;
+        $this->assertTrue(AssetBarcode::valid($barcode));
+        $this->assertSame('assigned', $asset->status->value);
+        $this->assertSame('أحمد علي', $asset->received_by);
+
+        $updated = $this->importBook('assets', [
+            ['رقم الأصل', 'النوع', 'الشركة', 'العهدة لدى', 'تاريخ التسليم'],
+            [$asset->asset_code, 'طابعة', 'HP', '', '2026-10-22'],
+        ]);
+
+        $updated->assertOk()
+            ->assertJsonPath('data.updated', 1)
+            ->assertJsonPath('data.created', 0);
+
+        $asset->refresh();
+        $this->assertSame('printer', $asset->category->value);
+        $this->assertSame('HP', $asset->brand);
+        $this->assertNull($asset->received_by);
+        $this->assertSame('in_stock', $asset->status->value);
+        $this->assertSame('2026-10-22', $asset->delivered_on?->toDateString());
+        $this->assertSame($barcode, $asset->barcode);
     }
 
     public function test_import_rejects_a_sheet_missing_required_columns(): void

@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/Badge";
 import { DataTable, type Column } from "@/components/data-table/DataTable";
 import { BarcodeImage } from "@/modules/inventory/components/BarcodeImage";
 import { printBarcodeLabels } from "@/modules/inventory/printBarcodeLabels";
+import { ExcelButtons } from "@/components/shared/ExcelButtons";
 import { useAuthStore } from "@/stores/auth-store";
 
 type Option = { value: string; label: string };
@@ -441,6 +442,11 @@ export function AssetsPage() {
           <RefreshCw size={13} />
           {t("app.refresh")}
         </Button>
+        <ExcelButtons
+          resource="assets"
+          exportOnly={!canManage}
+          onImported={() => refresh()}
+        />
         {canManage ? (
           <Button variant="primary" onClick={openCreate}>{t("app.add")}</Button>
         ) : null}
