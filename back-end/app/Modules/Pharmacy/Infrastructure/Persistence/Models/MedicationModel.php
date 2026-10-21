@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Pharmacy\Infrastructure\Persistence\Models;
 
 use App\Core\Persistence\BaseModel;
+use App\Modules\Inventory\Application\Support\ItemBarcode;
 use App\Modules\Inventory\Infrastructure\Persistence\Models\InventoryItemModel;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -21,6 +22,15 @@ final class MedicationModel extends BaseModel
             'requires_prescription' => 'boolean',
             'is_active' => 'boolean',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $medication): void {
+            if (blank($medication->barcode)) {
+                $medication->barcode = ItemBarcode::next('pharmacy');
+            }
+        });
     }
 
     public function categoryRecord(): BelongsTo

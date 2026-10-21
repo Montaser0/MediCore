@@ -401,7 +401,17 @@
     "expiry": "تاريخ الانتهاء",
     "batch": "رقم الدفعة",
     "received": "أُضيفت الكمية إلى الرصيد",
-    "expiryRequired": "أدخل تاريخ الانتهاء"
+    "expiryRequired": "أدخل تاريخ الانتهاء",
+    "barcode": "الباركود",
+    "generateBarcodes": "توليد الباركود",
+    "generated": "تم توليد {count} باركود",
+    "scanBarcode": "امسح الباركود",
+    "barcodeMissing": "لا يوجد صنف بهذا الباركود",
+    "pharmacyItem": "هذا الصنف للصيدلية",
+    "generalItem": "هذا الصنف للمستودع العام",
+    "printBarcodes": "طباعة الملصقات",
+    "printBarcode": "طباعة",
+    "nothingToPrint": "لا يوجد باركود للطباعة. ولّد الباركود أولاً"
   },
   "reports": {
     "title": "التقارير",

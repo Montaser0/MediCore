@@ -500,11 +500,14 @@ final class ExcelExchange
             'strength' => $strength,
             'dosage_form' => $this->nullable($row, 'dosage_form'),
             'route' => $this->nullable($row, 'route'),
-            'barcode' => $barcode,
             'price' => $this->optionalNumber($row, 'price', $existing instanceof MedicationModel ? $existing->price : null, 0),
             'requires_prescription' => $this->optionalBool($row, 'requires_prescription', $existing instanceof MedicationModel ? (bool) $existing->requires_prescription : null, true),
             'is_active' => $this->optionalBool($row, 'is_active', $existing instanceof MedicationModel ? (bool) $existing->is_active : null, true),
         ];
+
+        if ($barcode !== null) {
+            $attributes['barcode'] = $barcode;
+        }
 
         if ($existing === null) {
             MedicationModel::query()->create($attributes);

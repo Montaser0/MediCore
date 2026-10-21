@@ -342,13 +342,16 @@ trait FillsExcelSheets
         $attributes = [
             'name' => $this->required($row, 'name', 'اسم الصنف'),
             'sku' => $sku,
-            'barcode' => $barcode,
             'category' => $this->nullable($row, 'category'),
             'unit' => $this->required($row, 'unit', 'الوحدة'),
             'item_type' => $this->itemKind($row['item_type'] ?? ''),
             'minimum_stock' => $this->optionalNumber($row, 'minimum_stock', $existing instanceof InventoryItemModel ? $existing->minimum_stock : null, 0),
             'is_active' => $this->optionalBool($row, 'is_active', $existing instanceof InventoryItemModel ? (bool) $existing->is_active : null, true),
         ];
+
+        if ($barcode !== null) {
+            $attributes['barcode'] = $barcode;
+        }
 
         if ($existing === null) {
             InventoryItemModel::query()->create($attributes);

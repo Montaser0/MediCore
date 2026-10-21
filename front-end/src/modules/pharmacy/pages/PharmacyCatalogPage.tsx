@@ -14,6 +14,8 @@ import { apiGet, apiPatch, apiPost, getErrorMessage } from "@/lib/api/client";
 import { roleNames } from "@/config/desk";
 import { useAuthStore } from "@/stores/auth-store";
 import { formatMoney } from "@/lib/utils";
+import { BarcodeImage } from "@/modules/inventory/components/BarcodeImage";
+import { printBarcodeLabels } from "@/modules/inventory/printBarcodeLabels";
 
 type Drug = {
   id: number;
@@ -43,7 +45,30 @@ export function PharmacyCatalogPage() {
   const columns = useMemo<Column<Drug>[]>(
     () => [
       { key: "name", header: t("crud.name"), cell: (row) => row.name },
-      { key: "barcode", header: t("pharmacy.barcode"), width: 160, cell: (row) => row.barcode || "—" },
+      {
+        key: "barcode",
+        header: t("pharmacy.barcode"),
+        width: 190,
+        cell: (row) => {
+          const code = row.barcode?.trim() ?? "";
+          if (!code) return "—";
+          return (
+            <span className="flex flex-col items-start gap-1">
+              <BarcodeImage code={code} />
+              <button
+                type="button"
+                className="text-[11px] underline"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  if (!printBarcodeLabels([{ name: row.name, code }])) toast.error(t("inventory.nothingToPrint"));
+                }}
+              >
+                {t("inventory.printBarcode")}
+              </button>
+            </span>
+          );
+        },
+      },
       { key: "quantity", header: t("pharmacy.quantity"), width: 100, cell: (row) => String(row.quantity ?? 0) },
       { key: "price", header: t("pharmacy.price"), width: 120, cell: (row) => formatMoney(row.price) },
     ],
@@ -75,6 +100,17 @@ export function PharmacyCatalogPage() {
   return (
     <div className="flex h-full flex-col">
       <PageToolbar title={t("pharmacy.catalog")}>
+        <Button
+          onClick={() => {
+            const labels = rows.flatMap((row) => {
+              const code = row.barcode?.trim() ?? "";
+              return code ? [{ name: row.name, code }] : [];
+            });
+            if (!printBarcodeLabels(labels)) toast.error(t("inventory.nothingToPrint"));
+          }}
+        >
+          {t("inventory.printBarcodes")}
+        </Button>
         <ExcelButtons
           resource="pharmacy"
           onImported={() => qc.invalidateQueries({ queryKey: ["pharmacy-pos", "medications"] })}
@@ -92,12 +128,32 @@ export function PharmacyCatalogPage() {
           value={draft.name}
           onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
         />
-        <Input
-          required
-          placeholder={t("pharmacy.barcode")}
-          value={draft.barcode}
-          onChange={(event) => setDraft((current) => ({ ...current, barcode: event.target.value }))}
-        />
+        <div className="flex flex-col gap-1">
+          <div className="flex gap-1">
+            <Input
+              placeholder={t("pharmacy.barcode")}
+              value={draft.barcode}
+              onChange={(event) => setDraft((current) => ({ ...current, barcode: event.target.value }))}
+            />
+            <Button
+              type="button"
+              onClick={async () => {
+                try {
+                  const res = await apiGet<{ barcode: string }>("/inventory/items/next-barcode", {
+                    params: { kind: "pharmacy" },
+                  });
+                  const code = res.data?.barcode;
+                  if (code) setDraft((current) => ({ ...current, barcode: code }));
+                } catch (error) {
+                  toast.error(getErrorMessage(error));
+                }
+              }}
+            >
+              {t("inventory.generateBarcodes")}
+            </Button>
+          </div>
+          {draft.barcode.trim() ? <BarcodeImage code={draft.barcode.trim()} height={56} /> : null}
+        </div>
         <Input
           required
           type="number"

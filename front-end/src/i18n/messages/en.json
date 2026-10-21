@@ -401,7 +401,17 @@
     "expiry": "Expiry date",
     "batch": "Batch number",
     "received": "The quantity was added to stock",
-    "expiryRequired": "Enter an expiry date"
+    "expiryRequired": "Enter an expiry date",
+    "barcode": "Barcode",
+    "generateBarcodes": "Generate barcodes",
+    "generated": "Generated {count} barcodes",
+    "scanBarcode": "Scan a barcode",
+    "barcodeMissing": "No item has this barcode",
+    "pharmacyItem": "This item belongs to the pharmacy",
+    "generalItem": "This item belongs to the general warehouse",
+    "printBarcodes": "Print labels",
+    "printBarcode": "Print",
+    "nothingToPrint": "There is no barcode to print. Generate barcodes first"
   },
   "reports": {
     "title": "Reports",

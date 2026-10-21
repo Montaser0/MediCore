@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { useAuthStore } from "@/stores/auth-store";
 
-type Item = { id: number; name?: string; item_type?: string; is_batch_tracked?: boolean };
+type Item = { id: number; name?: string; barcode?: string | null; item_type?: string; is_batch_tracked?: boolean };
 type Warehouse = { id: number; name?: string; is_pharmacy?: boolean };
 
 export function ReceiveStockForm({ pharmacyOnly = false }: { pharmacyOnly?: boolean }) {
@@ -18,6 +18,7 @@ export function ReceiveStockForm({ pharmacyOnly = false }: { pharmacyOnly?: bool
   const qc = useQueryClient();
   const canReceive = useAuthStore((state) => state.hasPermission("inventory.stock.receive"));
   const [itemId, setItemId] = useState("");
+  const [barcode, setBarcode] = useState("");
   const [warehouseId, setWarehouseId] = useState("");
   const [quantity, setQuantity] = useState("");
   const [expiry, setExpiry] = useState("");
@@ -51,6 +52,27 @@ export function ReceiveStockForm({ pharmacyOnly = false }: { pharmacyOnly?: bool
     const pharmacy = warehouses.find((row) => row.is_pharmacy) ?? warehouses[0];
     if (pharmacy) setWarehouseId(String(pharmacy.id));
   }, [warehouses, warehouseId]);
+
+  async function scanBarcode() {
+    const code = barcode.trim();
+    if (!code) return;
+    try {
+      const res = await apiGet<Item>(`/inventory/items/by-barcode/${encodeURIComponent(code)}`);
+      const item = res.data;
+      if (!item?.id) {
+        toast.error(t("inventory.barcodeMissing"));
+        return;
+      }
+      if (pharmacyOnly && item.item_type !== "medicine") {
+        toast.error(t("inventory.generalItem"));
+        return;
+      }
+      setItemId(String(item.id));
+      setBarcode(item.barcode ?? code);
+    } catch (error) {
+      toast.error(getErrorMessage(error) || t("inventory.barcodeMissing"));
+    }
+  }
 
   const selected = items.find((row) => String(row.id) === itemId);
   const needsExpiry = selected?.item_type === "medicine" || selected?.item_type === "medical_supply";
@@ -89,12 +111,26 @@ export function ReceiveStockForm({ pharmacyOnly = false }: { pharmacyOnly?: bool
       <div className="his-panel-header">{t("inventory.receive")}</div>
       <div className="his-field-grid p-2">
         <div className="his-field">
+          <label>{t("inventory.barcode")}</label>
+          <Input
+            value={barcode}
+            placeholder={t("inventory.scanBarcode")}
+            onChange={(event) => setBarcode(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                void scanBarcode();
+              }
+            }}
+          />
+        </div>
+        <div className="his-field">
           <label>{t("inventory.items")}</label>
           <Select value={itemId} onChange={(event) => setItemId(event.target.value)} required>
             <option value="">{t("inventory.items")}</option>
             {items.map((item) => (
               <option key={item.id} value={item.id}>
-                {item.name}
+                {item.barcode ? `${item.name} — ${item.barcode}` : item.name}
               </option>
             ))}
           </Select>

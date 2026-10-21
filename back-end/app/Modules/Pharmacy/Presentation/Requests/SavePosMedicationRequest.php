@@ -13,6 +13,13 @@ final class SavePosMedicationRequest extends ApiFormRequest
 {
     protected ?string $permission = Permissions::PHARMACY_MEDICATIONS_MANAGE;
 
+    protected function prepareForValidation(): void
+    {
+        if ($this->exists('barcode') && trim((string) $this->input('barcode')) === '') {
+            $this->merge(['barcode' => null]);
+        }
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -25,7 +32,7 @@ final class SavePosMedicationRequest extends ApiFormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'barcode' => [
-                'required',
+                'nullable',
                 'string',
                 'max:100',
                 Rule::unique('medications', 'barcode')

@@ -45,7 +45,13 @@ final class PosController extends ApiController
     public function update(SavePosMedicationRequest $request, MedicationModel $medication, CreatePharmacySaleAction $sales): JsonResponse
     {
         $this->guardShelf($medication, $sales->hospitalId());
-        $medication->fill($request->validated())->save();
+        $attributes = $request->validated();
+
+        if (blank($attributes['barcode'] ?? null)) {
+            unset($attributes['barcode']);
+        }
+
+        $medication->fill($attributes)->save();
 
         return ApiResponse::resource(new MedicationResource($medication));
     }

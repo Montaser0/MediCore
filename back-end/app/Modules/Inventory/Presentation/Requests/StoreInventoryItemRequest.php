@@ -14,6 +14,13 @@ final class StoreInventoryItemRequest extends ApiFormRequest
 {
     protected ?string $permission = Permissions::INVENTORY_ITEMS_MANAGE;
 
+    protected function prepareForValidation(): void
+    {
+        if ($this->exists('barcode') && trim((string) $this->input('barcode')) === '') {
+            $this->merge(['barcode' => null]);
+        }
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -25,7 +32,12 @@ final class StoreInventoryItemRequest extends ApiFormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'sku' => ['required', 'string', 'max:100', Rule::unique('inventory_items', 'sku')->ignore($itemId)],
-            'barcode' => ['nullable', 'string', 'max:100'],
+            'barcode' => [
+                'nullable',
+                'string',
+                'max:100',
+                Rule::unique('inventory_items', 'barcode')->ignore($itemId),
+            ],
             'category' => ['nullable', 'string', 'max:150'],
             'unit' => ['required', 'string', 'max:50'],
             'item_type' => ['required', Rule::in(ItemType::values())],

@@ -8,8 +8,10 @@ use App\Core\Authorization\Permissions;
 use App\Core\Http\Controllers\ApiController;
 use App\Core\Http\DeactivateRecord;
 use App\Core\Http\Responses\ApiResponse;
+use App\Modules\Inventory\Application\Support\ItemBarcode;
 use App\Modules\Inventory\Domain\Enums\ItemType;
 use App\Modules\Inventory\Infrastructure\Persistence\Models\InventoryItemModel;
+use App\Modules\Inventory\Presentation\Requests\GenerateItemBarcodesRequest;
 use App\Modules\Inventory\Presentation\Requests\StoreInventoryItemRequest;
 use App\Modules\Inventory\Presentation\Resources\InventoryBatchResource;
 use App\Modules\Inventory\Presentation\Resources\InventoryItemResource;
@@ -40,6 +42,33 @@ final class InventoryItemController extends ApiController
         ));
     }
 
+    public function generateBarcodes(GenerateItemBarcodesRequest $request): JsonResponse
+    {
+        return ApiResponse::data(['generated' => ItemBarcode::fillMissing()]);
+    }
+
+    public function nextBarcode(Request $request): JsonResponse
+    {
+        $kind = $request->string('kind')->toString();
+
+        if (! in_array($kind, ['pharmacy', 'general'], true)) {
+            return ApiResponse::message('حدد نوع المستودع: صيدلية أو عام.', 422);
+        }
+
+        return ApiResponse::data(['barcode' => ItemBarcode::next($kind)]);
+    }
+
+    public function byBarcode(string $barcode): JsonResponse
+    {
+        $item = InventoryItemModel::query()->where('barcode', $barcode)->first();
+
+        if ($item === null) {
+            return ApiResponse::message('لا يوجد صنف بهذا الباركود.', 404);
+        }
+
+        return ApiResponse::resource(new InventoryItemResource($item));
+    }
+
     public function show(InventoryItemModel $item): JsonResponse
     {
         return ApiResponse::resource(new InventoryItemResource($item->load('stockLevels.warehouse')));
@@ -66,7 +95,13 @@ final class InventoryItemController extends ApiController
 
     public function update(StoreInventoryItemRequest $request, InventoryItemModel $item): JsonResponse
     {
-        $item->fill($request->validated())->save();
+        $attributes = $request->validated();
+
+        if (array_key_exists('barcode', $attributes) && blank($attributes['barcode'])) {
+            unset($attributes['barcode']);
+        }
+
+        $item->fill($attributes)->save();
 
         return ApiResponse::resource(new InventoryItemResource($item->load('stockLevels.warehouse')));
     }

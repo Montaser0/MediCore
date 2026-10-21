@@ -44,6 +44,7 @@ final class StockController extends ApiController
                 'inventory_item_id' => $level->inventory_item_id,
                 'item' => $level->item?->name,
                 'sku' => $level->item?->sku,
+                'barcode' => $level->item?->barcode,
                 'unit' => $level->item?->unit,
                 'warehouse_id' => $level->warehouse_id,
                 'warehouse' => $level->warehouse?->name,
