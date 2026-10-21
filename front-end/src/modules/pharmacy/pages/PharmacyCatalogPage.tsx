@@ -129,29 +129,11 @@ export function PharmacyCatalogPage() {
           onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
         />
         <div className="flex flex-col gap-1">
-          <div className="flex gap-1">
-            <Input
-              placeholder={t("pharmacy.barcode")}
-              value={draft.barcode}
-              onChange={(event) => setDraft((current) => ({ ...current, barcode: event.target.value }))}
-            />
-            <Button
-              type="button"
-              onClick={async () => {
-                try {
-                  const res = await apiGet<{ barcode: string }>("/inventory/items/next-barcode", {
-                    params: { kind: "pharmacy" },
-                  });
-                  const code = res.data?.barcode;
-                  if (code) setDraft((current) => ({ ...current, barcode: code }));
-                } catch (error) {
-                  toast.error(getErrorMessage(error));
-                }
-              }}
-            >
-              {t("inventory.generateBarcodes")}
-            </Button>
-          </div>
+          <Input
+            placeholder={t("pharmacy.barcode")}
+            value={draft.barcode}
+            onChange={(event) => setDraft((current) => ({ ...current, barcode: event.target.value }))}
+          />
           {draft.barcode.trim() ? <BarcodeImage code={draft.barcode.trim()} height={56} /> : null}
         </div>
         <Input

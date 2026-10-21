@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { arabicLabel } from "@/i18n/arabicLabels";
-import { apiGet, apiPost, getErrorMessage } from "@/lib/api/client";
+import { apiGet, getErrorMessage } from "@/lib/api/client";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
 import { CrudResourcePage } from "@/components/shared/CrudResourcePage";
@@ -63,17 +63,6 @@ export default function Page() {
         page += 1;
       } while (page <= last && page <= 30);
       if (!printBarcodeLabels(labels)) toast.error(t("inventory.nothingToPrint"));
-    } catch (error) {
-      toast.error(getErrorMessage(error));
-    }
-  }
-
-  async function generateBarcodes() {
-    try {
-      const res = await apiPost<{ generated: number }>("/inventory/items/generate-barcodes");
-      toast.success(t("inventory.generated", { count: res.data.generated }));
-      await qc.invalidateQueries({ queryKey: ["/inventory/items"] });
-      await qc.invalidateQueries({ queryKey: ["/inventory/stock-levels"] });
     } catch (error) {
       toast.error(getErrorMessage(error));
     }
@@ -170,12 +159,7 @@ export default function Page() {
               onSaved={() => {
                 void qc.invalidateQueries({ queryKey: ["/inventory/stock-levels"] });
               }}
-              toolbarExtra={
-                <>
-                  <Button onClick={() => void generateBarcodes()}>{t("inventory.generateBarcodes")}</Button>
-                  <Button onClick={() => void printLabels()}>{t("inventory.printBarcodes")}</Button>
-                </>
-              }
+              toolbarExtra={<Button onClick={() => void printLabels()}>{t("inventory.printBarcodes")}</Button>}
               columns={[
                 { key: "id", header: "#", width: 60 },
                 { key: "name", header: t("crud.name"), render: (row) => String(row.name ?? "—") },
