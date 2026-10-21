@@ -12,6 +12,8 @@ export default function Page() {
     <ResourceListPage
       title={t("nav.audit")}
       endpoint="/audit/logs"
+      excel="audit"
+      excelExportOnly
       columns={[
         { key: "id", header: "#", width: 60 },
         {

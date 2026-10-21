@@ -13,6 +13,8 @@ export default function Page() {
     <ResourceListPage
       title={t("nav.notifications")}
       endpoint="/notifications"
+      excel="notifications"
+      excelExportOnly
       columns={[
         { key: "id", header: "#", width: 60 },
         {

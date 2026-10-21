@@ -31,6 +31,7 @@ export default function Page() {
             <CrudResourcePage
               title={t("nav.departments")}
               endpoint="/departments"
+              excel="departments"
               columns={[
                 { key: "id", header: "#", width: 60 },
                 { key: "name", header: t("crud.name"), render: (row) => String(row.name ?? "—") },
@@ -59,6 +60,7 @@ export default function Page() {
             <CrudResourcePage
               title={t("appointments.clinic")}
               endpoint="/clinics"
+              excel="clinics"
               columns={[
                 { key: "id", header: "#", width: 60 },
                 { key: "name", header: t("crud.name"), render: (row) => String(row.name ?? "—") },

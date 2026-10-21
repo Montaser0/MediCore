@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { DataTable, type Column } from "@/components/data-table/DataTable";
+import { ExcelButtons } from "@/components/shared/ExcelButtons";
 
 type ClinicOption = { id: number; name?: string; department?: { name?: string } };
 
@@ -125,6 +126,13 @@ export function DiagnosisCatalogPage() {
   return (
     <div className="flex h-full flex-col">
       <PageToolbar title={t("nav.diagnoses")}>
+        <ExcelButtons
+          resource="diagnoses"
+          onImported={async () => {
+            await qc.invalidateQueries({ queryKey: ["/diagnosis-codes"] });
+            await qc.invalidateQueries({ queryKey: ["diagnosis-codes"] });
+          }}
+        />
         <Input
           value={search}
           onChange={(event) => setSearch(event.target.value)}

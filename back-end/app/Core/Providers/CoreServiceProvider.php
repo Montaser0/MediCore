@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Core\Providers;
 
 use App\Core\Auth\CurrentUser;
+use App\Core\Excel\ExcelController;
 use App\Core\Authorization\PermissionChecker;
 use App\Core\Backup\BackupController;
 use App\Core\Backup\CreateBackupCommand;
@@ -54,6 +55,12 @@ final class CoreServiceProvider extends ServiceProvider
             ->by(strtolower((string) $request->input('username')).'|'.$request->ip()));
 
         RateLimiter::for('setup', fn (Request $request) => Limit::perMinute(5)->by($request->ip()));
+
+        Route::middleware(['api', 'auth:sanctum'])->prefix('api/excel')->group(function (): void {
+            Route::get('{book}/template', [ExcelController::class, 'template']);
+            Route::get('{book}/export', [ExcelController::class, 'export']);
+            Route::post('{book}/import', [ExcelController::class, 'import']);
+        });
 
         Route::middleware('api')->prefix('api')->group(function (): void {
             Route::get('setup/status', [PharmacySetupController::class, 'status']);

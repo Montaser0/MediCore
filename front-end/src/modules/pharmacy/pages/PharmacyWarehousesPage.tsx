@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { PageToolbar } from "@/components/ui/PageToolbar";
+import { ExcelButtons } from "@/components/shared/ExcelButtons";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { DataTable, type Column } from "@/components/data-table/DataTable";
@@ -170,6 +171,7 @@ export function PharmacyWarehousesPage() {
   return (
     <div className="flex h-full flex-col">
       <PageToolbar title={t("pharmacy.warehousesTitle")}>
+        <ExcelButtons resource="purchases" onImported={() => load(search.trim(), period, date)} />
         <span className="text-[13px] font-bold">
           {t("pharmacy.supplierDebt")} {formatMoney(book?.outstanding, "0")}
         </span>

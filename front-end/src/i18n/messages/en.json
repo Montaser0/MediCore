@@ -33,6 +33,12 @@
     "logout": "Logout",
     "welcome": "Welcome"
   },
+  "excel": {
+    "export": "Export Excel",
+    "template": "Excel template",
+    "import": "Import Excel",
+    "done": "Import finished: {created} new, {updated} updated, {skipped} unchanged, {failed} failed"
+  },
   "auth": {
     "loginTitle": "Sign in",
     "loginSubtitle": "Enter your credentials",

@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { CrudResourcePage } from "@/components/shared/CrudResourcePage";
+import { ExcelButtons } from "@/components/shared/ExcelButtons";
 import { ModuleTabs } from "@/components/shared/ModuleTabs";
 import { OrderResultDialog, uploadResultFiles } from "@/components/shared/OrderResultDialog";
 import { ResourceListPage, dateCell, statusBadge } from "@/components/shared/ResourceListPage";
@@ -128,6 +129,7 @@ function PharmacyDeskPage() {
               <ResourceListPage
                 title={t("pharmacy.title")}
                 endpoint="/pharmacy/prescriptions"
+                excel="prescriptions"
                 actionsHeader={t("app.operations")}
                 removeLabel={t("app.delete")}
                 onRemove={focused ? undefined : (row) => apiPost(`/pharmacy/prescriptions/${row.id}/cancel`, { reason: "cancelled" })}
@@ -212,6 +214,15 @@ function PharmacyDeskPage() {
               <CrudResourcePage
                 title={t("pharmacy.medications")}
                 endpoint="/pharmacy/medications"
+                excel="medications"
+                excelCaption={t("nav.pharmacyCatalog")}
+                toolbarExtra={
+                  <ExcelButtons
+                    resource="pharmacy"
+                    caption={t("nav.pharmacy")}
+                    onImported={() => qc.invalidateQueries({ queryKey: ["/pharmacy/medications"] })}
+                  />
+                }
                 columns={[
                   { key: "id", header: "#", width: 60 },
                   { key: "name", header: t("crud.name"), render: (row) => String(row.name ?? "—") },

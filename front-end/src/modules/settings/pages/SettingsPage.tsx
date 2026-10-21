@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { RefreshCw } from "lucide-react";
 import { apiDelete, apiPost, apiPut, getErrorMessage } from "@/lib/api/client";
 import { PageToolbar } from "@/components/ui/PageToolbar";
+import { ExcelButtons } from "@/components/shared/ExcelButtons";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { DataTable, type Column } from "@/components/data-table/DataTable";
@@ -94,6 +95,7 @@ function SettingsEditor() {
   return (
     <div className="flex h-full flex-col">
       <PageToolbar title={t("settings.general")}>
+        <ExcelButtons resource="settings" onImported={() => qc.invalidateQueries({ queryKey: ["settings"] })} />
         <Button onClick={() => refetch()} disabled={isFetching}>
           <RefreshCw size={13} />
           {t("app.refresh")}
@@ -154,6 +156,7 @@ export function SettingsPage() {
             <CrudResourcePage
               title={t("settings.users")}
               endpoint="/users"
+              excel="users"
               removeRequest={(id) => apiPost(`/users/${id}/disable`)}
               columns={[
                 { key: "id", header: "#", width: 60 },

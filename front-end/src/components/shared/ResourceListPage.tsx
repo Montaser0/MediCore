@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
 import { DataTable, type Column } from "@/components/data-table/DataTable";
+import { ExcelButtons } from "@/components/shared/ExcelButtons";
 import { formatDate } from "@/lib/utils";
 import { arabicLabel } from "@/i18n/arabicLabels";
 
@@ -28,6 +29,8 @@ export function ResourceListPage({
   extraActions,
   actionsHeader,
   toolbarExtra,
+  excel,
+  excelExportOnly = false,
 }: {
   title: string;
   endpoint: string;
@@ -45,6 +48,8 @@ export function ResourceListPage({
   extraActions?: (row: Row) => React.ReactNode;
   actionsHeader?: string;
   toolbarExtra?: ReactNode;
+  excel?: string;
+  excelExportOnly?: boolean;
 }) {
   const t = useTranslations("app");
   const messages = useTranslations();
@@ -104,6 +109,13 @@ export function ResourceListPage({
   return (
     <div className="flex h-full flex-col">
       <PageToolbar title={title}>
+        {excel ? (
+          <ExcelButtons
+            resource={excel}
+            exportOnly={excelExportOnly}
+            onImported={() => qc.invalidateQueries({ queryKey: [endpoint] })}
+          />
+        ) : null}
         {toolbarExtra}
         <Input
           value={search}

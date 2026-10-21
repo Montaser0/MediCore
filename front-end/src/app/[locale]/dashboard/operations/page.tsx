@@ -21,6 +21,7 @@ export default function Page() {
             <ResourceListPage
               title={t("nav.operations")}
               endpoint="/operations"
+              excel="operations"
               removeLabel={t("app.delete")}
               onRemove={(row) => apiPost(`/operations/${row.id}/status`, { status: "cancelled" })}
               columns={[
@@ -69,6 +70,7 @@ export default function Page() {
             <CrudResourcePage
               title={t("crud.operationTypes")}
               endpoint="/operations/types"
+              excel="operation-types"
               columns={[
                 { key: "id", header: "#", width: 60 },
                 { key: "name", header: t("crud.name"), render: (row) => String(row.name ?? "—") },

@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { DataTable, type Column } from "@/components/data-table/DataTable";
+import { ExcelButtons } from "@/components/shared/ExcelButtons";
 import { useAuthStore } from "@/stores/auth-store";
 
 const ACCOUNT_ROLES = [
@@ -351,6 +352,7 @@ export function StaffPage() {
   return (
     <div className="flex h-full flex-col">
       <PageToolbar title={t("nav.staff")}>
+        <ExcelButtons resource="staff" onImported={() => qc.invalidateQueries({ queryKey: ["/staff"] })} />
         <Input
           value={search}
           onChange={(event) => setSearch(event.target.value)}

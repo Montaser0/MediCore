@@ -23,6 +23,7 @@ export default function Page() {
             <ResourceListPage
               title={t("inventory.title")}
               endpoint="/inventory/stock-levels"
+              excel="stock"
               columns={[
                 { key: "id", header: "#", width: 60 },
                 {
@@ -69,6 +70,7 @@ export default function Page() {
             <CrudResourcePage
               title={t("inventory.items")}
               endpoint="/inventory/items"
+              excel="inventory-items"
               columns={[
                 { key: "id", header: "#", width: 60 },
                 { key: "name", header: t("crud.name"), render: (row) => String(row.name ?? "—") },
@@ -97,6 +99,7 @@ export default function Page() {
             <CrudResourcePage
               title={t("inventory.warehouses")}
               endpoint="/inventory/warehouses"
+              excel="warehouses"
               columns={[
                 { key: "id", header: "#", width: 60 },
                 { key: "name", header: t("crud.name"), render: (row) => String(row.name ?? "—") },

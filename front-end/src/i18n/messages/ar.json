@@ -33,6 +33,12 @@
     "logout": "تسجيل الخروج",
     "welcome": "مرحباً"
   },
+  "excel": {
+    "export": "تصدير إكسل",
+    "template": "قالب إكسل",
+    "import": "استيراد إكسل",
+    "done": "تم الاستيراد: {created} جديد، {updated} محدّث، {skipped} بدون تغيير، {failed} فشل"
+  },
   "auth": {
     "loginTitle": "تسجيل الدخول",
     "loginSubtitle": "أدخل بياناتك للوصول إلى النظام",

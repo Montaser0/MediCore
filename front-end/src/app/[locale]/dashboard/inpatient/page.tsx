@@ -19,6 +19,7 @@ export default function Page() {
             <ResourceListPage
               title={t("inpatient.title")}
               endpoint="/inpatient/admissions"
+              excel="admissions"
               removeLabel={t("inpatient.discharge")}
               onRemove={(row) =>
                 apiPost(`/inpatient/admissions/${row.id}/discharge`, {
@@ -83,6 +84,7 @@ export default function Page() {
             <CrudResourcePage
               title={t("inpatient.wards")}
               endpoint="/inpatient/wards"
+              excel="wards"
               columns={[
                 { key: "id", header: "#", width: 60 },
                 { key: "name", header: t("crud.name"), render: (row) => String(row.name ?? "—") },

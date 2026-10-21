@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { RefreshCw } from "lucide-react";
 import { PageToolbar } from "@/components/ui/PageToolbar";
+import { ExcelButtons } from "@/components/shared/ExcelButtons";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { DataTable, type Column } from "@/components/data-table/DataTable";
@@ -66,6 +67,7 @@ export function NursingPage() {
   return (
     <div className="flex h-full flex-col">
       <PageToolbar title={t("nav.nursing")}>
+        <ExcelButtons resource="nursing" exportOnly />
         <span className="text-[12px] text-[var(--his-muted)]">
           {(data?.counts?.overdue ?? 0)} / {(data?.counts?.upcoming ?? 0)}
         </span>

@@ -3,7 +3,7 @@
 import { FormEvent, useMemo, useState } from "react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Plus, RefreshCw, Search } from "lucide-react";
 import { PageToolbar } from "@/components/ui/PageToolbar";
@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Badge } from "@/components/ui/Badge";
 import { DataTable, type Column } from "@/components/data-table/DataTable";
+import { ExcelButtons } from "@/components/shared/ExcelButtons";
 import { useDeletePatient, usePatients, useUpdatePatient } from "../hooks/usePatients";
 import type { Patient } from "@/types/common";
 import { formatDate } from "@/lib/utils";
@@ -25,6 +26,7 @@ import type { NamedRow } from "../api/journey.api";
 
 export function PatientsPage() {
   const t = useTranslations();
+  const qc = useQueryClient();
   const locale = useLocale();
   const canCreatePatient = useAuthStore((state) => state.hasPermission("patients.create"));
   const canUpdatePatient = useAuthStore((state) => state.hasPermission("patients.update"));
@@ -211,6 +213,7 @@ export function PatientsPage() {
   return (
     <div className="flex h-full flex-col">
       <PageToolbar title={t("patients.title")}>
+        <ExcelButtons resource="patients" onImported={() => qc.invalidateQueries({ queryKey: ["patients"] })} />
         <div className="flex items-center gap-1 border border-[var(--his-border)] bg-white px-1">
           <Search size={13} className="text-[var(--his-muted)]" />
           <Input

@@ -26,6 +26,8 @@ export default function Page() {
             <ResourceListPage
               title={t("billing.title")}
               endpoint="/billing/invoices"
+              excel="invoices"
+              excelExportOnly
               params={payFilter ? { status: payFilter } : undefined}
               toolbarExtra={
                 <Select className="w-40" value={payFilter} onChange={(event) => setPayFilter(event.target.value)}>
@@ -104,6 +106,7 @@ export default function Page() {
             <CrudResourcePage
               title={t("billing.services")}
               endpoint="/billing/services"
+              excel="billing-services"
               columns={[
                 { key: "id", header: "#", width: 60 },
                 { key: "name", header: t("crud.name"), render: (row) => String(row.name ?? "—") },

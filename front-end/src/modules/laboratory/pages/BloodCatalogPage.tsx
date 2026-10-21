@@ -7,6 +7,7 @@ import { RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { apiDelete, apiGet, apiPatch, apiPost, getErrorMessage } from "@/lib/api/client";
 import { PageToolbar } from "@/components/ui/PageToolbar";
+import { ExcelButtons } from "@/components/shared/ExcelButtons";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { DataTable, type Column } from "@/components/data-table/DataTable";
@@ -106,6 +107,10 @@ export function BloodCatalogPage() {
   return (
     <div className="flex h-full flex-col">
       <PageToolbar title={t("nav.bloodProducts")}>
+        <ExcelButtons
+          resource="blood-products"
+          onImported={() => qc.invalidateQueries({ queryKey: ["/laboratory/blood-products"] })}
+        />
         <Input
           value={search}
           onChange={(event) => setSearch(event.target.value)}

@@ -10,6 +10,7 @@ import { PageToolbar } from "@/components/ui/PageToolbar";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { DataTable, type Column } from "@/components/data-table/DataTable";
+import { ExcelButtons } from "@/components/shared/ExcelButtons";
 import { formatMoney } from "@/lib/utils";
 import { LAB_CATEGORIES, type LabCategoryId } from "../categories";
 
@@ -136,6 +137,7 @@ export function LabCatalogPage() {
   return (
     <div className="flex h-full flex-col">
       <PageToolbar title={t("nav.labTests")}>
+        <ExcelButtons resource="lab-tests" onImported={() => qc.invalidateQueries({ queryKey: ["/laboratory/tests"] })} />
         <Input
           value={search}
           onChange={(event) => setSearch(event.target.value)}

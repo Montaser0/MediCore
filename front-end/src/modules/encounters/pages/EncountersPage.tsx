@@ -8,6 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { RefreshCw } from "lucide-react";
 import { PageToolbar } from "@/components/ui/PageToolbar";
+import { ExcelButtons } from "@/components/shared/ExcelButtons";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Panel } from "@/components/ui/Panel";
@@ -252,6 +253,13 @@ export function EncountersPage() {
           )
         }
       >
+        <ExcelButtons
+          resource="encounters"
+          onImported={() => {
+            void refetch();
+            void refetchQueue();
+          }}
+        />
         {isAdmin ? (
           <Select
             value={clinicId}

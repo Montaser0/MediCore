@@ -87,6 +87,7 @@ export default function Page() {
               <ResourceListPage
                 title={t("radiology.title")}
                 endpoint="/radiology/worklist"
+                excel="radiology-orders"
                 actionsHeader={t("app.operations")}
                 removeLabel={t("app.delete")}
                 onRemove={focused ? undefined : (row) => apiPost(`/radiology/items/${row.id}/cancel`, {})}

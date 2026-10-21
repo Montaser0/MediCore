@@ -103,6 +103,7 @@ export default function Page() {
               <ResourceListPage
                 title={t("laboratory.title")}
                 endpoint="/laboratory/worklist"
+                excel="lab-orders"
                 actionsHeader={t("app.operations")}
                 removeLabel={t("app.delete")}
                 onRemove={focused ? undefined : (row) => apiPost(`/laboratory/items/${row.id}/cancel`, {})}
@@ -164,6 +165,7 @@ export default function Page() {
               <ResourceListPage
                 title={t("laboratory.bloodRequests")}
                 endpoint="/laboratory/blood-requests"
+                excel="blood-requests"
                 actionsHeader={t("app.operations")}
                 extraActions={
                   canConfirmBlood

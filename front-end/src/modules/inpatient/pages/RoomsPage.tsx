@@ -7,6 +7,7 @@ import { RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { apiDelete, apiGet, apiPatch, apiPost, getErrorMessage } from "@/lib/api/client";
 import { PageToolbar } from "@/components/ui/PageToolbar";
+import { ExcelButtons } from "@/components/shared/ExcelButtons";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
@@ -199,6 +200,13 @@ export function RoomsPage() {
   return (
     <div className="flex h-full flex-col">
       <PageToolbar title={t("inpatient.rooms")}>
+        <ExcelButtons
+          resource="rooms"
+          onImported={async () => {
+            await qc.invalidateQueries({ queryKey: ["inpatient"] });
+            await qc.invalidateQueries({ queryKey: ["journey-catalogs"] });
+          }}
+        />
         <Button onClick={() => refresh()} disabled={wards.isFetching || board.isFetching}>
           <RefreshCw size={13} />
           {t("app.refresh")}

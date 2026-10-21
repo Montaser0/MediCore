@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { DataTable, type Column } from "@/components/data-table/DataTable";
+import { ExcelButtons } from "@/components/shared/ExcelButtons";
 import { useAuthStore } from "@/stores/auth-store";
 
 type Row = Record<string, unknown>;
@@ -61,9 +62,16 @@ export function CrudResourcePage({
   fields,
   updateMethod = "patch",
   removeRequest,
+  excel,
+  excelCaption,
+  excelExportOnly = false,
+  toolbarExtra,
 }: {
   title: string;
   endpoint: string;
+  excel?: string;
+  excelCaption?: string;
+  excelExportOnly?: boolean;
   columns: Array<{
     key: string;
     header: string;
@@ -73,6 +81,7 @@ export function CrudResourcePage({
   fields: CrudField[];
   updateMethod?: "patch" | "put";
   removeRequest?: (id: number) => Promise<unknown>;
+  toolbarExtra?: React.ReactNode;
 }) {
   const t = useTranslations();
   const hospitalId = useAuthStore((state) => state.user?.hospital_id);
@@ -232,6 +241,15 @@ export function CrudResourcePage({
   return (
     <div className="flex h-full flex-col">
       <PageToolbar title={title}>
+        {excel ? (
+          <ExcelButtons
+            resource={excel}
+            caption={excelCaption}
+            exportOnly={excelExportOnly}
+            onImported={() => qc.invalidateQueries({ queryKey: [endpoint] })}
+          />
+        ) : null}
+        {toolbarExtra}
         <Input
           value={search}
           onChange={(event) => setSearch(event.target.value)}

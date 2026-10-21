@@ -10,6 +10,7 @@ import { PageToolbar } from "@/components/ui/PageToolbar";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { DataTable, type Column } from "@/components/data-table/DataTable";
+import { ExcelButtons } from "@/components/shared/ExcelButtons";
 import { formatMoney } from "@/lib/utils";
 import { RADIOLOGY_CATEGORIES, type RadiologyCategoryId } from "../categories";
 
@@ -147,6 +148,7 @@ export function RadiologyCatalogPage() {
   return (
     <div className="flex h-full flex-col">
       <PageToolbar title={t("nav.radiologyServices")}>
+        <ExcelButtons resource="radiology-services" onImported={() => qc.invalidateQueries({ queryKey: ["/radiology/services"] })} />
         <form onSubmit={saveInjection} className="flex items-center gap-1">
           <span className="whitespace-nowrap text-[12px]">{t("radiology.injectionPrice")}</span>
           <div className="w-20">

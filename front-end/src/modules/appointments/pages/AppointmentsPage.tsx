@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { RefreshCw } from "lucide-react";
 import { PageToolbar } from "@/components/ui/PageToolbar";
+import { ExcelButtons } from "@/components/shared/ExcelButtons";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { DataTable, type Column } from "@/components/data-table/DataTable";
@@ -238,6 +239,7 @@ export function AppointmentsPage() {
   return (
     <div className="flex h-full flex-col">
       <PageToolbar title={t("appointments.title")}>
+        <ExcelButtons resource="appointments" onImported={() => refetch()} />
         {canCreate ? (
           <Button
             variant="primary"

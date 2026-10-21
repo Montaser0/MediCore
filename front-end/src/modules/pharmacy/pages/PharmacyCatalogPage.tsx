@@ -9,6 +9,7 @@ import { PageToolbar } from "@/components/ui/PageToolbar";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { DataTable, type Column } from "@/components/data-table/DataTable";
+import { ExcelButtons } from "@/components/shared/ExcelButtons";
 import { apiGet, apiPatch, apiPost, getErrorMessage } from "@/lib/api/client";
 import { roleNames } from "@/config/desk";
 import { useAuthStore } from "@/stores/auth-store";
@@ -74,6 +75,10 @@ export function PharmacyCatalogPage() {
   return (
     <div className="flex h-full flex-col">
       <PageToolbar title={t("pharmacy.catalog")}>
+        <ExcelButtons
+          resource="pharmacy"
+          onImported={() => qc.invalidateQueries({ queryKey: ["pharmacy-pos", "medications"] })}
+        />
         {isAdmin ? (
           <Link href={`/${locale}/dashboard/pharmacy/backups`} className="text-[12px] underline">
             {t("station.backup")}

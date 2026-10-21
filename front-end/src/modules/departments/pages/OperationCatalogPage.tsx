@@ -7,6 +7,7 @@ import { RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { apiDelete, apiGet, apiPatch, apiPost, getErrorMessage } from "@/lib/api/client";
 import { PageToolbar } from "@/components/ui/PageToolbar";
+import { ExcelButtons } from "@/components/shared/ExcelButtons";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
@@ -141,6 +142,10 @@ export function OperationCatalogPage() {
   return (
     <div className="flex h-full flex-col">
       <PageToolbar title={t("nav.operationTypes")}>
+        <ExcelButtons
+          resource="operation-types"
+          onImported={() => qc.invalidateQueries({ queryKey: ["/operations/types"] })}
+        />
         <Input
           value={search}
           onChange={(event) => setSearch(event.target.value)}

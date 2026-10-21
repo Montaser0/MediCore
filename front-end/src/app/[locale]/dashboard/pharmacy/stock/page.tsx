@@ -12,6 +12,7 @@ export default function Page() {
     <ResourceListPage
       title={t("nav.pharmacyStock")}
       endpoint="/inventory/stock-levels"
+      excel="pharmacy-stock"
       params={{ pharmacy_only: 1 }}
       searchParam="search"
       columns={[
