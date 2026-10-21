@@ -29,22 +29,8 @@ final class DoctorController extends ApiController
 
         $doctors = DoctorModel::query()
             ->with($with)
-            ->when($departmentId !== null || $clinicId !== null, function ($query) use ($departmentId, $clinicId): void {
-                $query->where(function ($inner) use ($departmentId, $clinicId): void {
-                    if ($departmentId !== null) {
-                        $inner->where(fn ($nested) => $nested->inDepartment($departmentId));
-                    }
-                    if ($clinicId === null) {
-                        return;
-                    }
-                    $applyClinic = fn ($nested) => $nested->inClinic($clinicId);
-                    if ($departmentId !== null) {
-                        $inner->orWhere($applyClinic);
-                    } else {
-                        $inner->where($applyClinic);
-                    }
-                });
-            })
+            ->when($clinicId !== null, fn ($query) => $query->inClinic($clinicId))
+            ->when($clinicId === null && $departmentId !== null, fn ($query) => $query->inDepartment($departmentId))
             ->when($request->filled('specialty'), fn ($query) => $query->where('specialty', 'like', '%'.$request->string('specialty').'%'))
             ->when(
                 ! $request->boolean('include_inactive'),

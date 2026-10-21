@@ -168,7 +168,7 @@ final class DoctorListingTest extends TestCase
             ]);
     }
 
-    public function test_doctor_saved_on_one_clinic_is_listed_for_the_department_and_its_clinics(): void
+    public function test_doctor_saved_on_one_clinic_is_listed_only_for_that_clinic(): void
     {
         $this->seed([PermissionSeeder::class, HospitalSeeder::class]);
 
@@ -192,18 +192,19 @@ final class DoctorListingTest extends TestCase
             ->assertJsonPath('data.full_name', 'ليلى القلب');
 
         $this->assertNotNull($created->json('data.doctor.id'));
-
-        $this->getJson('/api/doctors?department_id='.$clinic->department_id)
-            ->assertOk()
-            ->assertJsonFragment(['name' => 'ليلى القلب']);
+        $created->assertJsonPath('data.clinic.id', $clinic->getKey());
 
         $this->getJson('/api/doctors?clinic_id='.$clinic->getKey())
             ->assertOk()
             ->assertJsonFragment(['name' => 'ليلى القلب']);
 
-        $this->getJson('/api/doctors?clinic_id='.$sibling->getKey())
+        $siblingNames = collect($this->getJson('/api/doctors?clinic_id='.$sibling->getKey())->assertOk()->json('data'))
+            ->pluck('name');
+        $this->assertFalse($siblingNames->contains('ليلى القلب'));
+
+        $this->getJson('/api/doctors?department_id='.$clinic->department_id.'&clinic_id='.$sibling->getKey())
             ->assertOk()
-            ->assertJsonFragment(['name' => 'ليلى القلب']);
+            ->assertJsonMissing(['name' => 'ليلى القلب']);
     }
 
     public function test_doctor_names_stay_available_when_clinic_roster_is_missing(): void

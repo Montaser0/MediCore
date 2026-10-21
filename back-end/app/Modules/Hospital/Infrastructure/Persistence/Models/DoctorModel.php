@@ -87,41 +87,40 @@ final class DoctorModel extends BaseModel
     }
 
     /**
-     * Doctors of this clinic, and every doctor in the same department.
-     * Registration and the visit screen both filter by clinic, so a doctor saved
-     * on a sibling clinic — or saved before a clinic was chosen — still has to
-     * show up under his department. Doctors of other departments stay out.
-     * Missing clinic columns are skipped so an unfinished production migration
-     * does not turn the list into an error.
+     * Doctors linked to this clinic on the doctor row, the employee row, or the
+     * clinic roster. A sibling clinic in the same department does not match.
+     * Missing clinic columns are skipped so an unfinished migration does not
+     * turn the list into an error.
      *
      * @param  Builder<DoctorModel>  $query
      * @return Builder<DoctorModel>
      */
     public function scopeInClinic(Builder $query, int $clinicId): Builder
     {
-        $departmentId = ClinicModel::query()->whereKey($clinicId)->value('department_id');
         $doctorClinic = Schema::hasColumn('doctors', 'clinic_id');
         $staffClinic = Schema::hasColumn('staff', 'clinic_id');
         $roster = Schema::hasTable('clinic_doctor');
 
-        return $query->where(function (Builder $inner) use ($clinicId, $departmentId, $doctorClinic, $staffClinic, $roster): void {
+        return $query->where(function (Builder $inner) use ($clinicId, $doctorClinic, $staffClinic, $roster): void {
+            $matched = false;
+
             if ($doctorClinic) {
                 $inner->orWhere('doctors.clinic_id', $clinicId);
+                $matched = true;
             }
 
             if ($roster) {
                 $inner->orWhereHas('clinics', fn (Builder $clinics) => $clinics->whereKey($clinicId));
+                $matched = true;
             }
 
             if ($staffClinic) {
                 $inner->orWhereHas('staff', fn (Builder $staff) => $staff->where('clinic_id', $clinicId));
+                $matched = true;
             }
 
-            if ($departmentId !== null) {
-                $inner->orWhereHas(
-                    'staff',
-                    fn (Builder $staff) => $staff->where('department_id', $departmentId),
-                );
+            if (! $matched) {
+                $inner->whereRaw('0 = 1');
             }
         });
     }

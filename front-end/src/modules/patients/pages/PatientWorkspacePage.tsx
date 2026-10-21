@@ -621,7 +621,7 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
               </Select>
               <Select
                 value={visit.department_id}
-                onChange={(e) => setVisit((v) => ({ ...v, department_id: e.target.value, clinic_id: "" }))}
+                onChange={(e) => setVisit((v) => ({ ...v, department_id: e.target.value, clinic_id: "", doctor_id: "" }))}
               >
                 <option value="">{t("workspace.department")}</option>
                 {(catalogs?.departments ?? []).map((row) => (
@@ -630,7 +630,7 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
                   </option>
                 ))}
               </Select>
-              <Select value={visit.clinic_id} onChange={(e) => setVisit((v) => ({ ...v, clinic_id: e.target.value }))}>
+              <Select value={visit.clinic_id} onChange={(e) => setVisit((v) => ({ ...v, clinic_id: e.target.value, doctor_id: "" }))}>
                 <option value="">{t("appointments.clinic")}</option>
                 {(catalogs?.clinics ?? [])
                   .filter((row) => !visit.department_id || String(row.department_id ?? "") === visit.department_id)
@@ -640,9 +640,9 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
                   </option>
                 ))}
               </Select>
-              <Select value={visit.doctor_id} onChange={(e) => setVisit((v) => ({ ...v, doctor_id: e.target.value }))}>
+              <Select value={visit.doctor_id} onChange={(e) => setVisit((v) => ({ ...v, doctor_id: e.target.value }))} disabled={!visit.clinic_id}>
                 <option value="">{t("workspace.doctor")}</option>
-                {(catalogs?.doctors ?? []).map((row) => (
+                {(catalogs?.doctors ?? []).filter((row) => servesClinic(row, visit.clinic_id)).map((row) => (
                   <option key={row.id} value={row.id}>
                     {labelOf(row)}
                   </option>
@@ -1635,6 +1635,13 @@ function NamedSelect({
       ))}
     </Select>
   );
+}
+
+function servesClinic(row: NamedRow, clinicId: string) {
+  if (!clinicId) return false;
+  if (String(row.clinic_id ?? "") === clinicId) return true;
+  if (row.clinic?.id != null && String(row.clinic.id) === clinicId) return true;
+  return (row.clinics ?? []).some((clinic) => String(clinic.id ?? "") === clinicId);
 }
 
 function labelOf(row: NamedRow) {

@@ -70,17 +70,12 @@ export function EncountersPage() {
   };
 
   const doctorClinicId = isAdmin ? clinicId || undefined : user?.clinic?.id;
-  const doctorDepartmentId = isAdmin ? undefined : user?.department?.id;
   const { data: doctors = [] } = useQuery({
-    queryKey: ["/doctors", "encounters", doctorClinicId, doctorDepartmentId],
-    enabled: isDataEntry || isAdmin,
+    queryKey: ["/doctors", "encounters", doctorClinicId],
+    enabled: (isDataEntry || isAdmin) && Boolean(doctorClinicId),
     queryFn: async () => {
       const res = await apiGet<NamedRow[]>("/doctors", {
-        params: {
-          per_page: 200,
-          clinic_id: doctorClinicId,
-          department_id: doctorDepartmentId,
-        },
+        params: { per_page: 200, clinic_id: doctorClinicId },
       });
       return Array.isArray(res.data) ? res.data : [];
     },
