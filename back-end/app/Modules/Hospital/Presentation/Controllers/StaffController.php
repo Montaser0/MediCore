@@ -19,6 +19,7 @@ use App\Modules\Identity\Application\DTOs\UserData;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 final class StaffController extends ApiController
 {
@@ -31,8 +32,13 @@ final class StaffController extends ApiController
 
     public function index(Request $request): JsonResponse
     {
+        $with = ['department', 'clinic', 'doctor.clinic', 'user.roles'];
+        if (Schema::hasTable('clinic_doctor')) {
+            $with[] = 'doctor.clinics';
+        }
+
         $staff = StaffModel::query()
-            ->with(['department', 'clinic', 'doctor.clinic', 'user.roles'])
+            ->with($with)
             ->forCurrentHospital()
             ->when($request->filled('department_id'), fn ($query) => $query->where('department_id', $request->integer('department_id')))
             ->when($request->filled('is_active'), fn ($query) => $query->where('is_active', $request->boolean('is_active')))

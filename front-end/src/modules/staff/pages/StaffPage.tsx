@@ -64,6 +64,24 @@ function clinicDepartmentId(clinic: ClinicOption) {
   return String(clinic.department_id ?? clinic.department?.id ?? "");
 }
 
+function clinicList(value: unknown): ClinicOption[] {
+  if (Array.isArray(value)) return value as ClinicOption[];
+  if (value && typeof value === "object" && Array.isArray((value as { data?: unknown }).data)) {
+    return (value as { data: ClinicOption[] }).data;
+  }
+  return [];
+}
+
+function chosenClinicId(...values: unknown[]): number | null {
+  for (const value of values) {
+    const text = String(value ?? "").trim();
+    if (text === "" || text === "undefined" || text === "null") continue;
+    const id = Number(text);
+    if (Number.isInteger(id) && id > 0) return id;
+  }
+  return null;
+}
+
 function savedClinicId(row: Row) {
   const id = row.clinic?.id ?? row.clinic_id;
   return id != null ? String(id) : "";
@@ -124,6 +142,16 @@ export function StaffPage() {
       return Array.isArray(res.data) ? res.data : [];
     },
   });
+  const { data: departmentClinics = [] } = useQuery({
+    queryKey: ["/clinics", "staff-form", form.department_id ?? ""],
+    enabled: open && Boolean(form.department_id),
+    queryFn: async () => {
+      const res = await apiGet<ClinicOption[]>("/clinics", {
+        params: { department_id: form.department_id },
+      });
+      return Array.isArray(res.data) ? res.data : [];
+    },
+  });
 
   function openCreate() {
     setEditing(null);
@@ -159,7 +187,7 @@ export function StaffPage() {
     }
   }
 
-  async function save(event: FormEvent) {
+  async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!editing && !hospitalId) {
       toast.error(t("crud.hospitalMissing"));
@@ -172,7 +200,8 @@ export function StaffPage() {
       const value = (form[key] ?? "").trim();
       if (value !== "") payload[key] = key.endsWith("_id") ? Number(value) : value;
     }
-    payload.clinic_id = (form.clinic_id ?? "").trim() === "" ? null : Number(form.clinic_id);
+    const submitted = new FormData(event.currentTarget);
+    payload.clinic_id = chosenClinicId(submitted.get("clinic_id"), form.clinic_id);
     if (!editing && form.role) {
       payload.role = form.role;
       payload.username = form.username ?? "";
@@ -203,12 +232,12 @@ export function StaffPage() {
     }
   }
 
-  function clinicsFor(departmentId: string) {
+  function clinicsFor(departmentId: string, extra: ClinicOption[] = [], current: Row | null = null) {
     if (departmentId === "") return [];
     const department = departments.find((row) => String(row.id ?? "") === departmentId);
-    const embedded = Array.isArray(department?.clinics) ? department.clinics : [];
+    const embedded = clinicList(department?.clinics);
     const merged = new Map<string, ClinicOption>();
-    for (const clinic of embedded) {
+    for (const clinic of [...embedded, ...extra]) {
       if (clinic.id != null) merged.set(String(clinic.id), clinic);
     }
     for (const clinic of clinics) {
@@ -216,10 +245,14 @@ export function StaffPage() {
         merged.set(String(clinic.id), clinic);
       }
     }
+    const saved = current?.clinic;
+    if (saved?.id != null && !merged.has(String(saved.id))) {
+      merged.set(String(saved.id), saved);
+    }
     return [...merged.values()];
   }
 
-  const clinicOptions = clinicsFor(form.department_id ?? "");
+  const clinicOptions = clinicsFor(form.department_id ?? "", departmentClinics, editing);
   const accountBeingEdited = editing ? accountRole(editing) : (form.role ?? "");
   const clinicRequired = (accountBeingEdited === "doctor" || accountBeingEdited === "data_entry") && clinicOptions.length > 0;
 
@@ -326,11 +359,13 @@ export function StaffPage() {
               <Select
                 required={accountBeingEdited === "doctor"}
                 value={form.department_id ?? ""}
+                name="department_id"
                 onChange={(event) => {
                   const departmentId = event.target.value;
-                  const nextClinics = clinicsFor(departmentId);
+                  const nextClinics = clinicsFor(departmentId, departmentClinics, editing);
                   setForm((current) => {
-                    const kept = current.department_id === departmentId ? (current.clinic_id ?? "") : "";
+                    if (current.department_id === departmentId) return current;
+                    const kept = current.clinic_id ?? "";
                     const stillThere = nextClinics.some((clinic) => String(clinic.id) === kept);
                     return {
                       ...current,
@@ -351,6 +386,7 @@ export function StaffPage() {
             <label className="grid gap-1 text-[12px]">
               <span>{t("workspace.clinic")}</span>
               <Select
+                name="clinic_id"
                 required={clinicRequired}
                 value={form.clinic_id ?? ""}
                 onChange={(event) => setForm((current) => ({ ...current, clinic_id: event.target.value }))}

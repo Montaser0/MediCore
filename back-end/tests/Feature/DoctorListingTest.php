@@ -207,6 +207,54 @@ final class DoctorListingTest extends TestCase
             ->assertJsonMissing(['name' => 'ليلى القلب']);
     }
 
+    public function test_editing_a_doctor_saves_the_chosen_clinic(): void
+    {
+        $this->seed([PermissionSeeder::class, HospitalSeeder::class]);
+
+        $admin = UserModel::factory()->withRole('admin')->create();
+        Sanctum::actingAs($admin);
+
+        $clinic = ClinicModel::query()->where('code', 'IM-CARD')->firstOrFail();
+        $moved = ClinicModel::query()->where('code', 'IM-GEN')->firstOrFail();
+        $hospitalId = HospitalModel::query()->value('id');
+
+        $created = $this->postJson('/api/staff', [
+            'hospital_id' => $hospitalId,
+            'first_name' => 'ليلى',
+            'last_name' => 'القلب',
+            'department_id' => $clinic->department_id,
+            'clinic_id' => $clinic->getKey(),
+            'role' => 'doctor',
+            'username' => 'heart.move',
+            'password' => 'secret1',
+        ])->assertCreated();
+
+        $staffId = $created->json('data.id');
+
+        $this->patchJson("/api/staff/{$staffId}", [
+            'first_name' => 'ليلى',
+            'department_id' => $moved->department_id,
+            'clinic_id' => $moved->getKey(),
+        ])->assertOk()
+            ->assertJsonPath('data.clinic.id', $moved->getKey())
+            ->assertJsonPath('data.clinic.name', 'عيادة الطب العام');
+
+        $this->getJson('/api/staff')
+            ->assertOk()
+            ->assertJsonFragment([
+                'id' => $moved->getKey(),
+                'name' => 'عيادة الطب العام',
+            ]);
+
+        $this->getJson('/api/doctors?clinic_id='.$moved->getKey())
+            ->assertOk()
+            ->assertJsonFragment(['name' => 'ليلى القلب']);
+
+        $previous = collect($this->getJson('/api/doctors?clinic_id='.$clinic->getKey())->assertOk()->json('data'))
+            ->pluck('name');
+        $this->assertFalse($previous->contains('ليلى القلب'));
+    }
+
     public function test_doctor_names_stay_available_when_clinic_roster_is_missing(): void
     {
         $this->seed([PermissionSeeder::class, HospitalSeeder::class]);

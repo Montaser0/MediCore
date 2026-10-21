@@ -61,8 +61,10 @@ final class StaffResource extends JsonResource
 
         if ($this->relationLoaded('clinic') && $this->clinic !== null) {
             $clinic = $this->clinic;
-        } elseif ($this->relationLoaded('doctor') && $this->doctor?->relationLoaded('clinic')) {
+        } elseif ($this->relationLoaded('doctor') && $this->doctor?->relationLoaded('clinic') && $this->doctor->clinic !== null) {
             $clinic = $this->doctor->clinic;
+        } elseif ($this->relationLoaded('doctor') && $this->doctor?->relationLoaded('clinics')) {
+            $clinic = $this->doctor->clinics->first();
         }
 
         return $clinic === null ? null : [

@@ -16,11 +16,24 @@ use Illuminate\Support\Facades\Schema;
  */
 final class SyncStaffClinic
 {
-    public function ensure(StaffModel $staff): StaffModel
+    public function ensure(StaffModel $staff, ?int $explicitClinicId = null): StaffModel
     {
         $staff->loadMissing('doctor');
 
         $departmentId = $staff->department_id !== null ? (int) $staff->department_id : null;
+
+        // The clinic picked in the form wins, even when the department has
+        // several clinics. A missing choice can still be filled later.
+        if ($explicitClinicId !== null && $explicitClinicId > 0) {
+            $clinicDepartment = ClinicModel::query()->whereKey($explicitClinicId)->value('department_id');
+            if ($clinicDepartment !== null && (int) $clinicDepartment !== (int) ($departmentId ?? 0)) {
+                $staff->department_id = (int) $clinicDepartment;
+                $staff->save();
+            }
+
+            return $this->persist($staff, $explicitClinicId);
+        }
+
         $clinicId = $staff->clinic_id !== null ? (int) $staff->clinic_id : null;
 
         if ($clinicId === null && $staff->doctor?->clinic_id !== null) {

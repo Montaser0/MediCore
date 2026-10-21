@@ -65,7 +65,7 @@ final class CreateStaffAction
                 DoctorModel::query()->create($doctorAttributes);
             }
 
-            $this->clinics->ensure($staff);
+            $this->clinics->ensure($staff, $clinicId ?: null);
 
             return $staff->fresh(['department', 'clinic', 'doctor']);
         });
