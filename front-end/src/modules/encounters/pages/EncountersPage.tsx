@@ -69,15 +69,17 @@ export function EncountersPage() {
     clinic_id: isAdmin && clinicId ? Number(clinicId) : undefined,
   };
 
+  const doctorClinicId = isAdmin ? clinicId || undefined : user?.clinic?.id;
+  const doctorDepartmentId = isAdmin ? undefined : user?.department?.id;
   const { data: doctors = [] } = useQuery({
-    queryKey: ["/doctors", "encounters", isAdmin ? clinicId : user?.clinic?.id, user?.department?.id],
+    queryKey: ["/doctors", "encounters", doctorClinicId, doctorDepartmentId],
     enabled: isDataEntry || isAdmin,
     queryFn: async () => {
       const res = await apiGet<NamedRow[]>("/doctors", {
         params: {
           per_page: 200,
-          clinic_id: isAdmin ? clinicId || undefined : user?.clinic?.id,
-          department_id: isAdmin || user?.clinic?.id ? undefined : user?.department?.id,
+          clinic_id: doctorClinicId,
+          department_id: doctorDepartmentId,
         },
       });
       return Array.isArray(res.data) ? res.data : [];
@@ -277,7 +279,7 @@ export function EncountersPage() {
             <option value="">{t("workspace.doctor")}</option>
             {doctors.map((row) => (
               <option key={row.id} value={row.id}>
-                {row.name ?? row.display_name ?? row.id}
+                {row.name || row.display_name || row.id}
               </option>
             ))}
           </Select>

@@ -7,6 +7,7 @@ namespace App\Modules\Hospital\Application\Actions;
 use App\Modules\Hospital\Infrastructure\Persistence\Models\DoctorModel;
 use App\Modules\Hospital\Infrastructure\Persistence\Models\StaffModel;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 final class UpdateStaffAction
 {
@@ -18,7 +19,7 @@ final class UpdateStaffAction
     public function execute(StaffModel $staff, array $data): StaffModel
     {
         return DB::transaction(function () use ($staff, $data): StaffModel {
-            $staff->fill(array_intersect_key($data, array_flip([
+            $fields = [
                 'first_name',
                 'last_name',
                 'phone',
@@ -26,7 +27,12 @@ final class UpdateStaffAction
                 'department_id',
                 'clinic_id',
                 'is_active',
-            ])))->save();
+            ];
+            if (! Schema::hasColumn('staff', 'clinic_id')) {
+                $fields = array_values(array_diff($fields, ['clinic_id']));
+            }
+
+            $staff->fill(array_intersect_key($data, array_flip($fields)))->save();
 
             $shouldBeDoctor = $data['is_doctor'] ?? $staff->doctor !== null;
 

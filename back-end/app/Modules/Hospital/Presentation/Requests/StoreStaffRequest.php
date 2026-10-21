@@ -24,7 +24,7 @@ final class StoreStaffRequest extends ApiFormRequest
             'last_name' => ['required', 'string', 'max:100'],
             'phone' => ['nullable', 'string', 'max:50'],
             'job_title' => ['nullable', 'string', 'max:150'],
-            'department_id' => ['nullable', 'integer', 'exists:departments,id'],
+            'department_id' => ['nullable', 'integer', 'exists:departments,id', 'required_if:role,doctor'],
             'clinic_id' => ['nullable', 'integer', 'exists:clinics,id', 'required_if:role,data_entry'],
             'is_active' => ['sometimes', 'boolean'],
             'is_doctor' => ['sometimes', 'boolean'],
@@ -46,6 +46,7 @@ final class StoreStaffRequest extends ApiFormRequest
     {
         return [
             'role.in' => 'نوع الحساب غير معروف.',
+            'department_id.required_if' => 'اختر القسم الذي يعمل فيه الطبيب.',
             'clinic_id.required_if' => 'اختر العيادة التي يُحوَّل إليها المرضى.',
             'username.required_with' => 'اسم المستخدم مطلوب عند إنشاء حساب.',
             'username.required_if' => 'اسم المستخدم مطلوب عند إنشاء حساب.',

@@ -63,7 +63,7 @@ export const journeyApi = {
       await Promise.all([
         list<NamedRow>("/departments"),
         list<NamedRow>("/clinics"),
-        list<NamedRow>("/doctors"),
+        list<NamedRow>("/doctors", { per_page: 200 }),
         list<NamedRow>("/laboratory/tests"),
         list<NamedRow>("/radiology/services"),
         list<NamedRow>("/pharmacy/medications"),

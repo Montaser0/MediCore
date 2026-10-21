@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Core\Authorization\Permissions;
+use App\Modules\Departments\Infrastructure\Persistence\Models\DepartmentModel;
 use App\Modules\Hospital\Infrastructure\Persistence\Models\HospitalModel;
 use App\Modules\Identity\Infrastructure\Persistence\Models\UserModel;
 use Database\Seeders\HospitalSeeder;
@@ -40,6 +41,7 @@ final class StaffAccessTest extends TestCase
             'hospital_id' => HospitalModel::query()->value('id'),
             'first_name' => 'أحمد',
             'last_name' => 'الخطيب',
+            'department_id' => DepartmentModel::query()->where('code', 'ENT')->value('id'),
             'role' => 'doctor',
             'username' => 'ahmad.doc',
             'password' => 'secret1',

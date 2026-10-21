@@ -167,4 +167,74 @@ final class DoctorListingTest extends TestCase
                 'last_name' => 'المحمد',
             ]);
     }
+
+    public function test_doctor_saved_on_one_clinic_is_listed_for_the_department_and_its_clinics(): void
+    {
+        $this->seed([PermissionSeeder::class, HospitalSeeder::class]);
+
+        $admin = UserModel::factory()->withRole('admin')->create();
+        Sanctum::actingAs($admin);
+
+        $clinic = ClinicModel::query()->where('code', 'IM-CARD')->firstOrFail();
+        $sibling = ClinicModel::query()->where('code', 'IM-GAST')->firstOrFail();
+        $hospitalId = HospitalModel::query()->value('id');
+
+        $created = $this->postJson('/api/staff', [
+            'hospital_id' => $hospitalId,
+            'first_name' => 'ليلى',
+            'last_name' => 'القلب',
+            'department_id' => $clinic->department_id,
+            'clinic_id' => $clinic->getKey(),
+            'role' => 'doctor',
+            'username' => 'heart.list',
+            'password' => 'secret1',
+        ])->assertCreated()
+            ->assertJsonPath('data.full_name', 'ليلى القلب');
+
+        $this->assertNotNull($created->json('data.doctor.id'));
+
+        $this->getJson('/api/doctors?department_id='.$clinic->department_id)
+            ->assertOk()
+            ->assertJsonFragment(['name' => 'ليلى القلب']);
+
+        $this->getJson('/api/doctors?clinic_id='.$clinic->getKey())
+            ->assertOk()
+            ->assertJsonFragment(['name' => 'ليلى القلب']);
+
+        $this->getJson('/api/doctors?clinic_id='.$sibling->getKey())
+            ->assertOk()
+            ->assertJsonFragment(['name' => 'ليلى القلب']);
+    }
+
+    public function test_doctor_names_stay_available_when_clinic_roster_is_missing(): void
+    {
+        $this->seed([PermissionSeeder::class, HospitalSeeder::class]);
+
+        $admin = UserModel::factory()->withRole('admin')->create();
+        Sanctum::actingAs($admin);
+
+        $clinic = ClinicModel::query()->where('code', 'IM-CARD')->firstOrFail();
+        $hospitalId = HospitalModel::query()->value('id');
+
+        $this->postJson('/api/staff', [
+            'hospital_id' => $hospitalId,
+            'first_name' => 'ليلى',
+            'last_name' => 'القلب',
+            'department_id' => $clinic->department_id,
+            'clinic_id' => $clinic->getKey(),
+            'role' => 'doctor',
+            'username' => 'heart.roster',
+            'password' => 'secret1',
+        ])->assertCreated();
+
+        Schema::drop('clinic_doctor');
+
+        $this->getJson('/api/doctors?department_id='.$clinic->department_id)
+            ->assertOk()
+            ->assertJsonFragment(['name' => 'ليلى القلب']);
+
+        $this->getJson('/api/doctors?clinic_id='.$clinic->getKey())
+            ->assertOk()
+            ->assertJsonFragment(['name' => 'ليلى القلب']);
+    }
 }

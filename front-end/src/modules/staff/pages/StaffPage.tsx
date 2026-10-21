@@ -100,7 +100,7 @@ export function StaffPage() {
     queryKey: ["/staff", q],
     queryFn: async () => {
       const res = await apiGet<Row[]>("/staff", {
-        params: q ? { search: q, per_page: 50 } : { per_page: 50 },
+        params: q ? { search: q, per_page: 200 } : { per_page: 200 },
       });
       if (!Array.isArray(res.data)) {
         throw new Error("استجابة قائمة الكوادر غير متوقعة");
@@ -324,6 +324,7 @@ export function StaffPage() {
             <label className="grid gap-1 text-[12px]">
               <span>{t("workspace.department")}</span>
               <Select
+                required={accountBeingEdited === "doctor"}
                 value={form.department_id ?? ""}
                 onChange={(event) => {
                   const departmentId = event.target.value;

@@ -9,6 +9,7 @@ use App\Modules\Departments\Infrastructure\Persistence\Models\ClinicModel;
 use App\Modules\Hospital\Infrastructure\Persistence\Models\DoctorModel;
 use App\Modules\Hospital\Infrastructure\Persistence\Models\StaffModel;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Creates the employee record and, when the job title is clinical, the
@@ -35,7 +36,7 @@ final class CreateStaffAction
                 $departmentId = ClinicModel::query()->whereKey($clinicId)->value('department_id') ?? $departmentId;
             }
 
-            $staff = StaffModel::query()->create([
+            $staffAttributes = [
                 'hospital_id' => $hospitalId,
                 'employee_number' => $data['employee_number'] ?? $this->numbers->employeeNumber($hospitalId),
                 'first_name' => $data['first_name'],
@@ -43,17 +44,25 @@ final class CreateStaffAction
                 'phone' => $data['phone'] ?? null,
                 'job_title' => $data['job_title'] ?? null,
                 'department_id' => $departmentId,
-                'clinic_id' => $clinicId ?: null,
                 'is_active' => $data['is_active'] ?? true,
-            ]);
+            ];
+            if (Schema::hasColumn('staff', 'clinic_id')) {
+                $staffAttributes['clinic_id'] = $clinicId ?: null;
+            }
+
+            $staff = StaffModel::query()->create($staffAttributes);
 
             if (($data['is_doctor'] ?? false) === true) {
-                DoctorModel::query()->create([
+                $doctorAttributes = [
                     'staff_id' => $staff->getKey(),
-                    'clinic_id' => $clinicId ?: null,
                     'license_number' => $data['license_number'] ?? null,
                     'specialty' => $data['specialty'] ?? null,
-                ]);
+                ];
+                if (Schema::hasColumn('doctors', 'clinic_id')) {
+                    $doctorAttributes['clinic_id'] = $clinicId ?: null;
+                }
+
+                DoctorModel::query()->create($doctorAttributes);
             }
 
             $this->clinics->ensure($staff);

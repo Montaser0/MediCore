@@ -95,15 +95,20 @@ final class StaffController extends ApiController
 
     public function update(UpdateStaffRequest $request, StaffModel $staff, UpdateStaffAction $action): JsonResponse
     {
-        $staff = $action->execute($staff, $request->safe()->except(['screens']));
+        $data = $request->safe()->except(['screens']);
+        $account = $staff->user()->first();
+        $role = (string) ($account?->getRoleNames()->first() ?? '');
 
-        if ($request->exists('screens')) {
-            $account = $staff->user()->first();
-            $role = (string) ($account?->getRoleNames()->first() ?? '');
+        // Editing a doctor account, including its screens, must keep the row
+        // the registration and visit lists actually read.
+        if ($role === 'doctor') {
+            $data['is_doctor'] = true;
+        }
 
-            if ($account !== null && $role !== '') {
-                $account->syncUiAccess($role, $request->input('screens', []));
-            }
+        $staff = $action->execute($staff, $data);
+
+        if ($request->exists('screens') && $account !== null && $role !== '') {
+            $account->syncUiAccess($role, $request->input('screens', []));
         }
 
         return ApiResponse::resource(new StaffResource($staff->fresh(['department', 'clinic', 'doctor.clinic', 'user.roles'])));

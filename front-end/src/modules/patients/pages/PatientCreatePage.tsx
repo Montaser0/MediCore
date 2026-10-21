@@ -79,8 +79,6 @@ export function PatientCreatePage() {
       return Array.isArray(res.data) ? res.data : [];
     },
   });
-  const departmentOptions = departments.filter(isVisitDepartment);
-  const selectedDepartment = departmentOptions.find((row) => String(row.id) === form.department_id);
   const { data: clinics = [] } = useQuery({
     queryKey: ["/clinics", "register"],
     queryFn: async () => {
@@ -88,15 +86,21 @@ export function PatientCreatePage() {
       return Array.isArray(res.data) ? res.data : [];
     },
   });
+  const departmentOptions = departments.filter((row) => isVisitDepartment(row, clinics));
+  const selectedDepartment = departmentOptions.find((row) => String(row.id) === form.department_id);
   const clinicOptions = form.department_id
     ? clinics.filter((row) => String(row.department_id ?? "") === form.department_id)
     : [];
   const { data: doctors = [] } = useQuery({
-    queryKey: ["/doctors", "register", form.department_id],
+    queryKey: ["/doctors", "register", form.department_id, form.clinic_id],
     enabled: Boolean(form.department_id),
     queryFn: async () => {
       const res = await apiGet<NamedRow[]>("/doctors", {
-        params: { per_page: 200, department_id: form.department_id },
+        params: {
+          per_page: 200,
+          department_id: form.department_id,
+          clinic_id: form.clinic_id || undefined,
+        },
       });
       return Array.isArray(res.data) ? res.data : [];
     },
@@ -400,7 +404,7 @@ export function PatientCreatePage() {
                 <option value="">{t("appointments.doctor")}</option>
                 {doctors.map((row) => (
                   <option key={row.id} value={row.id}>
-                    {row.name ?? row.display_name}
+                    {row.name || row.display_name || row.id}
                   </option>
                 ))}
               </Select>
@@ -439,9 +443,12 @@ function startOfToday() {
   return today;
 }
 
-function isVisitDepartment(row: RegisterDepartment) {
+function isVisitDepartment(row: RegisterDepartment, clinics: NamedRow[]) {
   if (row.type === "emergency") return true;
-  return (row.type === "medical" || row.type === "surgery") && (row.clinics?.length ?? 0) > 0;
+  const hasClinic =
+    (row.clinics?.length ?? 0) > 0 ||
+    clinics.some((clinic) => String(clinic.department_id ?? "") === String(row.id));
+  return (row.type === "medical" || row.type === "surgery") && hasClinic;
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {

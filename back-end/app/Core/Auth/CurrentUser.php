@@ -6,6 +6,7 @@ namespace App\Core\Auth;
 
 use App\Modules\Identity\Infrastructure\Persistence\Models\UserModel;
 use Illuminate\Contracts\Auth\Factory as AuthFactory;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Resolves the acting user and the hospital/department context that most
@@ -80,10 +81,13 @@ final class CurrentUser
             return [];
         }
 
-        $doctor->loadMissing('clinics:clinics.id');
-        $ids = $doctor->clinics
-            ->map(fn ($clinic) => (int) $clinic->getKey())
-            ->all();
+        $ids = [];
+        if (Schema::hasTable('clinic_doctor')) {
+            $doctor->loadMissing('clinics:clinics.id');
+            $ids = $doctor->clinics
+                ->map(fn ($clinic) => (int) $clinic->getKey())
+                ->all();
+        }
 
         if ($doctor->clinic_id !== null) {
             $ids[] = (int) $doctor->clinic_id;
