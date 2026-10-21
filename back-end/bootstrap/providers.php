@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Core\Providers\CoreServiceProvider;
 use App\Modules\Appointments\Providers\AppointmentsServiceProvider;
+use App\Modules\Assets\Providers\AssetsServiceProvider;
 use App\Modules\Audit\Providers\AuditServiceProvider;
 use App\Modules\Billing\Providers\BillingServiceProvider;
 use App\Modules\Clinical\Providers\ClinicalServiceProvider;
@@ -53,6 +54,7 @@ return [
     RadiologyServiceProvider::class,
     PharmacyServiceProvider::class,
     InventoryServiceProvider::class,
+    AssetsServiceProvider::class,
 
     // Inpatient care
     InpatientServiceProvider::class,

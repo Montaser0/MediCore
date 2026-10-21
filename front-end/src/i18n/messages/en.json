@@ -80,6 +80,7 @@
     "operations": "Operations",
     "nursing": "Nursing",
     "inventory": "Inventory",
+    "assets": "Technical assets",
     "staff": "Staff",
     "departments": "Departments",
     "diagnoses": "Diagnoses",
@@ -416,6 +417,33 @@
     "printBarcode": "Print",
     "nothingToPrint": "There is no barcode to print. Generate barcodes first"
   },
+  "assets": {
+    "title": "Technical assets",
+    "code": "Asset number",
+    "category": "Type",
+    "brand": "Brand",
+    "model": "Model",
+    "barcode": "Barcode",
+    "optional": "optional",
+    "barcodeAuto": "The barcode is generated on save and the print window opens automatically",
+    "holder": "Held by",
+    "place": "Place",
+    "deliveredOn": "Delivery date",
+    "assign": "Hand over",
+    "return": "Return",
+    "maintenance": "Maintenance",
+    "repaired": "Back from maintenance",
+    "retire": "Retire",
+    "history": "History",
+    "allCategories": "All types",
+    "allStatuses": "All statuses",
+    "total": "All",
+    "device": "Device",
+    "note": "Note",
+    "movement": "Movement",
+    "actor": "By",
+    "lockedPlace": "Department and place change when the device is handed over or returned"
+  },
   "reports": {
     "title": "Reports",
     "dashboard": "Dashboard",
@@ -496,7 +524,8 @@
     "radiologist": "Radiologist",
     "pharmacist": "Pharmacy",
     "cashier": "Accountant",
-    "warehouse": "Warehouse"
+    "warehouse": "Warehouse",
+    "technician": "Technician"
   },
   "access": {
     "title": "Interface permissions",

@@ -74,6 +74,10 @@ final class Permissions
     public const INVENTORY_STOCK_TRANSFER = 'inventory.stock.transfer';
     public const INVENTORY_STOCK_ADJUST = 'inventory.stock.adjust';
 
+    // Technical department assets
+    public const ASSETS_VIEW = 'assets.view';
+    public const ASSETS_MANAGE = 'assets.manage';
+
     // Inpatient
     public const INPATIENT_VIEW = 'inpatient.view';
     public const INPATIENT_ADMIT = 'inpatient.admit';
@@ -228,6 +232,11 @@ final class Permissions
                 self::INVENTORY_STOCK_ADJUST,
             ],
 
+            'technician' => [
+                self::ASSETS_VIEW,
+                self::ASSETS_MANAGE,
+            ],
+
             'nurse' => [
                 self::PATIENTS_VIEW,
                 self::ENCOUNTERS_VIEW,
@@ -276,6 +285,7 @@ final class Permissions
             'pharmacist' => 'صيدلية',
             'cashier' => 'محاسب',
             'warehouse' => 'مستودع',
+            'technician' => 'فني تقني',
         ];
     }
 
@@ -429,6 +439,9 @@ final class Permissions
                 self::INVENTORY_ITEMS_MANAGE, self::INVENTORY_STOCK_VIEW, self::INVENTORY_STOCK_RECEIVE,
                 self::INVENTORY_STOCK_ISSUE, self::INVENTORY_STOCK_TRANSFER, self::INVENTORY_STOCK_ADJUST,
             ]),
+            'assets' => self::screen('admin', 'nav.assets', [
+                self::ASSETS_VIEW, self::ASSETS_MANAGE,
+            ]),
             'staff' => self::screen('admin', 'nav.staff', [self::STAFF_MANAGE]),
             'departments' => self::screen('admin', 'nav.departments', [self::DEPARTMENTS_MANAGE]),
             'diagnoses' => self::screen('admin', 'nav.diagnoses', [self::DEPARTMENTS_MANAGE]),
@@ -473,6 +486,7 @@ final class Permissions
             ],
             'cashier' => ['patients', 'encounters', 'emergency', 'billing'],
             'warehouse' => ['inventory', 'pharmacy-stock'],
+            'technician' => ['assets'],
             default => [],
         };
     }
@@ -545,6 +559,7 @@ final class Permissions
             str_starts_with($permission, 'radiology.') => 'radiology',
             str_starts_with($permission, 'pharmacy.') => 'pharmacy',
             str_starts_with($permission, 'inventory.') => 'inventory',
+            str_starts_with($permission, 'assets.') => 'assets',
             str_starts_with($permission, 'inpatient.') => 'inpatient',
             str_starts_with($permission, 'nursing.') => 'nursing',
             str_starts_with($permission, 'operations.') => 'operations',

@@ -23,6 +23,7 @@ const ROLE_LABELS = {
   pharmacist: "staffRoles.pharmacist",
   cashier: "staffRoles.cashier",
   warehouse: "staffRoles.warehouse",
+  technician: "staffRoles.technician",
 } as const;
 
 type StaffRecord = {

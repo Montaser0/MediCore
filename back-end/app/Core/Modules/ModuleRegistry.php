@@ -38,6 +38,7 @@ final class ModuleRegistry
         'Radiology',
         'Pharmacy',
         'Inventory',
+        'Assets',
         'Inpatient',
         'Nursing',
         'Operations',

@@ -24,6 +24,7 @@ final class ModuleRegistryTest extends TestCase
             $this->assertTrue($registry->enabled('Billing'));
             $this->assertFalse($registry->enabled('Pharmacy'));
             $this->assertFalse($registry->enabled('Inpatient'));
+            $this->assertFalse($registry->enabled('Assets'));
             $this->assertContains('patients', $registry->navigation());
             $this->assertContains('appointments', $registry->navigation());
             $this->assertContains('booking-link', $registry->navigation());
@@ -72,6 +73,7 @@ final class ModuleRegistryTest extends TestCase
         $this->assertTrue($registry->enabled('Laboratory'));
         $this->assertTrue($registry->enabled('Inpatient'));
         $this->assertTrue($registry->enabled('Billing'));
+        $this->assertTrue($registry->enabled('Assets'));
         $this->assertTrue($registry->feature('pharmacy.prescriptions'));
         $this->assertFalse($registry->feature('pharmacy.pos'));
         $this->assertSame(['*'], $registry->navigation());

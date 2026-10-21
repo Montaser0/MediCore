@@ -27,6 +27,7 @@ const ACCOUNT_ROLES = [
   "pharmacist",
   "cashier",
   "warehouse",
+  "technician",
 ] as const;
 
 const ROLE_LABELS = {
@@ -42,6 +43,7 @@ const ROLE_LABELS = {
   pharmacist: "staffRoles.pharmacist",
   cashier: "staffRoles.cashier",
   warehouse: "staffRoles.warehouse",
+  technician: "staffRoles.technician",
 } as const;
 
 type ClinicOption = {

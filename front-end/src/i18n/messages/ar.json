@@ -80,6 +80,7 @@
     "operations": "العمليات",
     "nursing": "التمريض",
     "inventory": "المخزون",
+    "assets": "أصول القسم التقني",
     "staff": "الكوادر",
     "departments": "الأقسام",
     "diagnoses": "التشخيصات",
@@ -416,6 +417,33 @@
     "printBarcode": "طباعة",
     "nothingToPrint": "لا يوجد باركود للطباعة. ولّد الباركود أولاً"
   },
+  "assets": {
+    "title": "أصول القسم التقني",
+    "code": "رقم الأصل",
+    "category": "النوع",
+    "brand": "الشركة",
+    "model": "الموديل",
+    "barcode": "الباركود",
+    "optional": "اختياري",
+    "barcodeAuto": "يُولَّد الباركود عند الحفظ وتُفتح نافذة الطباعة تلقائياً",
+    "holder": "العهدة لدى",
+    "place": "المكان",
+    "deliveredOn": "تاريخ التسليم",
+    "assign": "تسليم",
+    "return": "إرجاع",
+    "maintenance": "صيانة",
+    "repaired": "انتهت الصيانة",
+    "retire": "إخراج من الخدمة",
+    "history": "السجل",
+    "allCategories": "كل الأنواع",
+    "allStatuses": "كل الحالات",
+    "total": "الكل",
+    "device": "الجهاز",
+    "note": "ملاحظة",
+    "movement": "الحركة",
+    "actor": "نفّذها",
+    "lockedPlace": "القسم والمكان يتغيران عند التسليم أو الإرجاع"
+  },
   "reports": {
     "title": "التقارير",
     "dashboard": "لوحة المؤشرات",
@@ -496,7 +524,8 @@
     "radiologist": "طبيب أشعة",
     "pharmacist": "صيدلية",
     "cashier": "محاسب",
-    "warehouse": "مستودع"
+    "warehouse": "مستودع",
+    "technician": "فني تقني"
   },
   "access": {
     "title": "صلاحيات الواجهة",

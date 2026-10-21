@@ -9,6 +9,7 @@ import {
   Hospital,
   LayoutGrid,
   Package,
+  Monitor,
   Pill,
   Barcode,
   ClipboardList,
@@ -237,6 +238,15 @@ export const modules: NavModule[] = [
     permission: "inventory.stock.view",
   },
   {
+    id: "assets",
+    href: "/dashboard/assets",
+    labelKey: "nav.assets",
+    icon: Monitor,
+    category: "admin",
+    permission: "assets.view",
+    color: "#1A5276",
+  },
+  {
     id: "staff",
     href: "/dashboard/staff",
     labelKey: "nav.staff",
@@ -378,6 +388,7 @@ export const navTree: NavNode[] = [
     labelKey: "nav.admin",
     children: [
       { kind: "link", id: "inventory" },
+      { kind: "link", id: "assets" },
       { kind: "link", id: "staff" },
       { kind: "link", id: "departments" },
       { kind: "link", id: "diagnoses" },
@@ -424,6 +435,7 @@ export const homeTiles = [
   "pharmacy",
   "billing",
   "inventory",
+  "assets",
   "operations",
   "reports",
 ] as const;
