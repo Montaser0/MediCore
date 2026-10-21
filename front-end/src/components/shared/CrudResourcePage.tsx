@@ -29,6 +29,10 @@ export type CrudField = {
   when?: { key: string; value: string };
   whenFilled?: string;
   requiredWhen?: { key: string; value: string };
+  disabledWhen?: { key: string; value: string };
+  createOptions?: Array<{ value: string; label: string }>;
+  optionsForForm?: (form: Record<string, string>) => Array<{ value: string; label: string }>;
+  afterChange?: (value: string, form: Record<string, string>) => Record<string, string>;
 };
 
 function fieldIsShown(field: CrudField, form: Record<string, string>, editing: Row | null): boolean {
@@ -66,6 +70,9 @@ export function CrudResourcePage({
   excelCaption,
   excelExportOnly = false,
   toolbarExtra,
+  params,
+  createDefaults,
+  onSaved,
 }: {
   title: string;
   endpoint: string;
@@ -82,6 +89,9 @@ export function CrudResourcePage({
   updateMethod?: "patch" | "put";
   removeRequest?: (id: number) => Promise<unknown>;
   toolbarExtra?: React.ReactNode;
+  params?: Record<string, string | number | boolean>;
+  createDefaults?: Record<string, string>;
+  onSaved?: () => void;
 }) {
   const t = useTranslations();
   const hospitalId = useAuthStore((state) => state.user?.hospital_id);
@@ -96,10 +106,10 @@ export function CrudResourcePage({
   const needsClinics = fields.some((field) => field.optionsSource === "clinics");
 
   const { data, isLoading, refetch, isFetching } = useQuery({
-    queryKey: [endpoint, q],
+    queryKey: [endpoint, q, params],
     queryFn: async () => {
       const res = await apiGet<Row[]>(endpoint, {
-        params: q ? { search: q, per_page: 50 } : { per_page: 50 },
+        params: { per_page: 50, ...params, ...(q ? { search: q } : {}) },
       });
       return Array.isArray(res.data) ? res.data : [];
     },
@@ -140,12 +150,14 @@ export function CrudResourcePage({
           label: String(row.name ?? row.id),
         }));
     }
+    if (!editing && field.createOptions) return field.createOptions;
+    if (field.optionsForForm) return field.optionsForForm(form);
     return field.options ?? [];
   }
 
   function openCreate() {
     setEditing(null);
-    setForm({});
+    setForm({ ...(createDefaults ?? {}) });
     setOpen(true);
   }
 
@@ -191,6 +203,7 @@ export function CrudResourcePage({
       toast.success(t("workspace.saved"));
       setOpen(false);
       await qc.invalidateQueries({ queryKey: [endpoint] });
+      onSaved?.();
     } catch (error) {
       toast.error(getErrorMessage(error));
     } finally {
@@ -285,11 +298,16 @@ export function CrudResourcePage({
                 {field.type === "select" || field.optionsSource || field.boolean ? (
                   <Select
                     required={field.required || (field.requiredWhen != null && form[field.requiredWhen.key] === field.requiredWhen.value)}
-                    disabled={field.optionsSource === "clinics" && fields.some((item) => item.key === "department_id") && !form.department_id}
+                    disabled={
+                      (field.disabledWhen != null && form[field.disabledWhen.key] === field.disabledWhen.value)
+                      || (field.optionsSource === "clinics" && fields.some((item) => item.key === "department_id") && !form.department_id)
+                    }
                     value={form[field.key] ?? ""}
                     onChange={(event) =>
                       setForm((current) => {
-                        const next = { ...current, [field.key]: event.target.value };
+                        const value = event.target.value;
+                        if (field.afterChange) return field.afterChange(value, current);
+                        const next = { ...current, [field.key]: value };
                         if (field.key === "department_id") next.clinic_id = "";
                         return next;
                       })
