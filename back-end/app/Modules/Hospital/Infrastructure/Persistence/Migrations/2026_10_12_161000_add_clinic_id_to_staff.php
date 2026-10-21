@@ -10,6 +10,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (Schema::hasColumn('staff', 'clinic_id')) {
+            return;
+        }
+
         Schema::table('staff', function (Blueprint $table): void {
             $table->foreignId('clinic_id')->nullable()->after('department_id')->constrained('clinics')->nullOnDelete();
         });

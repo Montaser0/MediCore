@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
@@ -87,6 +87,19 @@ function savedClinicId(row: Row) {
   return id != null ? String(id) : "";
 }
 
+function rowsOf<T>(payload: unknown): T[] {
+  if (Array.isArray(payload)) return payload as T[];
+  return clinicList(payload) as T[];
+}
+
+function clinicLabel(row: Row, known: ClinicOption[]) {
+  if (row.clinic?.name) return String(row.clinic.name);
+  const id = row.clinic?.id ?? row.clinic_id;
+  if (id == null) return "—";
+  const match = known.find((clinic) => String(clinic.id) === String(id));
+  return match?.name ? String(match.name) : "—";
+}
+
 function accountRole(row: Row): string {
   return row.user?.roles?.[0] ?? "";
 }
@@ -130,26 +143,26 @@ export function StaffPage() {
   const { data: departments = [] } = useQuery({
     queryKey: ["/departments", "staff-options"],
     queryFn: async () => {
-      const res = await apiGet<Row[]>("/departments");
-      return Array.isArray(res.data) ? res.data : [];
+      const res = await apiGet<unknown>("/departments");
+      return rowsOf<Row>(res.data);
     },
   });
 
   const { data: clinics = [] } = useQuery({
     queryKey: ["/clinics", "staff-options"],
     queryFn: async () => {
-      const res = await apiGet<ClinicOption[]>("/clinics");
-      return Array.isArray(res.data) ? res.data : [];
+      const res = await apiGet<unknown>("/clinics");
+      return rowsOf<ClinicOption>(res.data);
     },
   });
   const { data: departmentClinics = [] } = useQuery({
     queryKey: ["/clinics", "staff-form", form.department_id ?? ""],
     enabled: open && Boolean(form.department_id),
     queryFn: async () => {
-      const res = await apiGet<ClinicOption[]>("/clinics", {
+      const res = await apiGet<unknown>("/clinics", {
         params: { department_id: form.department_id },
       });
-      return Array.isArray(res.data) ? res.data : [];
+      return rowsOf<ClinicOption>(res.data);
     },
   });
 
@@ -201,7 +214,15 @@ export function StaffPage() {
       if (value !== "") payload[key] = key.endsWith("_id") ? Number(value) : value;
     }
     const submitted = new FormData(event.currentTarget);
-    payload.clinic_id = chosenClinicId(submitted.get("clinic_id"), form.clinic_id);
+    const clinicId = chosenClinicId(...submitted.getAll("clinic_id"), form.clinic_id);
+    const role = editing ? accountRole(editing) : (form.role ?? "");
+    const options = clinicsFor(form.department_id ?? "", departmentClinics, editing);
+    if ((role === "doctor" || role === "data_entry") && clinicId == null && options.length > 0) {
+      toast.error(t("workspace.clinicRequired"));
+      return;
+    }
+    if (clinicId != null) payload.clinic_id = clinicId;
+    else if (!editing) payload.clinic_id = null;
     if (!editing && form.role) {
       payload.role = form.role;
       payload.username = form.username ?? "";
@@ -255,6 +276,24 @@ export function StaffPage() {
   const clinicOptions = clinicsFor(form.department_id ?? "", departmentClinics, editing);
   const accountBeingEdited = editing ? accountRole(editing) : (form.role ?? "");
   const clinicRequired = (accountBeingEdited === "doctor" || accountBeingEdited === "data_entry") && clinicOptions.length > 0;
+  const knownClinics = useMemo(() => {
+    const merged = new Map<string, ClinicOption>();
+    for (const clinic of clinics) {
+      if (clinic.id != null) merged.set(String(clinic.id), clinic);
+    }
+    for (const department of departments) {
+      for (const clinic of clinicList(department.clinics)) {
+        if (clinic.id != null) merged.set(String(clinic.id), clinic);
+      }
+    }
+    return [...merged.values()];
+  }, [clinics, departments]);
+
+  useEffect(() => {
+    if (!open || clinicOptions.length !== 1 || clinicOptions[0]?.id == null) return;
+    const only = String(clinicOptions[0].id);
+    setForm((current) => (current.clinic_id === only ? current : { ...current, clinic_id: only }));
+  }, [open, clinicOptions]);
 
   const columns = useMemo<Column<Row>[]>(
     () => [
@@ -287,7 +326,7 @@ export function StaffPage() {
       {
         key: "clinic",
         header: t("workspace.clinic"),
-        cell: (row) => row.clinic?.name ?? "—",
+        cell: (row) => clinicLabel(row, knownClinics),
       },
       {
         key: "actions",
@@ -306,7 +345,7 @@ export function StaffPage() {
         ),
       },
     ],
-    [t],
+    [t, knownClinics],
   );
 
   return (
@@ -391,13 +430,17 @@ export function StaffPage() {
                 value={form.clinic_id ?? ""}
                 onChange={(event) => setForm((current) => ({ ...current, clinic_id: event.target.value }))}
               >
-                <option value="">{t("workspace.clinic")}</option>
+                <option value="">{t("workspace.chooseClinic")}</option>
                 {clinicOptions.map((row) => (
                   <option key={String(row.id)} value={String(row.id)}>
                     {String(row.name ?? row.id)}
                   </option>
                 ))}
               </Select>
+              <input type="hidden" name="clinic_id" value={form.clinic_id ?? ""} />
+              {form.department_id && clinicOptions.length === 0 ? (
+                <span className="text-[11px] text-[var(--his-danger)]">{t("workspace.noClinics")}</span>
+              ) : null}
             </label>
             {editing ? null : (
               <label className="grid gap-1 text-[12px]">

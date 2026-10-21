@@ -286,4 +286,46 @@ final class DoctorListingTest extends TestCase
             ->assertOk()
             ->assertJsonFragment(['name' => 'ليلى القلب']);
     }
+
+    public function test_creating_a_doctor_writes_the_clinic_on_the_employee_and_the_roster(): void
+    {
+        $this->seed([PermissionSeeder::class, HospitalSeeder::class]);
+
+        $admin = UserModel::factory()->withRole('admin')->create();
+        Sanctum::actingAs($admin);
+
+        $clinic = ClinicModel::query()->where('code', 'IM-CARD')->firstOrFail();
+        $hospitalId = HospitalModel::query()->value('id');
+
+        $created = $this->postJson('/api/staff', [
+            'hospital_id' => $hospitalId,
+            'first_name' => 'ليلى',
+            'last_name' => 'القلب',
+            'department_id' => $clinic->department_id,
+            'clinic_id' => $clinic->getKey(),
+            'role' => 'doctor',
+            'username' => 'heart.column',
+            'password' => 'secret1',
+        ])->assertCreated()
+            ->assertJsonPath('data.clinic.id', $clinic->getKey())
+            ->assertJsonPath('data.clinic.name', 'عيادة القلبية');
+
+        $staffId = $created->json('data.id');
+
+        $this->assertTrue(Schema::hasColumn('staff', 'clinic_id'));
+        $this->assertTrue(Schema::hasColumn('doctors', 'clinic_id'));
+        $this->assertTrue(Schema::hasTable('clinic_doctor'));
+        $doctorId = (int) DB::table('doctors')->where('staff_id', $staffId)->value('id');
+
+        $this->assertSame($clinic->getKey(), (int) DB::table('staff')->where('id', $staffId)->value('clinic_id'));
+        $this->assertSame($clinic->getKey(), (int) DB::table('doctors')->where('staff_id', $staffId)->value('clinic_id'));
+        $this->assertTrue(DB::table('clinic_doctor')->where('clinic_id', $clinic->getKey())->where('doctor_id', $doctorId)->exists());
+
+        $this->getJson('/api/staff')
+            ->assertOk()
+            ->assertJsonFragment([
+                'id' => $clinic->getKey(),
+                'name' => 'عيادة القلبية',
+            ]);
+    }
 }

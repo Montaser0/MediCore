@@ -73,7 +73,7 @@ final class SyncStaffClinic
 
     private function persist(StaffModel $staff, ?int $clinicId): StaffModel
     {
-        if (Schema::hasColumn('staff', 'clinic_id') && (int) ($staff->clinic_id ?? 0) !== (int) ($clinicId ?? 0)) {
+        if ((int) ($staff->clinic_id ?? 0) !== (int) ($clinicId ?? 0)) {
             $staff->clinic_id = $clinicId;
             $staff->save();
             $staff->unsetRelation('clinic');
@@ -85,7 +85,7 @@ final class SyncStaffClinic
             return $staff;
         }
 
-        if (Schema::hasColumn('doctors', 'clinic_id') && (int) ($doctor->clinic_id ?? 0) !== (int) ($clinicId ?? 0)) {
+        if ((int) ($doctor->clinic_id ?? 0) !== (int) ($clinicId ?? 0)) {
             $doctor->clinic_id = $clinicId;
             $doctor->save();
         }

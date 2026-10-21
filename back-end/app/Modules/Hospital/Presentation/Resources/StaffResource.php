@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Hospital\Presentation\Resources;
 
 use App\Core\Authorization\Permissions;
+use App\Modules\Departments\Infrastructure\Persistence\Models\ClinicModel;
 use App\Modules\Hospital\Infrastructure\Persistence\Models\StaffModel;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -65,6 +66,16 @@ final class StaffResource extends JsonResource
             $clinic = $this->doctor->clinic;
         } elseif ($this->relationLoaded('doctor') && $this->doctor?->relationLoaded('clinics')) {
             $clinic = $this->doctor->clinics->first();
+        }
+
+        if ($clinic === null) {
+            $id = $this->getAttribute('clinic_id');
+            if ($id === null && $this->relationLoaded('doctor')) {
+                $id = $this->doctor?->getAttribute('clinic_id');
+            }
+            if ($id !== null) {
+                $clinic = ClinicModel::query()->find($id);
+            }
         }
 
         return $clinic === null ? null : [

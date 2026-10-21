@@ -7,17 +7,21 @@ namespace App\Modules\Hospital\Application\Actions;
 use App\Modules\Hospital\Infrastructure\Persistence\Models\DoctorModel;
 use App\Modules\Hospital\Infrastructure\Persistence\Models\StaffModel;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 
 final class UpdateStaffAction
 {
-    public function __construct(private readonly SyncStaffClinic $clinics) {}
+    public function __construct(
+        private readonly SyncStaffClinic $clinics,
+        private readonly EnsureStaffClinicSchema $clinicSchema,
+    ) {}
 
     /**
      * @param  array<string, mixed>  $data
      */
     public function execute(StaffModel $staff, array $data): StaffModel
     {
+        $this->clinicSchema->ensure();
+
         return DB::transaction(function () use ($staff, $data): StaffModel {
             $fields = [
                 'first_name',
@@ -28,9 +32,6 @@ final class UpdateStaffAction
                 'clinic_id',
                 'is_active',
             ];
-            if (! Schema::hasColumn('staff', 'clinic_id')) {
-                $fields = array_values(array_diff($fields, ['clinic_id']));
-            }
 
             $explicitClinicId = $this->explicitClinicId($data);
 
@@ -40,7 +41,7 @@ final class UpdateStaffAction
 
             if ($shouldBeDoctor) {
                 $doctorValues = array_intersect_key($data, array_flip(['license_number', 'specialty']));
-                if ($explicitClinicId !== null && Schema::hasColumn('doctors', 'clinic_id')) {
+                if ($explicitClinicId !== null) {
                     $doctorValues['clinic_id'] = $explicitClinicId;
                 }
 

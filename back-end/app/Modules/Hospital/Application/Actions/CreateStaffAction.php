@@ -9,7 +9,6 @@ use App\Modules\Departments\Infrastructure\Persistence\Models\ClinicModel;
 use App\Modules\Hospital\Infrastructure\Persistence\Models\DoctorModel;
 use App\Modules\Hospital\Infrastructure\Persistence\Models\StaffModel;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 
 /**
  * Creates the employee record and, when the job title is clinical, the
@@ -20,6 +19,7 @@ final class CreateStaffAction
     public function __construct(
         private readonly NumberGenerator $numbers,
         private readonly SyncStaffClinic $clinics,
+        private readonly EnsureStaffClinicSchema $clinicSchema,
     ) {}
 
     /**
@@ -27,6 +27,8 @@ final class CreateStaffAction
      */
     public function execute(array $data): StaffModel
     {
+        $this->clinicSchema->ensure();
+
         return DB::transaction(function () use ($data): StaffModel {
             $hospitalId = (int) $data['hospital_id'];
             $clinicId = isset($data['clinic_id']) ? (int) $data['clinic_id'] : null;
@@ -46,9 +48,7 @@ final class CreateStaffAction
                 'department_id' => $departmentId,
                 'is_active' => $data['is_active'] ?? true,
             ];
-            if (Schema::hasColumn('staff', 'clinic_id')) {
-                $staffAttributes['clinic_id'] = $clinicId ?: null;
-            }
+            $staffAttributes['clinic_id'] = $clinicId ?: null;
 
             $staff = StaffModel::query()->create($staffAttributes);
 
@@ -58,9 +58,7 @@ final class CreateStaffAction
                     'license_number' => $data['license_number'] ?? null,
                     'specialty' => $data['specialty'] ?? null,
                 ];
-                if (Schema::hasColumn('doctors', 'clinic_id')) {
-                    $doctorAttributes['clinic_id'] = $clinicId ?: null;
-                }
+                $doctorAttributes['clinic_id'] = $clinicId ?: null;
 
                 DoctorModel::query()->create($doctorAttributes);
             }

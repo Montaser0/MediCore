@@ -13,6 +13,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (Schema::hasColumn('doctors', 'clinic_id')) {
+            return;
+        }
+
         Schema::table('doctors', function (Blueprint $table): void {
             $table->foreignId('clinic_id')
                 ->nullable()
