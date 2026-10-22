@@ -33,6 +33,32 @@ function Save-Download([string]$Url, [string]$Dest) {
     if ($LASTEXITCODE -ne 0) { throw "Download failed: $Url" }
 }
 
+function Resolve-LatestPhp {
+    $fallback = [pscustomobject]@{
+        Version = '8.5.12'
+        ZipName = 'php-8.5.12-nts-Win32-vs17-x64.zip'
+    }
+    try {
+        $releases = Invoke-RestMethod 'https://windows.php.net/downloads/releases/releases.json'
+    } catch {
+        return $fallback
+    }
+
+    $lines = @($releases.PSObject.Properties.Name) |
+        Where-Object { $_ -match '^8\.\d+$' } |
+        Sort-Object { [version]"$_.0" } -Descending
+    foreach ($line in $lines) {
+        $branch = $releases.$line
+        $zip = [string]$branch.'nts-vs17-x64'.zip.path
+        $version = [string]$branch.version
+        if ($zip -and $version -match '^\d+\.\d+\.\d+$') {
+            return [pscustomobject]@{ Version = $version; ZipName = $zip }
+        }
+    }
+
+    return $fallback
+}
+
 function Expand-Zip([string]$Zip, [string]$Dest) {
     if (Test-Path $Dest) { Remove-Item $Dest -Recurse -Force }
     New-Item -ItemType Directory -Force -Path $Dest | Out-Null
@@ -84,10 +110,10 @@ Copy-Tree (Join-Path $Repo 'front-end\.next\static') (Join-Path $frontendStage '
 Copy-Tree (Join-Path $Repo 'front-end\public') (Join-Path $frontendStage 'public') @() @()
 
 Write-Host 'Resolving runtimes'
-$releases = Invoke-RestMethod 'https://windows.php.net/downloads/releases/releases.json'
-$phpVersion = $releases.PSObject.Properties.Name | Where-Object { $_ -match '^8\.3\.\d+$' } | Sort-Object { [version]$_ } -Descending | Select-Object -First 1
-if (-not $phpVersion) { $phpVersion = '8.3.26' }
-$phpZipName = "php-$phpVersion-nts-Win32-vs16-x64.zip"
+$phpPackage = Resolve-LatestPhp
+$phpVersion = $phpPackage.Version
+$phpZipName = $phpPackage.ZipName
+Write-Host "PHP $phpVersion"
 $phpUrl = "https://windows.php.net/downloads/releases/$phpZipName"
 $phpZip = Join-Path $Cache $phpZipName
 try { Save-Download $phpUrl $phpZip } catch {

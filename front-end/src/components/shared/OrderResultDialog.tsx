@@ -3,9 +3,44 @@
 import { useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { apiClient, apiGet } from "@/lib/api/client";
 import { DocumentGallery, type StoredFile } from "@/components/shared/DocumentGallery";
+
+const IMAGING_NAME = /\.(dcm|dicom|jpe?g|png|pdf|zip)$/i;
+const IGNORED_NAME = /^(dicomdir|\.ds_store|thumbs\.db|desktop\.ini)$/i;
+
+function stagedFile(file: File): File {
+  const relative = file.webkitRelativePath?.replaceAll("\\", "/").replace(/^\/+/, "") ?? "";
+  if (!relative.includes("/")) return file;
+  const safe = relative
+    .split("/")
+    .filter((part) => part && part !== "." && part !== "..")
+    .join("__");
+  if (!safe || safe === file.name) return file;
+  return new File([file], safe, { type: file.type, lastModified: file.lastModified });
+}
+
+function leafName(name: string): string {
+  const parts = name.split("__");
+  return parts[parts.length - 1] ?? name;
+}
+
+async function acceptImagingFile(file: File): Promise<File | null> {
+  const named = stagedFile(file);
+  const leaf = leafName(named.name);
+  if (!leaf || leaf.startsWith(".") || IGNORED_NAME.test(leaf)) return null;
+  if (IMAGING_NAME.test(leaf)) return named;
+  if (leaf.includes(".")) return null;
+  return (await looksLikeDicom(named)) ? named : null;
+}
+
+async function looksLikeDicom(file: File): Promise<boolean> {
+  if (file.size < 132) return false;
+  const bytes = new Uint8Array(await file.slice(128, 132).arrayBuffer());
+  return bytes.length === 4 && String.fromCharCode(bytes[0], bytes[1], bytes[2], bytes[3]) === "DICM";
+}
 
 export type { StoredFile };
 export { openStoredFile, storedFileCaption } from "@/components/shared/DocumentGallery";
@@ -38,6 +73,9 @@ export function OrderResultDialog({
   busy,
   extra,
   patientId,
+  accept = "image/*,.pdf,.dcm",
+  allowFolder = false,
+  hint,
   onClose,
   onSave,
 }: {
@@ -46,6 +84,9 @@ export function OrderResultDialog({
   busy: boolean;
   extra?: ReactNode;
   patientId?: number;
+  accept?: string;
+  allowFolder?: boolean;
+  hint?: string;
   onClose: () => void;
   onSave: (input: { text: string; files: File[]; done: boolean }) => Promise<void>;
 }) {
@@ -60,6 +101,29 @@ export function OrderResultDialog({
       return response.data ?? [];
     },
   });
+
+  async function addFiles(list: FileList | null) {
+    const chosen = Array.from(list ?? []);
+    const next: File[] = [];
+    for (const file of chosen) {
+      const kept = allowFolder ? await acceptImagingFile(file) : file;
+      if (kept) next.push(kept);
+    }
+    if (allowFolder && chosen.length > 0 && next.length === 0) {
+      toast.error(t("radiology.noImagingFiles"));
+    }
+    setFiles((current) => {
+      const seen = new Set(current.map((file) => `${file.name}:${file.size}:${file.lastModified}`));
+      const merged = [...current];
+      for (const file of next) {
+        const key = `${file.name}:${file.size}:${file.lastModified}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        merged.push(file);
+      }
+      return merged;
+    });
+  }
 
   async function submit(event: { preventDefault(): void }, done: boolean) {
     event.preventDefault();
@@ -80,12 +144,33 @@ export function OrderResultDialog({
         />
         <label className="grid gap-1 text-[12px]">
           <span>{t("radiology.upload")}</span>
+          {hint ? <span className="text-[11px] text-[var(--his-muted)]">{hint}</span> : null}
           <input
             type="file"
-            accept="image/*,.pdf,.dcm"
+            accept={accept}
             multiple
-            onChange={(event) => setFiles(Array.from(event.target.files ?? []))}
+            onChange={(event) => {
+              void addFiles(event.target.files);
+              event.target.value = "";
+            }}
           />
+          {allowFolder ? (
+            <>
+              <span>{t("radiology.uploadFolder")}</span>
+              <input
+                type="file"
+                multiple
+                {...{ webkitdirectory: "", directory: "" }}
+                onChange={(event) => {
+                  void addFiles(event.target.files);
+                  event.target.value = "";
+                }}
+              />
+            </>
+          ) : null}
+          {files.length > 0 ? (
+            <span className="text-[11px] text-[var(--his-muted)]">{t("radiology.uploadCount", { count: files.length })}</span>
+          ) : null}
         </label>
         {stored.length > 0 ? (
           <div className="border border-[var(--his-border)] bg-[var(--his-bg)] p-2">

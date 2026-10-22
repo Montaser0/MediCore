@@ -9,6 +9,7 @@ use App\Core\Http\Controllers\ApiController;
 use App\Core\Http\Responses\ApiResponse;
 use App\Modules\Documents\Application\Actions\DeleteDocumentAction;
 use App\Modules\Documents\Application\Actions\DownloadDocumentAction;
+use App\Modules\Documents\Application\Actions\DownloadImagingStudyAction;
 use App\Modules\Documents\Application\Actions\UploadDocumentAction;
 use App\Modules\Documents\Application\Queries\ResolveDocumentExamNames;
 use App\Modules\Documents\Infrastructure\Persistence\Models\FileLinkModel;
@@ -19,6 +20,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 final class DocumentController extends ApiController
@@ -73,6 +75,17 @@ final class DocumentController extends ApiController
         $this->attachExamNames($files, $examNames);
 
         return ApiResponse::paginated(FileResource::collection($files), $files);
+    }
+
+    /**
+     * The whole imaging study as one ZIP, for the patient file and the
+     * radiology desk. Bytes still leave only through an authorised download.
+     */
+    public function imagingArchive(Request $request, int $patientId, int $study, DownloadImagingStudyAction $action): BinaryFileResponse
+    {
+        abort_unless($request->user()?->can(Permissions::DOCUMENTS_VIEW) === true, 403);
+
+        return $action->execute($patientId, $study);
     }
 
     public function forEntity(Request $request, string $entityType, int $entityId, ResolveDocumentExamNames $examNames): JsonResponse

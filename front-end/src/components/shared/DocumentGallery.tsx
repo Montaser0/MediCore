@@ -14,6 +14,8 @@ export type StoredFile = {
   exam_name?: string;
   by?: string;
   created_at?: string;
+  file_count?: number;
+  archive_path?: string;
 };
 
 export function storedFileCaption(file: { exam_name?: string; original_name?: string }) {
@@ -34,14 +36,32 @@ export async function openStoredFile(uuid: string) {
 
 export async function downloadStoredFile(uuid: string, filename?: string) {
   const response = await apiClient.get(`/files/${uuid}`, { responseType: "blob" });
-  const url = URL.createObjectURL(response.data);
+  saveBlob(response.data, filename?.trim() || "file");
+}
+
+export async function downloadImagingStudy(patientId: string | number, studyId: number, filename?: string) {
+  const response = await apiClient.get(`/patients/${patientId}/imaging-studies/${studyId}/archive`, {
+    responseType: "blob",
+  });
+  const name = filename?.trim() || "imaging";
+  saveBlob(response.data, name.toLowerCase().endsWith(".zip") ? name : `${name}.zip`);
+}
+
+function saveBlob(data: Blob, filename: string) {
+  const url = URL.createObjectURL(data);
   const link = document.createElement("a");
   link.href = url;
-  link.download = filename?.trim() || "file";
+  link.download = filename;
   document.body.appendChild(link);
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
+}
+
+async function downloadArchive(path: string, filename?: string) {
+  const response = await apiClient.get(path, { responseType: "blob" });
+  const name = filename?.trim() || "imaging";
+  saveBlob(response.data, name.toLowerCase().endsWith(".zip") ? name : `${name}.zip`);
 }
 
 function examKind(exam?: string) {
@@ -112,6 +132,22 @@ function shortDate(value?: string) {
   return formatDate(value);
 }
 
+function openFile(file: StoredFile) {
+  if (file.archive_path) {
+    void downloadArchive(file.archive_path, file.original_name);
+    return;
+  }
+  if (file.uuid) void openStoredFile(file.uuid);
+}
+
+function saveFile(file: StoredFile) {
+  if (file.archive_path) {
+    void downloadArchive(file.archive_path, file.original_name);
+    return;
+  }
+  if (file.uuid) void downloadStoredFile(file.uuid, file.original_name);
+}
+
 function DocumentCard({ file }: { file: StoredFile }) {
   const t = useTranslations();
   const preview = useImagePreview(file);
@@ -122,7 +158,7 @@ function DocumentCard({ file }: { file: StoredFile }) {
     <div className="overflow-hidden border border-[var(--his-border)] bg-white transition hover:border-[var(--his-accent)] hover:shadow-sm">
       <button
         type="button"
-        onClick={() => file.uuid && openStoredFile(file.uuid)}
+        onClick={() => openFile(file)}
         className="block w-full text-start"
       >
         <div className="relative flex h-32 items-center justify-center bg-[var(--his-panel-alt)]">
@@ -150,7 +186,7 @@ function DocumentCard({ file }: { file: StoredFile }) {
         <button
           type="button"
           className="his-btn h-6 w-full px-2 text-[11px]"
-          onClick={() => file.uuid && downloadStoredFile(file.uuid, file.original_name)}
+          onClick={() => saveFile(file)}
         >
           <Download size={12} />
           {t("app.download")}
@@ -161,7 +197,7 @@ function DocumentCard({ file }: { file: StoredFile }) {
 }
 
 export function DocumentGallery({ files, empty }: { files: StoredFile[]; empty?: string }) {
-  const visible = files.filter((file) => file.uuid);
+  const visible = files.filter((file) => file.uuid || file.archive_path);
   if (visible.length === 0) {
     return empty ? <div className="text-[var(--his-muted)]">{empty}</div> : null;
   }
@@ -169,7 +205,7 @@ export function DocumentGallery({ files, empty }: { files: StoredFile[]; empty?:
   return (
     <div className="grid grid-cols-[repeat(auto-fill,minmax(168px,1fr))] gap-2">
       {visible.map((file) => (
-        <DocumentCard key={file.uuid} file={file} />
+        <DocumentCard key={file.archive_path ?? file.uuid} file={file} />
       ))}
     </div>
   );

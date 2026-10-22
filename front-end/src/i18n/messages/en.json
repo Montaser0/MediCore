@@ -269,6 +269,10 @@
     "study": "Study",
     "report": "Report",
     "upload": "Upload images",
+    "uploadHint": "DICOM, JPG, PNG, PDF, a ZIP, or the whole study folder. Images are saved on the study and on the patient file.",
+    "uploadFolder": "Study folder",
+    "uploadCount": "Selected files: {count}",
+    "noImagingFiles": "No DICOM, JPG, PNG, or PDF files were found in the selection.",
     "findings": "Findings",
     "impression": "Impression",
     "savedOnFile": "The report and images are on the file and the study price was added to the file total"

@@ -38,11 +38,14 @@ final class RadiologyStudyController extends ApiController
         RadiologyStudyModel $study,
         UploadRadiologyImageAction $action,
     ): JsonResponse {
-        $references = $action->execute($study, $request->file('images', []));
+        $result = $action->execute($study, $request->file('images', []));
 
         return ApiResponse::data([
             'study' => (new RadiologyStudyResource($study->fresh()))->resolve(),
-            'files' => array_map(static fn (FileReference $file) => $file->toArray(), $references),
+            'files' => array_map(static fn (FileReference $file) => $file->toArray(), $result->files),
+            'warnings' => $result->warnings,
+            'stored' => count($result->files),
+            'skipped' => $result->skipped,
         ]);
     }
 

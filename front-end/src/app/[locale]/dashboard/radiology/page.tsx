@@ -1,15 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { apiClient, apiPost, getErrorMessage } from "@/lib/api/client";
+import { apiPost, getErrorMessage } from "@/lib/api/client";
 import { Button } from "@/components/ui/Button";
 import { ModuleTabs } from "@/components/shared/ModuleTabs";
 import { RadiologyCatalogPage } from "@/modules/radiology/pages/RadiologyCatalogPage";
-import { OrderResultDialog, uploadResultFiles } from "@/components/shared/OrderResultDialog";
+import { OrderResultDialog } from "@/components/shared/OrderResultDialog";
+import { uploadStudyImages } from "@/modules/radiology/uploadStudyImages";
 import { ResourceListPage, dateCell, statusBadge } from "@/components/shared/ResourceListPage";
 import { deskHrefs } from "@/config/desk";
 import { formatMoney } from "@/lib/utils";
@@ -17,6 +18,10 @@ import { dailyNo } from "@/lib/arabicText";
 import { useAuthStore } from "@/stores/auth-store";
 
 type Row = Record<string, unknown>;
+
+function fileKey(file: File) {
+  return `${file.name}:${file.size}:${file.lastModified}`;
+}
 
 export default function Page() {
   const t = useTranslations();
@@ -29,21 +34,32 @@ export default function Page() {
     permissions.includes("*") || permissions.includes("admin") || permissions.includes("radiology.services.manage");
   const [item, setItem] = useState<Row | null>(null);
   const [saving, setSaving] = useState(false);
+  const draftStudy = useRef<number | null>(null);
+  const storedFiles = useRef(new Set<string>());
+
+  function closeDialog() {
+    draftStudy.current = null;
+    storedFiles.current.clear();
+    setItem(null);
+  }
 
   async function saveReport(input: { text: string; files: File[]; done: boolean }) {
     if (!item) return;
-    const person = item.patient as { id?: number; encounter_id?: number } | undefined;
     setSaving(true);
     try {
-      const study = await apiPost<{ id: number }>(`/radiology/items/${item.id}/studies`, {
-        technician_notes: input.text || undefined,
-      });
-      const studyId = study.data?.id;
-      if (studyId && input.files.length > 0) {
-        const body = new FormData();
-        input.files.forEach((file) => body.append("images[]", file));
-        await apiClient.post(`/radiology/studies/${studyId}/images`, body, {
-          headers: { "Content-Type": undefined },
+      let studyId = draftStudy.current;
+      if (!studyId) {
+        const study = await apiPost<{ id: number }>(`/radiology/items/${item.id}/studies`, {
+          technician_notes: input.text || undefined,
+        });
+        studyId = study.data?.id ?? null;
+        draftStudy.current = studyId;
+      }
+      let warnings: string[] = [];
+      const pending = input.files.filter((file) => !storedFiles.current.has(fileKey(file)));
+      if (studyId && pending.length > 0) {
+        warnings = await uploadStudyImages(studyId, pending, (batch) => {
+          batch.forEach((file) => storedFiles.current.add(fileKey(file)));
         });
       }
       if (studyId && (input.text || input.done)) {
@@ -53,17 +69,9 @@ export default function Page() {
           finalise: input.done,
         });
       }
-      if (input.files.length) {
-        await uploadResultFiles(input.files, {
-          entityType: "radiology_order_item",
-          entityId: Number(item.id),
-          patientId: person?.id,
-          encounterId: person?.encounter_id,
-          category: "radiology_image",
-        }).catch(() => undefined);
-      }
+      if (warnings.length) toast.warning(warnings.join("\n"));
       toast.success(t("radiology.savedOnFile"));
-      setItem(null);
+      closeDialog();
       await qc.invalidateQueries({ queryKey: ["/radiology/worklist"] });
       await qc.invalidateQueries({ queryKey: ["patients"] });
     } catch (error) {
@@ -156,7 +164,10 @@ export default function Page() {
           subtitle={`${patient?.full_name ?? ""} ${patient?.mrn ? `— ${dailyNo(patient.mrn)}` : ""} — ${service?.name ?? ""} — ${t("crud.price")}: ${formatMoney(service?.price, "0")}`}
           busy={saving}
           patientId={patient?.id}
-          onClose={() => setItem(null)}
+          allowFolder
+          accept=".dcm,.dicom,.jpg,.jpeg,.png,.pdf,.zip,application/dicom,application/pdf,application/zip,image/jpeg,image/png"
+          hint={t("radiology.uploadHint")}
+          onClose={closeDialog}
           onSave={saveReport}
         />
       ) : null}

@@ -33,7 +33,7 @@ import { PatientAccountPanel } from "../components/PatientAccountPanel";
 import { formatDate, formatMoney, latinDigits } from "@/lib/utils";
 import { apiDelete, apiGet, apiPost, getErrorMessage } from "@/lib/api/client";
 import { BLOOD_GROUPS } from "@/modules/laboratory/blood";
-import { DocumentGallery } from "@/components/shared/DocumentGallery";
+import { DocumentGallery, downloadImagingStudy } from "@/components/shared/DocumentGallery";
 import { useAuthStore } from "@/stores/auth-store";
 import { useEditionStore } from "@/stores/edition-store";
 import { canSeeBilling, isDoctorDesk } from "@/config/desk";
@@ -893,7 +893,29 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
                       header: t("radiology.impression"),
                       cell: (row) => <ResultMark value={row.impression} />,
                     },
-                    { key: "images", header: t("radiology.upload"), width: 90, cell: (row) => latinDigits(text(row.image_count, "0")) },
+                    {
+                      key: "images",
+                      header: t("radiology.upload"),
+                      width: 150,
+                      cell: (row) => {
+                        const count = Number(row.image_count ?? 0);
+                        const studyId = Number(row.study_id ?? 0);
+                        return (
+                          <span className="inline-flex items-center gap-1">
+                            <span>{latinDigits(String(count))}</span>
+                            {showDocs && count > 0 && studyId > 0 ? (
+                              <button
+                                type="button"
+                                className="text-[var(--his-accent)] underline"
+                                onClick={() => downloadImagingStudy(patientId, studyId, text(row.service, "imaging"))}
+                              >
+                                {t("app.download")}
+                              </button>
+                            ) : null}
+                          </span>
+                        );
+                      },
+                    },
                     { key: "price", header: t("crud.price"), width: 110, cell: (row) => formatMoney(row.price, "0") },
                     { key: "actor", header: t("patients.actor"), width: 140, cell: (row) => actorOf(row) || "—" },
                     { key: "verified", header: t("patients.verifiedBy"), width: 140, cell: (row) => text(row.verified_by) },
@@ -1057,6 +1079,8 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
                   exam_name: text(item.exam_name, ""),
                   by: text(item.by, ""),
                   created_at: text(item.created_at, ""),
+                  file_count: Number(item.file_count ?? 0) || undefined,
+                  archive_path: text(item.archive_path, "") || undefined,
                 }))}
               />
             </Section>

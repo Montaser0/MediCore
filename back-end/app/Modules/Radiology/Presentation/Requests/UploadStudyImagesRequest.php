@@ -16,11 +16,25 @@ final class UploadStudyImagesRequest extends ApiFormRequest
      */
     public function rules(): array
     {
-        $maxKb = (int) config('hms.documents.max_upload_kb', 20480);
+        $maxKb = (int) config('hms.documents.imaging.max_package_kb', 512000);
+        $maxBatch = (int) config('hms.documents.imaging.max_batch', 30);
 
         return [
-            'images' => ['required', 'array', 'min:1', 'max:50'],
+            'images' => ['required', 'array', 'min:1', 'max:'.$maxBatch],
             'images.*' => ['required', 'file', 'max:'.$maxKb],
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'images.required' => 'اختر صورة واحدة على الأقل للرفع.',
+            'images.max' => 'عدد الملفات في الدفعة أكبر من المسموح. ارفع مجلد الفحص أو ملف ZIP.',
+            'images.*.file' => 'تعذر رفع الملف. إذا كان الفحص كبيراً أرسله ملفاً مضغوطاً واحداً.',
+            'images.*.max' => 'حجم الملف أكبر من الحد المسموح.',
         ];
     }
 }

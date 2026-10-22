@@ -57,7 +57,15 @@ return [
     'documents' => [
         'disk' => env('HMS_DOCUMENTS_DISK', 'local'),
         'max_upload_kb' => (int) env('HMS_MAX_UPLOAD_KB', 51200),
-        'allowed_mimes' => ['jpg', 'jpeg', 'png', 'webp', 'pdf', 'dcm'],
+        'allowed_mimes' => ['jpg', 'jpeg', 'png', 'webp', 'pdf', 'dcm', 'dicom'],
+        // One imaging request may be a ZIP of a whole CT. Loose files are sent
+        // in small batches so a folder is not cut off by max_file_uploads.
+        'imaging' => [
+            'max_batch' => 30,
+            'max_package_kb' => (int) env('HMS_IMAGING_MAX_KB', 512000),
+            'max_study_files' => 2000,
+            'max_extracted_bytes' => 1073741824,
+        ],
     ],
 
     /*

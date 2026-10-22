@@ -12,5 +12,6 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::delete('files/{file}', [DocumentController::class, 'destroy']);
 
     Route::get('patients/{patientId}/documents', [DocumentController::class, 'forPatient']);
+    Route::get('patients/{patientId}/imaging-studies/{study}/archive', [DocumentController::class, 'imagingArchive']);
     Route::get('documents/{entityType}/{entityId}', [DocumentController::class, 'forEntity']);
 });

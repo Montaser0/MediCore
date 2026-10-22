@@ -269,6 +269,10 @@
     "study": "دراسة",
     "report": "التقرير",
     "upload": "رفع صور",
+    "uploadHint": "DICOM أو JPG أو PNG أو PDF، أو ملف ZIP، أو مجلد الفحص كاملاً. تُحفظ الصور على الدراسة وداخل إضبارة المريض.",
+    "uploadFolder": "مجلد الفحص",
+    "uploadCount": "الملفات المحددة: {count}",
+    "noImagingFiles": "لم يُعثر على صور DICOM أو JPG أو PNG أو PDF في التحديد.",
     "findings": "الموجودات",
     "impression": "الانطباع",
     "savedOnFile": "حُفظ التقرير والصور على الإضبارة وأُضيف سعر الدراسة إلى مجمل الملف"
