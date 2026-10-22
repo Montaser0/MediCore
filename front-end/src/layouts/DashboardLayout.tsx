@@ -12,7 +12,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
       <AppHeader />
       <div className="flex min-h-0 flex-1">
         <AppSidebar />
-        <main className="min-w-0 flex-1 overflow-auto bg-[var(--his-bg)]">
+        <main className="min-h-0 min-w-0 flex-1 overflow-auto bg-[var(--his-bg)]">
           {children}
         </main>
       </div>

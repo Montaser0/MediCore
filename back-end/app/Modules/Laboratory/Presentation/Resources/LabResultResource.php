@@ -23,7 +23,7 @@ final class LabResultResource extends JsonResource
             'result_value' => $this->result_value,
             'unit' => $this->unit,
             'reference_range' => $this->reference_range,
-            'flag' => $this->flag->value,
+            'flag' => $this->flag?->value,
             'comment' => $this->comment,
             'status' => $this->status->value,
             'is_verified' => $this->isVerified(),
@@ -38,7 +38,7 @@ final class LabResultResource extends JsonResource
                 'value' => $value->value,
                 'unit' => $value->unit,
                 'reference_range' => $value->reference_range,
-                'flag' => $value->flag->value,
+                'flag' => $value->flag?->value,
             ])->all()),
         ];
     }

@@ -51,7 +51,7 @@ final class LaboratoryRecordContributor implements PatientRecordContributor
                 'by' => $item->labOrder?->order?->orderedBy?->actorLabel(),
                 'verified_by' => $item->result?->verifiedBy?->displayName(),
                 'result_value' => $item->result?->result_value,
-                'flag' => $item->result?->flag->value,
+                'flag' => $item->result?->flag?->value,
                 'is_verified' => (bool) $item->result?->isVerified(),
                 'reported_at' => $item->result?->verified_at?->toIso8601String(),
             ])->all(),

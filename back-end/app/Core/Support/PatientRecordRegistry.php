@@ -36,7 +36,13 @@ final class PatientRecordRegistry
         $sections = [];
 
         foreach ($this->contributors as $section => $contributor) {
-            $sections[$section] = $contributor->summarise($patientId, $encounterId);
+            try {
+                $sections[$section] = $contributor->summarise($patientId, $encounterId);
+            } catch (\Throwable $error) {
+                // One department must not blank the rest of the medical record.
+                report($error);
+                $sections[$section] = [];
+            }
         }
 
         return $sections;

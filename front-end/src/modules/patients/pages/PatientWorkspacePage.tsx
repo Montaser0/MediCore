@@ -151,7 +151,7 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
 
   const { data: listData } = usePatients({ per_page: 40 });
   const { data: patient, isLoading } = usePatient(patientId);
-  const { data: file } = usePatientFile(patientId);
+  const { data: file, isFetched: fileFetched, isError: fileError, error: fileLoadError } = usePatientFile(patientId);
   const { data: timeline } = usePatientTimeline(patientId);
   const { data: encounters = [] } = usePatientEncounters(patientId);
   const { data: catalogs, refetch: refetchCatalogs } = useCatalogs();
@@ -196,6 +196,40 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
   const billing = asObj(sections.billing);
   const documents = arr(asObj(sections.documents).recent);
   const procedures = arr(clinical.procedures);
+  const fileSettled = fileFetched || fileError;
+  const { data: labFallback = [], isLoading: labFallbackLoading } = useQuery({
+    queryKey: ["/laboratory/worklist", "patient", patientId],
+    enabled: fileSettled && showLabRecords && lab.length === 0,
+    queryFn: async () => {
+      const response = await apiGet<Rec[]>("/laboratory/worklist", {
+        params: { patient_id: patientId, per_page: 50 },
+      });
+      return Array.isArray(response.data) ? response.data.map(labFromWorklist) : [];
+    },
+  });
+  const { data: radiologyFallback = [], isLoading: radiologyFallbackLoading } = useQuery({
+    queryKey: ["/radiology/worklist", "patient", patientId],
+    enabled: fileSettled && showRadRecords && radiology.length === 0,
+    queryFn: async () => {
+      const response = await apiGet<Rec[]>("/radiology/worklist", {
+        params: { patient_id: patientId, per_page: 50 },
+      });
+      return Array.isArray(response.data) ? response.data.map(radiologyFromWorklist) : [];
+    },
+  });
+  const { data: documentFallback = [], isLoading: documentFallbackLoading } = useQuery({
+    queryKey: ["patient-documents", patientId],
+    enabled: fileSettled && showDocs && documents.length === 0,
+    queryFn: async () => {
+      const response = await apiGet<Rec[]>(`/patients/${patientId}/documents`, {
+        params: { per_page: 50 },
+      });
+      return Array.isArray(response.data) ? response.data.map(documentFromApi) : [];
+    },
+  });
+  const labRows = lab.length > 0 ? lab : labFallback;
+  const radiologyRows = radiology.length > 0 ? radiology : radiologyFallback;
+  const documentRows = documents.length > 0 ? documents : documentFallback;
 
   const current = useMemo(() => {
     const open = encounters.filter((row) => row.is_open);
@@ -673,7 +707,12 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
           ))}
         </div>
 
-        <div className="min-h-0 flex-1 overflow-auto p-2">
+        <div className="min-h-min flex-1 overflow-auto p-2">
+          {fileError ? (
+            <div className="mb-2 border border-[var(--his-danger)] bg-white px-2 py-1 text-[12px] text-[var(--his-danger)]">
+              {getErrorMessage(fileLoadError)}
+            </div>
+          ) : null}
           {tab === "file" && (
             <div className="grid gap-2 md:grid-cols-2">
               <Section
@@ -835,7 +874,8 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
                         ) : null,
                     },
                   ]}
-                  rows={lab}
+                  rows={labRows}
+                  loading={lab.length === 0 && labFallbackLoading}
                   rowKey={(row, index) => String(row.id ?? index)}
                   emptyText={t("app.noData")}
                 />
@@ -934,7 +974,8 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
                         ) : null,
                     },
                   ]}
-                  rows={radiology}
+                  rows={radiologyRows}
+                  loading={radiology.length === 0 && radiologyFallbackLoading}
                   rowKey={(row, index) => String(row.id ?? index)}
                   emptyText={t("app.noData")}
                 />
@@ -1065,14 +1106,17 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
             <Section
               title={t("patients.docs")}
               action={
-                documents.length > 0 ? (
-                  <span className="text-[11px] font-normal text-[var(--his-muted)]">{documents.length}</span>
+                documentRows.length > 0 ? (
+                  <span className="text-[11px] font-normal text-[var(--his-muted)]">{documentRows.length}</span>
                 ) : null
               }
             >
+              {documentRows.length === 0 && documentFallbackLoading ? (
+                <p className="text-[12px] text-[var(--his-muted)]">{t("app.loading")}</p>
+              ) : (
               <DocumentGallery
                 empty={t("app.noData")}
-                files={documents.map((item) => ({
+                files={documentRows.map((item) => ({
                   uuid: text(item.uuid, "") || undefined,
                   original_name: text(item.original_name, ""),
                   mime_type: text(item.mime_type, ""),
@@ -1083,6 +1127,7 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
                   archive_path: text(item.archive_path, "") || undefined,
                 }))}
               />
+              )}
             </Section>
           )}
 
@@ -1723,6 +1768,57 @@ function toSql(value?: string) {
   if (!value) return undefined;
   const normalized = value.includes("T") ? value.replace("T", " ") : value;
   return normalized.length === 16 ? `${normalized}:00` : normalized;
+}
+
+function labFromWorklist(row: Rec): Rec {
+  const test = asObj(row.test);
+  const result = asObj(row.result);
+  const order = asObj(row.order);
+  return {
+    id: row.id,
+    test: test.name,
+    result_value: result.result_value,
+    price: test.price,
+    by: order.ordered_by,
+    verified_by: result.verified_by,
+    reported_at: result.verified_at ?? result.entered_at,
+    status: row.status,
+  };
+}
+
+function radiologyFromWorklist(row: Rec): Rec {
+  const service = asObj(row.service);
+  const order = asObj(row.order);
+  const studies = arr(row.studies);
+  const study = asObj(studies[studies.length - 1]);
+  const report = asObj(study.report);
+  return {
+    id: row.id,
+    service: service.name,
+    with_injection: row.with_injection,
+    impression: report.impression ?? report.findings,
+    image_count: study.image_count ?? 0,
+    study_id: study.id,
+    price: service.price,
+    by: order.ordered_by,
+    verified_by: report.verified_by,
+    reported_at: report.verified_at ?? report.reported_at,
+    status: row.status,
+  };
+}
+
+function documentFromApi(row: Rec): Rec {
+  const uploader = asObj(row.uploaded_by);
+  return {
+    uuid: row.uuid,
+    original_name: row.original_name,
+    mime_type: row.mime_type,
+    exam_name: row.exam_name,
+    by: uploader.username ?? row.by,
+    created_at: row.created_at,
+    file_count: row.file_count,
+    archive_path: row.archive_path,
+  };
 }
 
 function asObj(value: unknown): Rec {
