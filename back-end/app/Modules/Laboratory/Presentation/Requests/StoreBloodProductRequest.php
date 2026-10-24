@@ -15,6 +15,8 @@ final class StoreBloodProductRequest extends ApiFormRequest
 
     protected function prepareForValidation(): void
     {
+        BloodProductModel::ensureCatalog();
+
         if (trim((string) $this->input('code', '')) === '') {
             $this->merge(['code' => null]);
         }

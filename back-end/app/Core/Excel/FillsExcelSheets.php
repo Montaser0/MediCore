@@ -491,6 +491,7 @@ trait FillsExcelSheets
      */
     private function exportBloodProducts(): iterable
     {
+        BloodProductModel::ensureCatalog();
         $query = BloodProductModel::query()->orderBy('name');
         $this->guardCount($query);
 
@@ -509,6 +510,7 @@ trait FillsExcelSheets
      */
     private function importBloodProduct(array $row): string
     {
+        BloodProductModel::ensureCatalog();
         $name = $this->required($row, 'name', 'اسم منتج الدم');
         $code = trim($row['code'] ?? '');
         $existing = $code !== '' ? BloodProductModel::query()->where('code', $code)->first() : null;

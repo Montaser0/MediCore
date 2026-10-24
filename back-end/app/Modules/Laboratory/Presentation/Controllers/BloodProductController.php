@@ -18,6 +18,8 @@ final class BloodProductController extends ApiController
 {
     public function index(Request $request): JsonResponse
     {
+        BloodProductModel::ensureCatalog();
+
         $products = BloodProductModel::query()
             ->when(! $request->boolean('include_inactive'), fn ($query) => $query->active())
             ->search($request->string('search')->toString())

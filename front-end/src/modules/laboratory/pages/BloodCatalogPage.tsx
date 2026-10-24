@@ -30,7 +30,7 @@ export function BloodCatalogPage() {
   const [draft, setDraft] = useState(empty);
   const [saving, setSaving] = useState(false);
 
-  const { data: rows = [], isLoading, refetch, isFetching } = useQuery({
+  const { data: rows = [], isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ["/laboratory/blood-products", "catalog", q],
     queryFn: async () => {
       const res = await apiGet<BloodProductRow[]>("/laboratory/blood-products", {
@@ -159,7 +159,7 @@ export function BloodCatalogPage() {
           rows={rows}
           rowKey={(row) => row.id}
           loading={isLoading}
-          emptyText={t("app.noData")}
+          emptyText={isError ? getErrorMessage(error) : t("app.noData")}
           onSelect={(row) =>
             setDraft({
               id: row.id,
