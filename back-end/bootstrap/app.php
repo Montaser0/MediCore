@@ -132,16 +132,21 @@ return Application::configure(basePath: dirname(__DIR__))
 
             $message = 'حدث خطأ غير متوقع. حاول مرة أخرى.';
 
-            // Administrators (and debug mode) see the real cause so a server
-            // fault can be reported precisely instead of a generic sentence.
+            // Signed-in staff see the real cause (never the SQL or its bindings)
+            // so a server fault can be reported precisely.
             try {
-                $canSeeCause = config('app.debug') || $request->user()?->can('settings.manage') === true;
+                $signedIn = $request->user() !== null || $request->bearerToken() !== null;
             } catch (Throwable) {
-                $canSeeCause = false;
+                $signedIn = $request->bearerToken() !== null;
             }
 
-            if ($canSeeCause) {
-                $message .= ' السبب: '.class_basename($e).' — '.mb_substr(preg_replace('/\s+/', ' ', $e->getMessage()) ?? '', 0, 300);
+            if (config('app.debug') || $signedIn) {
+                $detail = $e instanceof \Illuminate\Database\QueryException
+                    ? (string) ($e->errorInfo[2] ?? $e->getPrevious()?->getMessage() ?? 'database error')
+                    : $e->getMessage();
+                $detail = mb_substr(preg_replace('/\s+/', ' ', $detail) ?? '', 0, 300);
+                $where = basename($e->getFile()).':'.$e->getLine();
+                $message .= ' [السبب: '.class_basename($e).' — '.$detail.' @ '.$where.']';
             }
 
             return response()->json([
