@@ -239,7 +239,12 @@ export function AppointmentsPage() {
   return (
     <div className="flex h-full flex-col">
       <PageToolbar title={t("appointments.title")}>
-        <ExcelButtons resource="appointments" onImported={() => refetch()} />
+        <ExcelButtons
+          resource="appointments"
+          onImported={async () => {
+            await refetch();
+          }}
+        />
         {canCreate ? (
           <Button
             variant="primary"
