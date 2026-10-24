@@ -11,23 +11,38 @@ return new class extends Migration
 {
     public function up(): void
     {
-        $names = [
-            'packed_rbc' => 'كريات مكثفة',
-            'plasma' => 'بلازما',
-            'platelets' => 'صفيحات',
-        ];
+        if (
+            Schema::hasTable('blood_requests')
+            && Schema::hasColumn('blood_requests', 'product_type')
+            && Schema::hasColumn('blood_requests', 'product_name')
+        ) {
+            $names = [
+                'packed_rbc' => 'كريات مكثفة',
+                'plasma' => 'بلازما',
+                'platelets' => 'صفيحات',
+            ];
 
-        foreach ($names as $type => $name) {
-            DB::table('blood_requests')
-                ->where('product_type', $type)
-                ->where(function ($query): void {
-                    $query->whereNull('product_name')->orWhere('product_name', '');
-                })
-                ->update(['product_name' => $name]);
+            foreach ($names as $type => $name) {
+                DB::table('blood_requests')
+                    ->where('product_type', $type)
+                    ->where(function ($query): void {
+                        $query->whereNull('product_name')->orWhere('product_name', '');
+                    })
+                    ->update(['product_name' => $name]);
+            }
+        }
+
+        if (! Schema::hasTable('blood_products') || ! Schema::hasColumn('blood_products', 'product_type')) {
+            return;
+        }
+
+        if (Schema::hasIndex('blood_products', ['product_type', 'is_active'])) {
+            Schema::table('blood_products', function (Blueprint $table): void {
+                $table->dropIndex(['product_type', 'is_active']);
+            });
         }
 
         Schema::table('blood_products', function (Blueprint $table): void {
-            $table->dropIndex(['product_type', 'is_active']);
             $table->dropColumn('product_type');
         });
     }

@@ -6,6 +6,7 @@ namespace App\Modules\Laboratory\Infrastructure\Persistence\Models;
 
 use App\Core\Persistence\BaseModel;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\QueryException;
 
 final class BloodProductModel extends BaseModel
 {
@@ -17,6 +18,30 @@ final class BloodProductModel extends BaseModel
             'price' => 'float',
             'is_active' => 'boolean',
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     */
+    public static function storeCatalog(array $attributes): self
+    {
+        if (! array_key_exists('is_active', $attributes)) {
+            $attributes['is_active'] = true;
+        }
+
+        try {
+            return static::query()->create($attributes);
+        } catch (QueryException $exception) {
+            if (! str_contains($exception->getMessage(), 'product_type')) {
+                throw $exception;
+            }
+
+            $attributes['product_type'] = mb_substr((string) ($attributes['code'] ?? 'other'), 0, 30);
+            $model = new static;
+            $model->forceFill($attributes)->save();
+
+            return $model;
+        }
     }
 
     public function scopeActive(Builder $query): Builder

@@ -531,7 +531,7 @@ trait FillsExcelSheets
         }
 
         if ($existing === null) {
-            BloodProductModel::query()->create($attributes);
+            BloodProductModel::storeCatalog($attributes);
 
             return 'created';
         }

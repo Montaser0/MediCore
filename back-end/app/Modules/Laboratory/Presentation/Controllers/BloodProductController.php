@@ -29,9 +29,9 @@ final class BloodProductController extends ApiController
 
     public function store(StoreBloodProductRequest $request): JsonResponse
     {
-        $product = BloodProductModel::query()->create($this->attributes($request, true));
+        $product = BloodProductModel::storeCatalog($this->attributes($request, true));
 
-        return ApiResponse::created(new BloodProductResource($product));
+        return ApiResponse::created(new BloodProductResource($product->fresh()));
     }
 
     public function update(StoreBloodProductRequest $request, BloodProductModel $bloodProduct): JsonResponse
