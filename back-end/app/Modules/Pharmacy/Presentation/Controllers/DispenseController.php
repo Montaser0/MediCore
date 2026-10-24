@@ -25,6 +25,10 @@ final class DispenseController extends ApiController
             ->forCurrentHospital()
             ->when($request->filled('prescription_id'), fn ($query) => $query->where('prescription_id', $request->integer('prescription_id')))
             ->when($request->filled('encounter_id'), fn ($query) => $query->where('encounter_id', $request->integer('encounter_id')))
+            ->when($request->filled('patient_id'), fn ($query) => $query->whereHas(
+                'encounter',
+                fn ($encounter) => $encounter->where('patient_id', $request->integer('patient_id')),
+            ))
             ->when($request->filled('date'), fn ($query) => $query->whereDate('dispensed_at', $request->date('date')))
             ->orderByDesc('dispensed_at')
             ->paginate($this->perPage(50));

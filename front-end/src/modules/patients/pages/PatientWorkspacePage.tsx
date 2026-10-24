@@ -151,7 +151,7 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
 
   const { data: listData } = usePatients({ per_page: 40 });
   const { data: patient, isLoading } = usePatient(patientId);
-  const { data: file, isFetched: fileFetched, isError: fileError, error: fileLoadError } = usePatientFile(patientId);
+  const { data: file, isError: fileError, error: fileLoadError } = usePatientFile(patientId);
   const { data: timeline } = usePatientTimeline(patientId);
   const { data: encounters = [] } = usePatientEncounters(patientId);
   const { data: catalogs, refetch: refetchCatalogs } = useCatalogs();
@@ -196,40 +196,55 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
   const billing = asObj(sections.billing);
   const documents = arr(asObj(sections.documents).recent);
   const procedures = arr(clinical.procedures);
-  const fileSettled = fileFetched || fileError;
-  const { data: labFallback = [], isLoading: labFallbackLoading } = useQuery({
-    queryKey: ["/laboratory/worklist", "patient", patientId],
-    enabled: fileSettled && showLabRecords && lab.length === 0,
-    queryFn: async () => {
-      const response = await apiGet<Rec[]>("/laboratory/worklist", {
-        params: { patient_id: patientId, per_page: 50 },
-      });
-      return Array.isArray(response.data) ? response.data.map(labFromWorklist) : [];
-    },
+  const encounterKey = encounters.map((row) => row.id).join(",");
+  const { data: liveRecord, isLoading: liveLoading, isError: liveError, error: liveLoadError } = useQuery({
+    queryKey: [
+      "patient-record-live",
+      patientId,
+      encounterKey,
+      showLabRecords,
+      showRadRecords,
+      showDocs,
+      showPharmacyTab,
+      showClinical,
+      showNursingTab,
+      showStayTab,
+      showOperations,
+      showAccount,
+    ],
+    enabled: Boolean(patientId) && editionReady,
+    queryFn: () =>
+      loadPatientRecord(patientId, encounters, {
+        lab: showLabRecords,
+        radiology: showRadRecords,
+        documents: showDocs,
+        pharmacy: showPharmacyTab,
+        clinical: showClinical,
+        nursing: showNursingTab,
+        stay: showStayTab,
+        operations: showOperations,
+        billing: showAccount,
+      }),
   });
-  const { data: radiologyFallback = [], isLoading: radiologyFallbackLoading } = useQuery({
-    queryKey: ["/radiology/worklist", "patient", patientId],
-    enabled: fileSettled && showRadRecords && radiology.length === 0,
-    queryFn: async () => {
-      const response = await apiGet<Rec[]>("/radiology/worklist", {
-        params: { patient_id: patientId, per_page: 50 },
-      });
-      return Array.isArray(response.data) ? response.data.map(radiologyFromWorklist) : [];
-    },
-  });
-  const { data: documentFallback = [], isLoading: documentFallbackLoading } = useQuery({
-    queryKey: ["patient-documents", patientId],
-    enabled: fileSettled && showDocs && documents.length === 0,
-    queryFn: async () => {
-      const response = await apiGet<Rec[]>(`/patients/${patientId}/documents`, {
-        params: { per_page: 50 },
-      });
-      return Array.isArray(response.data) ? response.data.map(documentFromApi) : [];
-    },
-  });
-  const labRows = lab.length > 0 ? lab : labFallback;
-  const radiologyRows = radiology.length > 0 ? radiology : radiologyFallback;
-  const documentRows = documents.length > 0 ? documents : documentFallback;
+  const live = liveRecord ?? emptyLiveRecord();
+  const labRows = lab.length > 0 ? lab : live.lab;
+  const radiologyRows = radiology.length > 0 ? radiology : live.radiology;
+  const documentRows = documents.length > 0 ? documents : live.documents;
+  const bloodRows = bloodRequests.length > 0 ? bloodRequests : live.blood;
+  const prescriptionSource = arr(pharmacy.prescriptions).length > 0 ? arr(pharmacy.prescriptions) : live.prescriptions;
+  const dispenseRows = arr(pharmacy.dispenses).length > 0 ? arr(pharmacy.dispenses) : live.dispenses;
+  const diagnosisRows = arr(clinical.diagnoses).length > 0 ? arr(clinical.diagnoses) : live.diagnoses;
+  const procedureRows = procedures.length > 0 ? procedures : live.procedures;
+  const fileVitals = asObj(clinical.latest_vitals);
+  const vitals = fileVitals.recorded_at ? fileVitals : live.vitals;
+  const nursingNotes = arr(nursing.notes).length > 0 ? arr(nursing.notes) : live.nursing;
+  const admissionItems = arr(admissions.items).length > 0 ? arr(admissions.items) : live.admissions;
+  const operationItems = operations.length > 0 ? operations : live.operations;
+  const fileBilling = billing;
+  const account =
+    arr(fileBilling.recent_invoices).length > 0 || arr(fileBilling.recent_charges).length > 0
+      ? fileBilling
+      : live.billing;
 
   const current = useMemo(() => {
     const open = encounters.filter((row) => row.is_open);
@@ -254,10 +269,10 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
   });
 
   const activeStay = useMemo(() => {
-    return arr(admissions.items).find((row) =>
+    return admissionItems.find((row) =>
       ["admitted", "transferred"].includes(String(row.status ?? "")),
     );
-  }, [admissions]);
+  }, [admissionItems]);
 
   const { data: notes = [] } = useQuery({
     queryKey: ["encounters", current?.id, "notes"],
@@ -267,6 +282,7 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
       return res.data ?? [];
     },
   });
+  const noteRows = notes.length > 0 ? (notes as unknown as Rec[]) : live.notes;
 
   function setField(key: string, value: string) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -554,7 +570,6 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
         ? t("patients.female")
         : arabicLabel(patient.gender);
 
-  const vitals = asObj(clinical.latest_vitals);
   const tabs: Array<[TabKey, string]> = [
     ["file", t("workspace.fileInfo")],
     ...(showClinical ? [["visit", t("workspace.treatment")] as [TabKey, string]] : []),
@@ -708,9 +723,9 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
         </div>
 
         <div className="min-h-min flex-1 overflow-auto p-2">
-          {fileError ? (
+          {fileError && liveError && labRows.length + radiologyRows.length + documentRows.length === 0 ? (
             <div className="mb-2 border border-[var(--his-danger)] bg-white px-2 py-1 text-[12px] text-[var(--his-danger)]">
-              {getErrorMessage(fileLoadError)}
+              {getErrorMessage(liveLoadError ?? fileLoadError)}
             </div>
           ) : null}
           {tab === "file" && (
@@ -784,7 +799,7 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
                     { key: "actor", header: t("patients.actor"), width: 150, cell: (row) => text(row.actor) },
                     { key: "when", header: t("app.date"), width: 140, cell: (row) => text(row.when) },
                   ]}
-                  rows={visitSheet(arr(clinical.diagnoses), procedures, notes as unknown as Rec[], tr)}
+                  rows={visitSheet(diagnosisRows, procedureRows, noteRows, tr)}
                   rowKey={(_row, index) => index}
                   emptyText={t("app.noData")}
                 />
@@ -815,7 +830,7 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
                           ),
                       },
                     ]}
-                    rows={operations.filter((row) => !current || Number(row.encounter_id) === current.id)}
+                    rows={operationItems.filter((row) => !current || Number(row.encounter_id) === current.id)}
                     rowKey={(row, index) => String(row.id ?? index)}
                     emptyText={t("app.noData")}
                   />
@@ -875,7 +890,7 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
                     },
                   ]}
                   rows={labRows}
-                  loading={lab.length === 0 && labFallbackLoading}
+                  loading={labRows.length === 0 && liveLoading}
                   rowKey={(row, index) => String(row.id ?? index)}
                   emptyText={t("app.noData")}
                 />
@@ -908,7 +923,7 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
                         ) : null,
                     },
                   ]}
-                  rows={bloodRequests}
+                  rows={bloodRows}
                   rowKey={(row, index) => String(row.id ?? index)}
                   emptyText={t("app.noData")}
                 />
@@ -975,7 +990,7 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
                     },
                   ]}
                   rows={radiologyRows}
-                  loading={radiology.length === 0 && radiologyFallbackLoading}
+                  loading={radiologyRows.length === 0 && liveLoading}
                   rowKey={(row, index) => String(row.id ?? index)}
                   emptyText={t("app.noData")}
                 />
@@ -995,7 +1010,7 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
                     { key: "actor", header: t("patients.actor"), width: 150, cell: (row) => actorOf(row) || "—" },
                     { key: "when", header: t("app.date"), width: 140, cell: (row) => timelineWhen(row.prescribed_at) },
                   ]}
-                  rows={prescriptionRows(arr(pharmacy.prescriptions))}
+                  rows={prescriptionRows(prescriptionSource)}
                   rowKey={(row, index) => `${text(row.prescription_number, "rx")}-${index}`}
                   emptyText={t("app.noData")}
                 />
@@ -1019,7 +1034,7 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
                     { key: "actor", header: t("patients.actor"), width: 150, cell: (row) => actorOf(row) || "—" },
                     { key: "when", header: t("app.date"), width: 140, cell: (row) => timelineWhen(row.prescribed_at) },
                   ]}
-                  rows={prescriptionRows(arr(pharmacy.prescriptions))}
+                  rows={prescriptionRows(prescriptionSource)}
                   rowKey={(row, index) => `${text(row.prescription_number, "rx")}-${index}`}
                   emptyText={t("app.noData")}
                 />
@@ -1036,7 +1051,7 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
                     { key: "actor", header: t("patients.actor"), width: 150, cell: (row) => actorOf(row) || "—" },
                     { key: "when", header: t("app.date"), width: 140, cell: (row) => timelineWhen(row.dispensed_at) },
                   ]}
-                  rows={arr(pharmacy.dispenses)}
+                  rows={dispenseRows}
                   rowKey={(row, index) => String(row.id ?? index)}
                   emptyText={t("app.noData")}
                 />
@@ -1046,7 +1061,7 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
 
           {tab === "nursing" && showNursingTab && (
             <Section title={t("workspace.nursing")}>
-              <SimpleList items={arr(nursing.notes)} text={(item) => withActor(text(item.content), item, t("patients.actor"))} />
+              <SimpleList items={nursingNotes} text={(item) => withActor(text(item.content), item, t("patients.actor"))} />
             </Section>
           )}
 
@@ -1054,7 +1069,7 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
             <div className="grid gap-2 md:grid-cols-2">
               <Section title={t("workspace.stay")}>
                 <SimpleList
-                  items={arr(admissions.items)}
+                  items={admissionItems}
                   text={(item) =>
                     withActor(
                       `${localize(item.admission_number)} — ${arabicLabel(item.status)} — ${text(item.bed || item.department)}`,
@@ -1067,7 +1082,7 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
               {showOperations ? (
               <Section title={t("nav.operations")}>
                 <SimpleList
-                  items={operations}
+                  items={operationItems}
                   text={(item) => withActor(`${text(item.name)} — ${arabicLabel(item.status)} — ${formatDate(String(item.scheduled_at ?? ""), true)}`, item, t("patients.actor"))}
                 />
               </Section>
@@ -1077,7 +1092,7 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
 
           {tab === "billing" && showAccount && (
             <PatientAccountPanel
-              billing={billing}
+              billing={account}
               onPay={
                 canPay
                   ? (invoice) =>
@@ -1111,7 +1126,7 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
                 ) : null
               }
             >
-              {documentRows.length === 0 && documentFallbackLoading ? (
+              {documentRows.length === 0 && liveLoading ? (
                 <p className="text-[12px] text-[var(--his-muted)]">{t("app.loading")}</p>
               ) : (
               <DocumentGallery
@@ -1770,6 +1785,172 @@ function toSql(value?: string) {
   return normalized.length === 16 ? `${normalized}:00` : normalized;
 }
 
+type RecordFlags = {
+  lab: boolean;
+  radiology: boolean;
+  documents: boolean;
+  pharmacy: boolean;
+  clinical: boolean;
+  nursing: boolean;
+  stay: boolean;
+  operations: boolean;
+  billing: boolean;
+};
+
+type LiveRecord = {
+  lab: Rec[];
+  radiology: Rec[];
+  documents: Rec[];
+  blood: Rec[];
+  prescriptions: Rec[];
+  dispenses: Rec[];
+  diagnoses: Rec[];
+  procedures: Rec[];
+  notes: Rec[];
+  vitals: Rec;
+  nursing: Rec[];
+  admissions: Rec[];
+  operations: Rec[];
+  billing: Rec;
+};
+
+function emptyLiveRecord(): LiveRecord {
+  return {
+    lab: [],
+    radiology: [],
+    documents: [],
+    blood: [],
+    prescriptions: [],
+    dispenses: [],
+    diagnoses: [],
+    procedures: [],
+    notes: [],
+    vitals: {},
+    nursing: [],
+    admissions: [],
+    operations: [],
+    billing: {},
+  };
+}
+
+async function readRows(path: string, params: Record<string, string | number>): Promise<Rec[]> {
+  try {
+    const body = await apiGet<{ data?: unknown }>(path, { params });
+    return arr(body?.data);
+  } catch {
+    return [];
+  }
+}
+
+async function loadPatientRecord(
+  patientId: string,
+  encounters: { id: number }[],
+  flags: RecordFlags,
+): Promise<LiveRecord> {
+  const record = emptyLiveRecord();
+  const visits = encounters.slice(0, 20);
+  const jobs: Promise<void>[] = [];
+
+  if (flags.lab) {
+    jobs.push(
+      readRows("/laboratory/worklist", { patient_id: patientId, per_page: 50 }).then((rows) => {
+        record.lab = rows.map(labFromWorklist);
+      }),
+      readRows("/laboratory/blood-requests", { patient_id: patientId, per_page: 50 }).then((rows) => {
+        record.blood = rows.map(bloodFromApi);
+      }),
+    );
+  }
+  if (flags.radiology) {
+    jobs.push(
+      readRows("/radiology/worklist", { patient_id: patientId, per_page: 50 }).then((rows) => {
+        record.radiology = rows.map(radiologyFromWorklist);
+      }),
+    );
+  }
+  if (flags.documents) {
+    jobs.push(
+      readRows(`/patients/${patientId}/documents`, { per_page: 50 }).then((rows) => {
+        record.documents = rows.map(documentFromApi);
+      }),
+    );
+  }
+  if (flags.pharmacy) {
+    jobs.push(
+      readRows("/pharmacy/prescriptions", { patient_id: patientId, per_page: 50 }).then((rows) => {
+        record.prescriptions = rows.map(prescriptionFromApi);
+      }),
+      readRows("/pharmacy/dispenses", { patient_id: patientId, per_page: 50 }).then((rows) => {
+        record.dispenses = rows.map(dispenseFromApi);
+      }),
+    );
+  }
+  if (flags.clinical && visits.length > 0) {
+    jobs.push(
+      Promise.all(
+        visits.map(async (encounter) => ({
+          diagnoses: await readRows(`/encounters/${encounter.id}/diagnoses`, {}),
+          procedures: await readRows(`/encounters/${encounter.id}/procedures`, {}),
+          notes: await readRows(`/encounters/${encounter.id}/notes`, {}),
+          vitals: await readRows(`/encounters/${encounter.id}/vitals`, {}),
+        })),
+      ).then((packs) => {
+        record.diagnoses = packs.flatMap((pack) => pack.diagnoses).map(diagnosisFromApi);
+        record.procedures = packs.flatMap((pack) => pack.procedures).map(procedureFromApi);
+        record.notes = packs.flatMap((pack) => pack.notes).map(noteFromApi);
+        const readings = packs.flatMap((pack) => pack.vitals).map(vitalFromApi);
+        readings.sort((left, right) => String(right.recorded_at ?? "").localeCompare(String(left.recorded_at ?? "")));
+        record.vitals = readings[0] ?? {};
+      }),
+    );
+  }
+  if (flags.nursing && visits.length > 0) {
+    jobs.push(
+      Promise.all(visits.map((encounter) => readRows(`/encounters/${encounter.id}/nursing-notes`, { per_page: 50 }))).then(
+        (packs) => {
+          record.nursing = packs.flat().map(nursingFromApi);
+        },
+      ),
+    );
+  }
+  if (flags.stay) {
+    jobs.push(
+      readRows("/inpatient/admissions", { patient_id: patientId, per_page: 50, active_only: 0 }).then((rows) => {
+        record.admissions = rows.map(admissionFromApi);
+      }),
+    );
+  }
+  if (flags.operations) {
+    jobs.push(
+      readRows("/operations", { patient_id: patientId, per_page: 50 }).then((rows) => {
+        record.operations = rows.map(operationFromApi);
+      }),
+    );
+  }
+  if (flags.billing) {
+    jobs.push(
+      Promise.all([
+        readRows("/billing/charges", { patient_id: patientId, per_page: 50 }),
+        readRows("/billing/invoices", { patient_id: patientId, per_page: 50 }),
+      ]).then(([charges, invoices]) => {
+        const charged = charges.reduce((sum, row) => sum + Number(row.total ?? 0), 0);
+        const paid = invoices.reduce((sum, row) => sum + Number(row.paid_amount ?? 0), 0);
+        const balance = invoices.reduce((sum, row) => sum + Number(row.balance ?? 0), 0);
+        record.billing = {
+          charged_total: charged,
+          paid_total: paid,
+          outstanding_balance: balance,
+          recent_charges: charges,
+          recent_invoices: invoices,
+        };
+      }),
+    );
+  }
+
+  await Promise.all(jobs);
+  return record;
+}
+
 function labFromWorklist(row: Rec): Rec {
   const test = asObj(row.test);
   const result = asObj(row.result);
@@ -1789,7 +1970,7 @@ function labFromWorklist(row: Rec): Rec {
 function radiologyFromWorklist(row: Rec): Rec {
   const service = asObj(row.service);
   const order = asObj(row.order);
-  const studies = arr(row.studies);
+  const studies = nestedRows(row.studies);
   const study = asObj(studies[studies.length - 1]);
   const report = asObj(study.report);
   return {
@@ -1821,12 +2002,146 @@ function documentFromApi(row: Rec): Rec {
   };
 }
 
+function bloodFromApi(row: Rec): Rec {
+  return {
+    ...row,
+    product: row.product_label ?? row.product_name ?? row.product,
+    by: row.requested_by ?? row.by,
+  };
+}
+
+function prescriptionFromApi(row: Rec): Rec {
+  const doctor = asObj(row.doctor);
+  const entered = asObj(row.entered_by);
+  return {
+    id: row.id,
+    prescription_number: row.prescription_number,
+    status: row.status,
+    by: entered.name ?? doctor.name,
+    doctor: doctor.name,
+    prescribed_at: row.prescribed_at,
+    medications: nestedRows(row.items).map((item) => {
+      const medication = asObj(item.medication);
+      return {
+        name: medication.name ?? item.name,
+        quantity: item.quantity,
+        price: medication.price,
+      };
+    }),
+  };
+}
+
+function dispenseFromApi(row: Rec): Rec {
+  const medication = asObj(row.medication);
+  return {
+    id: row.id,
+    dispense_number: row.dispense_number,
+    medication: medication.name ?? row.medication,
+    quantity: row.quantity,
+    total_price: row.total_price,
+    by: row.dispensed_by,
+    dispensed_at: row.dispensed_at,
+  };
+}
+
+function diagnosisFromApi(row: Rec): Rec {
+  const code = asObj(row.code);
+  const doctor = asObj(row.doctor);
+  const entered = asObj(row.entered_by);
+  return {
+    id: row.id,
+    name: row.diagnosis_name ?? row.name,
+    code: typeof row.code === "string" ? row.code : code.code,
+    type: row.type,
+    by: entered.name ?? doctor.name,
+    doctor: doctor.name,
+    diagnosed_at: row.diagnosed_at,
+  };
+}
+
+function procedureFromApi(row: Rec): Rec {
+  const doctor = asObj(row.doctor);
+  const recorded = asObj(row.recorded_by);
+  return {
+    ...row,
+    by: recorded.name ?? doctor.name,
+    doctor: doctor.name,
+  };
+}
+
+function noteFromApi(row: Rec): Rec {
+  const author = row.author;
+  return {
+    ...row,
+    by: typeof author === "string" ? author : asObj(author).name,
+  };
+}
+
+function vitalFromApi(row: Rec): Rec {
+  const recorded = asObj(row.recorded_by);
+  return {
+    ...row,
+    by: recorded.name ?? row.by,
+  };
+}
+
+function nursingFromApi(row: Rec): Rec {
+  const author = row.author;
+  return {
+    ...row,
+    by: typeof author === "string" ? author : asObj(author).name,
+  };
+}
+
+function admissionFromApi(row: Rec): Rec {
+  const department = asObj(row.department);
+  const bed = asObj(row.current_bed);
+  const doctor = asObj(row.attending_doctor);
+  return {
+    id: row.id,
+    admission_number: row.admission_number,
+    status: row.status,
+    department: department.name,
+    bed: bed.label,
+    by: doctor.name,
+    admitted_at: row.admitted_at,
+  };
+}
+
+function operationFromApi(row: Rec): Rec {
+  const type = asObj(row.type);
+  return {
+    id: row.id,
+    encounter_id: row.encounter_id,
+    name: type.name ?? row.name,
+    status: row.status,
+    scheduled_at: row.scheduled_at,
+    price: type.price ?? row.price ?? 0,
+  };
+}
+
 function asObj(value: unknown): Rec {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Rec) : {};
 }
 
+function nestedRows(value: unknown): Rec[] {
+  const direct = arr(value);
+  if (direct.length > 0) return direct;
+  if (value && typeof value === "object" && "data" in (value as Rec)) {
+    return arr((value as Rec).data);
+  }
+  return direct;
+}
+
 function arr(value: unknown): Rec[] {
-  return Array.isArray(value) ? (value as Rec[]) : [];
+  if (Array.isArray(value)) return value as Rec[];
+  if (!value || typeof value !== "object") return [];
+  const record = value as Record<string, unknown>;
+  const keys = Object.keys(record);
+  if (keys.length === 0 || !keys.every((key) => /^\d+$/.test(key))) return [];
+  return keys
+    .sort((left, right) => Number(left) - Number(right))
+    .map((key) => record[key] as Rec);
 }
 
 function text(value: unknown, empty = "—") {

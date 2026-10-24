@@ -27,7 +27,7 @@ final class ApiResponse
             $payload['meta'] = $meta;
         }
 
-        return new JsonResponse($payload, $status);
+        return new JsonResponse($payload, $status, [], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
     }
 
     public static function resource(JsonResource $resource, int $status = Response::HTTP_OK): JsonResponse

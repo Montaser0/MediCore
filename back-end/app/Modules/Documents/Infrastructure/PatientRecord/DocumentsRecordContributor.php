@@ -8,6 +8,8 @@ use App\Core\Support\Contracts\PatientRecordContributor;
 use App\Modules\Documents\Application\Queries\ResolveDocumentExamNames;
 use App\Modules\Documents\Infrastructure\Persistence\Models\FileLinkModel;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use stdClass;
 
 /**
  * The patient file lists documents, but a CT is hundreds of DICOM slices.
@@ -31,7 +33,12 @@ final class DocumentsRecordContributor implements PatientRecordContributor
             ->where('patient_id', $patientId)
             ->when($encounterId !== null, fn ($query) => $query->where('encounter_id', $encounterId));
 
-        $groups = $this->dicomStudies($patientId, $encounterId);
+        try {
+            $groups = $this->dicomStudies($patientId, $encounterId);
+        } catch (\Throwable $error) {
+            report($error);
+            $groups = collect();
+        }
         $lastIds = $groups->pluck('last_link_id')->map(fn ($id) => (int) $id)->filter()->all();
         $lastLinks = $lastIds === []
             ? collect()
@@ -84,22 +91,20 @@ final class DocumentsRecordContributor implements PatientRecordContributor
 
         return [
             'total' => (clone $links)->count(),
-            'by_category' => (clone $links)
-                ->selectRaw('category, COUNT(*) as total')
-                ->groupBy('category')
-                ->pluck('total', 'category')
-                ->all(),
-            'recent' => array_map(fn (array $item) => $item['row'], array_slice($rows, 0, 30)),
+            'by_category' => $this->countsByCategory($patientId, $encounterId),
+            'recent' => array_values(array_map(fn (array $item) => $item['row'], array_slice($rows, 0, 30))),
         ];
     }
 
     /**
-     * @return Collection<int, FileLinkModel>
+     * Grouped rows are plain aggregates. Hydrating them as file-link models
+     * asks MySQL for columns that are not in the GROUP BY and blanks the file.
+     *
+     * @return Collection<int, stdClass>
      */
     private function dicomStudies(int $patientId, ?int $encounterId): Collection
     {
-        return FileLinkModel::query()
-            ->from('file_links')
+        return DB::table('file_links')
             ->join('files', 'files.id', '=', 'file_links.file_id')
             ->where('file_links.patient_id', $patientId)
             ->when($encounterId !== null, fn ($query) => $query->where('file_links.encounter_id', $encounterId))
@@ -112,6 +117,27 @@ final class DocumentsRecordContributor implements PatientRecordContributor
             ->groupBy('file_links.entity_id')
             ->selectRaw('file_links.entity_id as study_id, COUNT(*) as file_count, MAX(file_links.id) as last_link_id, SUM(files.size) as total_size, MAX(files.created_at) as created_at')
             ->get();
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    private function countsByCategory(int $patientId, ?int $encounterId): array
+    {
+        $rows = DB::table('file_links')
+            ->where('patient_id', $patientId)
+            ->when($encounterId !== null, fn ($query) => $query->where('encounter_id', $encounterId))
+            ->selectRaw('category, COUNT(*) as total')
+            ->groupBy('category')
+            ->get();
+
+        $counts = [];
+
+        foreach ($rows as $row) {
+            $counts[(string) ($row->category ?? '')] = (int) $row->total;
+        }
+
+        return $counts;
     }
 
     /**
