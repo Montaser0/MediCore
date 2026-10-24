@@ -201,6 +201,9 @@ return [
          * file. Using 'default' here means to use the `default` set in cache.php.
          */
 
-        'store' => 'default',
+        // Per-request memory: permissions come straight from the database, so a
+        // cache file owned by another OS user (deploys run as root) can never
+        // turn a permission check into a 500.
+        'store' => env('PERMISSION_CACHE_STORE', 'array'),
     ],
 ];
