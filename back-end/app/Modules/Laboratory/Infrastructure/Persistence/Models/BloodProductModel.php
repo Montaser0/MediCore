@@ -42,6 +42,19 @@ final class BloodProductModel extends BaseModel
             return;
         }
 
+        // A repair step that cannot run (for example restricted DDL rights)
+        // must never block reading or saving; the real query reports its own error.
+        try {
+            self::repairCatalog();
+        } catch (Throwable $exception) {
+            report($exception);
+        }
+
+        self::$catalogReady = true;
+    }
+
+    private static function repairCatalog(): void
+    {
         if (! Schema::hasTable('blood_products')) {
             try {
                 Schema::create('blood_products', function (Blueprint $table): void {
@@ -108,7 +121,6 @@ final class BloodProductModel extends BaseModel
         }
 
         self::ensureManagePermission();
-        self::$catalogReady = true;
     }
 
     /**

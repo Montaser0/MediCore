@@ -130,8 +130,22 @@ return Application::configure(basePath: dirname(__DIR__))
                 return null;
             }
 
+            $message = 'حدث خطأ غير متوقع. حاول مرة أخرى.';
+
+            // Administrators (and debug mode) see the real cause so a server
+            // fault can be reported precisely instead of a generic sentence.
+            try {
+                $canSeeCause = config('app.debug') || $request->user()?->can('settings.manage') === true;
+            } catch (Throwable) {
+                $canSeeCause = false;
+            }
+
+            if ($canSeeCause) {
+                $message .= ' السبب: '.class_basename($e).' — '.mb_substr(preg_replace('/\s+/', ' ', $e->getMessage()) ?? '', 0, 300);
+            }
+
             return response()->json([
-                'message' => 'حدث خطأ غير متوقع. حاول مرة أخرى.',
+                'message' => $message,
                 'error' => 'server_error',
             ], 500);
         });
