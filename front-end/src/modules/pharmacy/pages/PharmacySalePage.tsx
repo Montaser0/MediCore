@@ -41,6 +41,7 @@ export function PharmacySalePage() {
   const barcodeRef = useRef("");
   const lookupTimer = useRef<number | null>(null);
   const [barcode, setBarcode] = useState("");
+  const [nameHits, setNameHits] = useState<Drug[]>([]);
   const [lines, setLines] = useState<Line[]>([]);
   const [discount, setDiscount] = useState("");
   const [paid, setPaid] = useState("");
@@ -201,11 +202,32 @@ export function PharmacySalePage() {
     }
   }
 
+  function hasLetter(value: string) {
+    return /[A-Za-z\u0600-\u06FF]/.test(value);
+  }
+
   function onCode(value: string) {
     const code = value.trim();
     remember(code);
     if (lookupTimer.current) window.clearTimeout(lookupTimer.current);
-    if (!code) return;
+    if (!code) {
+      setNameHits([]);
+      return;
+    }
+    if (hasLetter(code)) {
+      lookupTimer.current = window.setTimeout(() => {
+        void apiGet<Drug[]>("/pharmacy/pos/medications", { params: { search: code, per_page: 8 } })
+          .then((res) => {
+            if (barcodeRef.current !== code) return;
+            setNameHits(res.data ?? []);
+          })
+          .catch(() => {
+            if (barcodeRef.current === code) setNameHits([]);
+          });
+      }, 250);
+      return;
+    }
+    setNameHits([]);
     const { exact, prefix } = localMatch(code);
     if (exact && !prefix) {
       addDrug(exact, code);
@@ -216,11 +238,32 @@ export function PharmacySalePage() {
     }, 280);
   }
 
+  async function pickByName(code: string) {
+    try {
+      const res = await apiGet<Drug[]>("/pharmacy/pos/medications", { params: { search: code, per_page: 8 } });
+      if (barcodeRef.current !== code) return;
+      const hits = res.data ?? [];
+      if (hits.length === 1) {
+        setNameHits([]);
+        addDrug(hits[0], hits[0].barcode ?? "");
+        return;
+      }
+      setNameHits(hits);
+      if (hits.length === 0) toast.error(t("pharmacy.notFound"));
+    } catch (error) {
+      if (barcodeRef.current === code) toast.error(getErrorMessage(error));
+    }
+  }
+
   function scan(event: FormEvent) {
     event.preventDefault();
     if (lookupTimer.current) window.clearTimeout(lookupTimer.current);
     const code = barcodeRef.current.trim();
     if (!code) return;
+    if (hasLetter(code)) {
+      void pickByName(code);
+      return;
+    }
     void lookup(code, true);
   }
 
@@ -274,13 +317,32 @@ export function PharmacySalePage() {
         </Button>
       </PageToolbar>
       <form onSubmit={scan} className="flex flex-wrap items-center gap-2 border-b border-[var(--his-border)] bg-white p-2">
-        <Input
-          ref={input}
-          value={barcode}
-          onChange={(event) => onCode(event.target.value)}
-          placeholder={t("pharmacy.scan")}
-          className="max-w-md"
-        />
+        <div className="relative max-w-md flex-1">
+          <Input
+            ref={input}
+            value={barcode}
+            onChange={(event) => onCode(event.target.value)}
+            placeholder={t("pharmacy.scan")}
+          />
+          {nameHits.length > 0 ? (
+            <div className="absolute z-20 mt-1 max-h-64 w-full overflow-auto border border-[var(--his-border)] bg-white shadow">
+              {nameHits.map((drug) => (
+                <button
+                  key={drug.id}
+                  type="button"
+                  className="block w-full border-b border-[var(--his-border)] px-2 py-1 text-start text-[13px] last:border-b-0 hover:bg-[var(--his-surface)]"
+                  onClick={() => {
+                    setNameHits([]);
+                    addDrug(drug, drug.barcode ?? "");
+                  }}
+                >
+                  {drug.name}
+                  <span className="text-[var(--his-muted)]"> · {drug.quantity ?? 0}</span>
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
         <Button type="submit" variant="primary">
           {t("pharmacy.barcode")}
         </Button>

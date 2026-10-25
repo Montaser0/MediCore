@@ -33,6 +33,7 @@ import { PatientAccountPanel } from "../components/PatientAccountPanel";
 import { formatDate, formatMoney, latinDigits } from "@/lib/utils";
 import { apiDelete, apiGet, apiPost, getErrorMessage } from "@/lib/api/client";
 import { BLOOD_GROUPS } from "@/modules/laboratory/blood";
+import { CatalogueSearch } from "@/modules/pharmacy/components/CatalogueSearch";
 import { DocumentGallery, downloadImagingStudy } from "@/components/shared/DocumentGallery";
 import { useAuthStore } from "@/stores/auth-store";
 import { useEditionStore } from "@/stores/edition-store";
@@ -428,7 +429,9 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
           notes: form.notes,
           items: [
             {
-              medication_id: num(form.medication_id),
+              ...(num(form.catalogue_item_id)
+                ? { catalogue_item_id: num(form.catalogue_item_id) }
+                : { medication_id: num(form.medication_id) }),
               dose: form.dose,
               frequency: form.frequency,
               duration: form.duration,
@@ -1445,9 +1448,17 @@ function ActionFields({
     case "medication":
       return (
         <>
-          <Field label={t("workspace.medAction")}>
-            <NamedSelect required rows={catalogs?.medications} value={form.medication_id ?? ""} onChange={(value) => setField("medication_id", value)} />
-          </Field>
+          <div>
+            <span className="mb-1 block text-[12px] text-[var(--his-muted)]">{t("workspace.medAction")}</span>
+            <CatalogueSearch
+              selectedLabel={form.medication_label ?? ""}
+              onSelect={(item) => {
+                setField("catalogue_item_id", String(item.id));
+                setField("medication_label", item.display_name);
+                setField("medication_id", "");
+              }}
+            />
+          </div>
           <div className="grid grid-cols-2 gap-2">
             <Field label={t("workspace.dose")}>
               <Input value={form.dose ?? ""} onChange={(e) => setField("dose", e.target.value)} />

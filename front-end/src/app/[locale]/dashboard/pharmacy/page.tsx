@@ -20,6 +20,7 @@ import { useEditionStore } from "@/stores/edition-store";
 import { formatMoney } from "@/lib/utils";
 import { dailyNo } from "@/lib/arabicText";
 import { PharmacyCatalogPage } from "@/modules/pharmacy/pages/PharmacyCatalogPage";
+import { CatalogueSearch, type CatalogueHit } from "@/modules/pharmacy/components/CatalogueSearch";
 
 type Row = Record<string, unknown>;
 type RxItem = {
@@ -211,32 +212,43 @@ function PharmacyDeskPage() {
             id: "medications",
             label: t("pharmacy.medications"),
             content: (
-              <CrudResourcePage
-                title={t("pharmacy.medications")}
-                endpoint="/pharmacy/medications"
-                excel="medications"
-                excelCaption={t("nav.pharmacyCatalog")}
-                toolbarExtra={
-                  <ExcelButtons
-                    resource="pharmacy"
-                    caption={t("nav.pharmacy")}
-                    onImported={() => qc.invalidateQueries({ queryKey: ["/pharmacy/medications"] })}
+              <div className="flex h-full flex-col">
+                <HospitalCatalogueBar
+                  onAdded={() => qc.invalidateQueries({ queryKey: ["/pharmacy/medications"] })}
+                />
+                <div className="min-h-0 flex-1">
+                  <CrudResourcePage
+                    title={t("pharmacy.medications")}
+                    endpoint="/pharmacy/medications"
+                    excel="medications"
+                    excelCaption={t("nav.pharmacyCatalog")}
+                    toolbarExtra={
+                      <ExcelButtons
+                        resource="pharmacy"
+                        caption={t("nav.pharmacy")}
+                        onImported={() => qc.invalidateQueries({ queryKey: ["/pharmacy/medications"] })}
+                      />
+                    }
+                    columns={[
+                      { key: "name", header: t("pharmacy.tradeName"), render: (row) => String(row.name ?? "—") },
+                      { key: "generic_name", header: t("pharmacy.generic"), render: (row) => String(row.generic_name ?? "—") },
+                      { key: "strength", header: t("pharmacy.strength"), width: 110, render: (row) => String(row.strength ?? "—") },
+                      { key: "dosage_form", header: t("pharmacy.form"), width: 120, render: (row) => String(row.dosage_form ?? "—") },
+                      { key: "manufacturer", header: t("pharmacy.company"), render: (row) => String(row.manufacturer ?? "—") },
+                      { key: "price", header: t("pharmacy.price"), width: 110, render: (row) => formatMoney(row.price) },
+                    ]}
+                    fields={[
+                      { key: "name", label: t("pharmacy.tradeName"), required: true },
+                      { key: "generic_name", label: t("pharmacy.generic") },
+                      { key: "strength", label: t("pharmacy.strength") },
+                      { key: "dosage_form", label: t("pharmacy.form") },
+                      { key: "pack", label: t("pharmacy.pack") },
+                      { key: "manufacturer", label: t("pharmacy.company") },
+                      { key: "price", label: t("pharmacy.price"), type: "number" },
+                    ]}
                   />
-                }
-                columns={[
-                  { key: "id", header: "#", width: 60 },
-                  { key: "name", header: t("crud.name"), render: (row) => String(row.name ?? "—") },
-                  { key: "strength", header: t("crud.type"), render: (row) => String(row.strength ?? "—") },
-                  { key: "price", header: t("crud.price"), width: 110, render: (row) => formatMoney(row.price) },
-                ]}
-                fields={[
-                  { key: "name", label: t("crud.name"), required: true },
-                  { key: "generic_name", label: t("crud.name") },
-                  { key: "strength", label: t("crud.type") },
-                  { key: "dosage_form", label: t("crud.type") },
-                  { key: "price", label: t("crud.price"), type: "number" },
-                ]}
-              />
+                </div>
+              </div>
             ),
           }] : []),
         ]}
@@ -274,5 +286,45 @@ function PharmacyDeskPage() {
         />
       ) : null}
     </>
+  );
+}
+
+function HospitalCatalogueBar({ onAdded }: { onAdded: () => void }) {
+  const t = useTranslations();
+  const [picked, setPicked] = useState<CatalogueHit | null>(null);
+  const [price, setPrice] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  async function add() {
+    if (!picked) return;
+    setSaving(true);
+    try {
+      await apiPost(`/pharmacy/catalogue/${picked.id}/adopt`, price.trim() === "" ? {} : { price: Number(price) });
+      toast.success(t("pharmacy.adopted"));
+      setPicked(null);
+      setPrice("");
+      onAdded();
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="grid gap-2 border-b border-[var(--his-border)] bg-white p-2 md:grid-cols-[1fr_140px_auto]">
+      <CatalogueSearch selectedLabel={picked?.display_name} onSelect={setPicked} />
+      <Input
+        type="number"
+        min="0"
+        step="0.01"
+        placeholder={t("pharmacy.price")}
+        value={price}
+        onChange={(event) => setPrice(event.target.value)}
+      />
+      <Button type="button" variant="primary" disabled={saving || !picked} onClick={() => void add()}>
+        {t("pharmacy.adoptDrug")}
+      </Button>
+    </div>
   );
 }

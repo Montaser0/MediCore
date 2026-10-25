@@ -43,6 +43,11 @@ final class MedicationModel extends BaseModel
         return $this->belongsTo(InventoryItemModel::class, 'inventory_item_id');
     }
 
+    public function catalogueItem(): BelongsTo
+    {
+        return $this->belongsTo(DrugCatalogueItemModel::class, 'catalogue_item_id');
+    }
+
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);
@@ -59,6 +64,8 @@ final class MedicationModel extends BaseModel
         return $query->where(function (Builder $inner) use ($term): void {
             $inner->where('name', 'like', '%'.$term.'%')
                 ->orWhere('generic_name', 'like', '%'.$term.'%')
+                ->orWhere('manufacturer', 'like', '%'.$term.'%')
+                ->orWhere('strength', 'like', '%'.$term.'%')
                 ->orWhere('barcode', $term);
         });
     }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Core\Authorization\Permissions;
 use App\Core\Modules\ModuleRegistry;
 use App\Modules\Pharmacy\Presentation\Controllers\DispenseController;
+use App\Modules\Pharmacy\Presentation\Controllers\DrugCatalogueController;
 use App\Modules\Pharmacy\Presentation\Controllers\MedicationController;
 use App\Modules\Pharmacy\Presentation\Controllers\PharmacyTillController;
 use App\Modules\Pharmacy\Presentation\Controllers\PosController;
@@ -13,8 +14,17 @@ use Illuminate\Support\Facades\Route;
 
 $registry = app(ModuleRegistry::class);
 
+$catalogueRead = 'permission:'.Permissions::PHARMACY_MEDICATIONS_MANAGE.'|'.Permissions::PHARMACY_PRESCRIPTIONS_CREATE.'|'.Permissions::ORDERS_VIEW;
+
+Route::middleware(['auth:sanctum', $catalogueRead])->prefix('pharmacy')->group(function (): void {
+    Route::get('catalogue', [DrugCatalogueController::class, 'index']);
+});
+
 if ($registry->feature('pharmacy.pos')) {
     $till = 'permission:'.Permissions::PHARMACY_MEDICATIONS_MANAGE.'|'.Permissions::PHARMACY_DISPENSING_CREATE;
+
+    Route::middleware(['auth:sanctum', 'permission:'.Permissions::PHARMACY_MEDICATIONS_MANAGE])
+        ->post('pharmacy/catalogue/{catalogueItem}/stock', [DrugCatalogueController::class, 'stock']);
 
     Route::middleware(['auth:sanctum', $till])->prefix('pharmacy/pos')->group(function (): void {
         Route::get('medications', [PosController::class, 'index']);
@@ -50,6 +60,7 @@ Route::middleware('auth:sanctum')->prefix('pharmacy')->group(function (): void {
         Route::get('medications/{medication}', [MedicationController::class, 'show']);
     });
 
+    Route::post('catalogue/{catalogueItem}/adopt', [DrugCatalogueController::class, 'adopt']);
     Route::post('medications', [MedicationController::class, 'store']);
     Route::patch('medications/{medication}', [MedicationController::class, 'update']);
     Route::delete('medications/{medication}', [MedicationController::class, 'destroy']);

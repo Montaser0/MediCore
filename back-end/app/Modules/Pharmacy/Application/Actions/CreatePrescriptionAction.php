@@ -12,6 +12,7 @@ use App\Core\Support\Contracts\TimelineRecorder;
 use App\Core\Support\Numbering\NumberGenerator;
 use App\Modules\Pharmacy\Domain\Enums\PrescriptionStatus;
 use App\Modules\Pharmacy\Domain\Events\PrescriptionCreated;
+use App\Modules\Pharmacy\Infrastructure\Persistence\Models\DrugCatalogueItemModel;
 use App\Modules\Pharmacy\Infrastructure\Persistence\Models\MedicationModel;
 use App\Modules\Pharmacy\Infrastructure\Persistence\Models\PrescriptionModel;
 use Illuminate\Support\Facades\DB;
@@ -28,6 +29,7 @@ final class CreatePrescriptionAction
         private readonly CurrentUser $currentUser,
         private readonly TimelineRecorder $timeline,
         private readonly NotificationDispatcher $notifications,
+        private readonly CatalogueDrugAction $catalogue,
     ) {}
 
     /**
@@ -67,7 +69,9 @@ final class CreatePrescriptionAction
             ]);
 
             foreach ($items as $item) {
-                $medication = MedicationModel::query()->findOrFail((int) $item['medication_id']);
+                $medication = MedicationModel::query()->findOrFail(
+                    $this->medicationId($item, (int) $encounter->hospitalId),
+                );
 
                 $prescription->items()->create([
                     'medication_id' => $medication->getKey(),
@@ -114,5 +118,22 @@ final class CreatePrescriptionAction
 
             return $prescription;
         });
+    }
+
+    /**
+     * @param  array<string, mixed>  $item
+     */
+    private function medicationId(array $item, int $hospitalId): int
+    {
+        if (! empty($item['medication_id'])) {
+            return (int) $item['medication_id'];
+        }
+
+        $catalogue = DrugCatalogueItemModel::query()->find((int) ($item['catalogue_item_id'] ?? 0));
+        if ($catalogue === null) {
+            throw BusinessRuleException::make('الدواء غير موجود في الدليل.');
+        }
+
+        return (int) $this->catalogue->adopt($catalogue, $hospitalId)->getKey();
     }
 }
