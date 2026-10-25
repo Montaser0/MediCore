@@ -76,6 +76,7 @@ export function OrderResultDialog({
   accept = "image/*,.pdf,.dcm",
   allowFolder = false,
   hint,
+  resultAction = true,
   onClose,
   onSave,
 }: {
@@ -87,6 +88,7 @@ export function OrderResultDialog({
   accept?: string;
   allowFolder?: boolean;
   hint?: string;
+  resultAction?: boolean;
   onClose: () => void;
   onSave: (input: { text: string; files: File[]; done: boolean }) => Promise<void>;
 }) {
@@ -184,9 +186,11 @@ export function OrderResultDialog({
           <Button type="button" onClick={onClose}>
             {t("app.cancel")}
           </Button>
-          <Button type="button" disabled={busy} onClick={(event) => submit(event, false)}>
-            {t("laboratory.result")}
-          </Button>
+          {resultAction ? (
+            <Button type="button" disabled={busy} onClick={(event) => submit(event, false)}>
+              {t("laboratory.result")}
+            </Button>
+          ) : null}
           <Button type="submit" variant="success" disabled={busy}>
             {t("app.done")}
           </Button>

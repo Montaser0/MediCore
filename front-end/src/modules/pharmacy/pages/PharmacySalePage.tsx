@@ -18,7 +18,14 @@ type Drug = {
   barcode?: string | null;
   quantity?: number;
   price?: number;
+  stock_ready?: boolean;
+  stock?: { quantity_on_hand?: number } | null;
 };
+
+function sellable(drug: Drug): number {
+  if (drug.stock_ready) return Number(drug.stock?.quantity_on_hand ?? 0);
+  return Number(drug.quantity ?? 0);
+}
 
 type Line = {
   medication_id: number;
@@ -140,7 +147,7 @@ export function PharmacySalePage() {
   }
 
   function addDrug(drug: Drug, code: string) {
-    const stock = Number(drug.quantity ?? 0);
+    const stock = sellable(drug);
     const existing = linesRef.current.find((line) => line.medication_id === drug.id);
     if (stock <= 0 || (existing && existing.quantity >= stock)) {
       toast.error(t("pharmacy.outOfStock"));
@@ -337,7 +344,7 @@ export function PharmacySalePage() {
                   }}
                 >
                   {drug.name}
-                  <span className="text-[var(--his-muted)]"> · {drug.quantity ?? 0}</span>
+                  <span className="text-[var(--his-muted)]"> · {sellable(drug)}</span>
                 </button>
               ))}
             </div>

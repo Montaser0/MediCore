@@ -36,6 +36,7 @@ final class MedicationResource extends JsonResource
             'requires_prescription' => $this->requires_prescription,
             'is_active' => $this->is_active,
             'inventory_item_id' => $this->inventory_item_id,
+            'stock_ready' => $this->inventory_item_id !== null,
             'stock' => $this->whenLoaded('inventoryItem', fn () => $this->inventoryItem === null ? null : [
                 'inventory_item_id' => $this->inventoryItem->id,
                 'sku' => $this->inventoryItem->sku,

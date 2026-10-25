@@ -7,7 +7,9 @@ use App\Core\Modules\ModuleRegistry;
 use App\Modules\Pharmacy\Presentation\Controllers\DispenseController;
 use App\Modules\Pharmacy\Presentation\Controllers\DrugCatalogueController;
 use App\Modules\Pharmacy\Presentation\Controllers\MedicationController;
+use App\Modules\Pharmacy\Presentation\Controllers\MedicationStockController;
 use App\Modules\Pharmacy\Presentation\Controllers\PharmacyTillController;
+use App\Modules\Pharmacy\Presentation\Controllers\PharmacyWarehouseController;
 use App\Modules\Pharmacy\Presentation\Controllers\PosController;
 use App\Modules\Pharmacy\Presentation\Controllers\PrescriptionController;
 use Illuminate\Support\Facades\Route;
@@ -48,6 +50,16 @@ if ($registry->feature('pharmacy.pos')) {
     });
 }
 
+Route::middleware(['auth:sanctum', 'permission:'.Permissions::PHARMACY_MEDICATIONS_MANAGE])
+    ->prefix('pharmacy')
+    ->group(function (): void {
+        Route::get('warehouses', [PharmacyWarehouseController::class, 'index']);
+        Route::post('warehouses', [PharmacyWarehouseController::class, 'store']);
+        Route::post('catalogue/{catalogueItem}/adopt', [DrugCatalogueController::class, 'adopt']);
+        Route::post('medications/{medication}/provision', [MedicationStockController::class, 'provision']);
+        Route::post('medications/{medication}/receive', [MedicationStockController::class, 'receive']);
+    });
+
 if (! $registry->feature('pharmacy.prescriptions')) {
     return;
 }
@@ -60,7 +72,6 @@ Route::middleware('auth:sanctum')->prefix('pharmacy')->group(function (): void {
         Route::get('medications/{medication}', [MedicationController::class, 'show']);
     });
 
-    Route::post('catalogue/{catalogueItem}/adopt', [DrugCatalogueController::class, 'adopt']);
     Route::post('medications', [MedicationController::class, 'store']);
     Route::patch('medications/{medication}', [MedicationController::class, 'update']);
     Route::delete('medications/{medication}', [MedicationController::class, 'destroy']);

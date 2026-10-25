@@ -6,6 +6,9 @@ namespace App\Modules\Pharmacy\Application\Actions;
 
 use App\Core\Auth\CurrentUser;
 use App\Core\Exceptions\BusinessRuleException;
+use App\Core\Support\Contracts\StockService;
+use App\Modules\Inventory\Infrastructure\Persistence\Models\InventoryBatchModel;
+use App\Modules\Inventory\Infrastructure\Persistence\Models\StockMovementModel;
 use App\Modules\Pharmacy\Infrastructure\Persistence\Models\MedicationModel;
 use App\Modules\Pharmacy\Infrastructure\Persistence\Models\PharmacyReturnItemModel;
 use App\Modules\Pharmacy\Infrastructure\Persistence\Models\PharmacyReturnModel;
@@ -18,6 +21,7 @@ final class CreatePharmacyReturnAction
     public function __construct(
         private readonly CurrentUser $currentUser,
         private readonly CreatePharmacySaleAction $sales,
+        private readonly StockService $stock,
     ) {}
 
     /**
@@ -89,7 +93,9 @@ final class CreatePharmacyReturnAction
                         ->lockForUpdate()
                         ->first();
 
-                    if ($medication !== null) {
+                    if ($medication !== null && $medication->inventory_item_id !== null) {
+                        $this->restoreStock($medication, $hospitalId, $quantity, (int) $item->getKey());
+                    } elseif ($medication !== null) {
                         $medication->quantity = round((float) $medication->quantity + $quantity, 2);
                         $medication->save();
                     }
@@ -138,5 +144,47 @@ final class CreatePharmacyReturnAction
 
             return $document->load('items');
         });
+    }
+
+    private function restoreStock(MedicationModel $medication, int $hospitalId, float $quantity, int $saleItemId): void
+    {
+        $soldFrom = StockMovementModel::query()
+            ->where('reference_type', 'pharmacy_sale_item')
+            ->where('reference_id', $saleItemId)
+            ->where('type', 'sale')
+            ->value('warehouse_id');
+        $warehouseId = $soldFrom !== null
+            ? (int) $soldFrom
+            : $this->sales->pharmacyWarehouseId($hospitalId, (int) $medication->inventory_item_id);
+        $batch = InventoryBatchModel::query()
+            ->where('inventory_item_id', $medication->inventory_item_id)
+            ->where('warehouse_id', $warehouseId)
+            ->where(function ($query): void {
+                $query->whereNull('expiry_date')
+                    ->orWhereDate('expiry_date', '>=', now()->toDateString());
+            })
+            ->orderByDesc('id')
+            ->first();
+
+        if (! $batch instanceof InventoryBatchModel) {
+            $batch = InventoryBatchModel::query()->create([
+                'inventory_item_id' => $medication->inventory_item_id,
+                'warehouse_id' => $warehouseId,
+                'batch_number' => 'RETURN',
+                'expiry_date' => now()->addYear()->toDateString(),
+                'quantity' => 0,
+                'unit_cost' => 0,
+            ]);
+        }
+
+        $this->stock->receiveBack(
+            inventoryItemId: (int) $medication->inventory_item_id,
+            warehouseId: $warehouseId,
+            quantity: $quantity,
+            batchId: (int) $batch->getKey(),
+            referenceType: 'pharmacy_sale_item',
+            referenceId: $saleItemId,
+            notes: 'مرتجع بيع',
+        );
     }
 }

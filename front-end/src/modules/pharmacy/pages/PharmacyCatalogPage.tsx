@@ -11,13 +11,14 @@ import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { DataTable, type Column } from "@/components/data-table/DataTable";
 import { ExcelButtons } from "@/components/shared/ExcelButtons";
-import { apiGet, apiPatch, apiPost, getErrorMessage } from "@/lib/api/client";
+import { apiGet, getErrorMessage } from "@/lib/api/client";
 import { roleNames } from "@/config/desk";
 import { useAuthStore } from "@/stores/auth-store";
 import { formatMoney } from "@/lib/utils";
 import { BarcodeImage } from "@/modules/inventory/components/BarcodeImage";
 import { printBarcodeLabels } from "@/modules/inventory/printBarcodeLabels";
 import { CatalogueSearch, catalogueDetail, type CatalogueHit } from "../components/CatalogueSearch";
+import { defineDrug, earliestExpiry } from "../defineDrug";
 
 type ShelfDrug = {
   id: number;
@@ -31,6 +32,8 @@ type ShelfDrug = {
   quantity?: number;
   price?: number;
   catalogue_item_id?: number | null;
+  stock_ready?: boolean;
+  stock?: { quantity_on_hand?: number } | null;
 };
 
 const blank = {
@@ -39,9 +42,18 @@ const blank = {
   name: "",
   detail: "",
   barcode: "",
-  quantity: "",
   price: "",
+  cost: "",
+  quantity: "",
+  expiry: "",
+  shelfQuantity: 0,
+  stockReady: false,
 };
+
+function onHand(row: ShelfDrug): number {
+  if (row.stock_ready) return Number(row.stock?.quantity_on_hand ?? 0);
+  return Number(row.quantity ?? 0);
+}
 
 const PRODUCT_TYPES = ["دواء", "مكمّل غذائي", "غير محسوم", "مستحضر تجميلي", "معقم/مطهر", "مستلزم/أداة"];
 
@@ -103,51 +115,55 @@ export function PharmacyCatalogPage() {
           );
         },
       },
-      { key: "quantity", header: t("pharmacy.quantity"), width: 90, cell: (row) => String(row.quantity ?? 0) },
+      {
+        key: "stock",
+        header: t("pharmacy.onHand"),
+        width: 140,
+        cell: (row) => (
+          <span>
+            <span className="block">{onHand(row)}</span>
+            <span className="block text-[11px] text-[var(--his-muted)]">
+              {row.stock_ready ? t("pharmacy.stockReady") : t("pharmacy.stockMissing")}
+            </span>
+          </span>
+        ),
+      },
       { key: "price", header: t("pharmacy.price"), width: 110, cell: (row) => formatMoney(row.price) },
     ],
     [t],
   );
 
   function chooseCatalogue(item: CatalogueHit) {
+    const known = rows.find((row) => row.id === item.stock?.medication_id);
     setDraft({
       medicationId: item.stock?.medication_id ?? 0,
       catalogueId: item.id,
       name: item.display_name,
       detail: catalogueDetail(item),
       barcode: item.stock?.barcode ?? "",
-      quantity: item.stock ? String(item.stock.quantity ?? 0) : "",
-      price: item.stock ? String(item.stock.price ?? 0) : "",
+      price: item.stock ? String(item.stock.price ?? "") : "",
+      cost: "",
+      quantity: "",
+      expiry: "",
+      shelfQuantity: known ? Number(known.quantity ?? 0) : Number(item.stock?.quantity ?? 0),
+      stockReady: Boolean(known?.stock_ready),
     });
   }
 
   async function save(event: FormEvent) {
     event.preventDefault();
     setSaving(true);
-    const quantity = Number(draft.quantity);
-    const price = Number(draft.price);
     try {
-      if (draft.catalogueId) {
-        await apiPost(`/pharmacy/catalogue/${draft.catalogueId}/stock`, {
-          quantity,
-          price,
-          barcode: draft.barcode.trim(),
-        });
-      } else if (draft.medicationId) {
-        await apiPatch(`/pharmacy/pos/medications/${draft.medicationId}`, {
-          name: draft.name.trim(),
-          barcode: draft.barcode.trim(),
-          quantity,
-          price,
-        });
-      } else {
-        await apiPost("/pharmacy/pos/medications", {
-          name: draft.name.trim(),
-          barcode: draft.barcode.trim(),
-          quantity,
-          price,
-        });
-      }
+      await defineDrug({
+        catalogueId: draft.catalogueId || undefined,
+        medicationId: draft.medicationId || undefined,
+        name: draft.name,
+        barcode: draft.barcode,
+        price: Number(draft.price),
+        cost: Number(draft.cost),
+        quantity: Number(draft.quantity),
+        expiry: draft.expiry,
+      });
       toast.success(t("pharmacy.drugSaved"));
       setDraft(blank);
       await qc.invalidateQueries({ queryKey: ["pharmacy-pos", "medications"] });
@@ -199,57 +215,38 @@ export function PharmacyCatalogPage() {
         </Select>
         <CatalogueSearch productType={productType} selectedLabel={fromCatalogue ? draft.name : ""} onSelect={chooseCatalogue} />
       </div>
-      <form onSubmit={save} className="grid gap-2 border-b border-[var(--his-border)] bg-white p-2 md:grid-cols-5">
-        {fromCatalogue ? (
+      {fromCatalogue ? (
+        <form onSubmit={save} className="grid gap-2 border-b border-[var(--his-border)] bg-white p-2 md:grid-cols-6">
           <div className="md:col-span-2">
             <p className="text-[13px] font-bold">{draft.name}</p>
             <p className="text-[12px] text-[var(--his-muted)]">{draft.detail || "—"}</p>
           </div>
-        ) : (
-          <Input
-            required
-            placeholder={t("pharmacy.manualDrug")}
-            value={draft.name}
-            onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value, catalogueId: 0 }))}
-          />
-        )}
-        <div className="flex flex-col gap-1">
-          <Input
-            placeholder={t("pharmacy.barcode")}
-            value={draft.barcode}
-            onChange={(event) => setDraft((current) => ({ ...current, barcode: event.target.value }))}
-          />
-          {draft.barcode.trim() ? <BarcodeImage code={draft.barcode.trim()} height={56} /> : null}
-        </div>
-        <Input
-          required
-          type="number"
-          min="0"
-          step="0.01"
-          placeholder={t("pharmacy.quantity")}
-          value={draft.quantity}
-          onChange={(event) => setDraft((current) => ({ ...current, quantity: event.target.value }))}
-        />
-        <div className="flex gap-2">
-          <Input
-            required
-            type="number"
-            min="0"
-            step="0.01"
-            placeholder={t("pharmacy.price")}
-            value={draft.price}
-            onChange={(event) => setDraft((current) => ({ ...current, price: event.target.value }))}
-          />
-          <Button type="submit" variant="primary" disabled={saving}>
-            {t("pharmacy.stockDrug")}
-          </Button>
-          {draft.catalogueId || draft.medicationId ? (
+          <label className="grid gap-1 text-[12px]">
+            <span>{t("pharmacy.expiry")}</span>
+            <Input required type="date" min={earliestExpiry()} value={draft.expiry} onChange={(event) => setDraft((current) => ({ ...current, expiry: event.target.value }))} />
+          </label>
+          <label className="grid gap-1 text-[12px]">
+            <span>{t("pharmacy.price")}</span>
+            <Input required type="number" min="0" step="0.01" value={draft.price} onChange={(event) => setDraft((current) => ({ ...current, price: event.target.value }))} />
+          </label>
+          <label className="grid gap-1 text-[12px]">
+            <span>{t("pharmacy.purchasePrice")}</span>
+            <Input required type="number" min="0" step="0.01" value={draft.cost} onChange={(event) => setDraft((current) => ({ ...current, cost: event.target.value }))} />
+          </label>
+          <label className="grid gap-1 text-[12px]">
+            <span>{t("pharmacy.quantity")}</span>
+            <Input required type="number" min="0.01" step="0.01" value={draft.quantity} onChange={(event) => setDraft((current) => ({ ...current, quantity: event.target.value }))} />
+          </label>
+          <div className="flex items-end gap-2">
+            <Button type="submit" variant="primary" disabled={saving}>
+              {t("pharmacy.saveMedicine")}
+            </Button>
             <Button type="button" onClick={() => setDraft(blank)}>
               {t("app.cancel")}
             </Button>
-          ) : null}
-        </div>
-      </form>
+          </div>
+        </form>
+      ) : null}
       <div className="flex items-center gap-2 border-b border-[var(--his-border)] bg-white px-2 py-1">
         <span className="text-[12px]">{t("pharmacy.shelf")}</span>
         <Input
@@ -275,18 +272,6 @@ export function PharmacyCatalogPage() {
           rowKey={(row) => row.id}
           loading={isLoading}
           emptyText={t("app.noData")}
-          selectedKey={draft.medicationId || null}
-          onSelect={(row) =>
-            setDraft({
-              medicationId: row.id,
-              catalogueId: row.catalogue_item_id ?? 0,
-              name: row.name,
-              detail: [row.generic_name, row.strength, row.dosage_form, row.pack, row.manufacturer].filter(Boolean).join(" · "),
-              barcode: row.barcode ?? "",
-              quantity: String(row.quantity ?? 0),
-              price: String(row.price ?? 0),
-            })
-          }
         />
       </div>
     </div>

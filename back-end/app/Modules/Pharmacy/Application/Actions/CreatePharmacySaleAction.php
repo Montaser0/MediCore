@@ -6,7 +6,9 @@ namespace App\Modules\Pharmacy\Application\Actions;
 
 use App\Core\Auth\CurrentUser;
 use App\Core\Exceptions\BusinessRuleException;
+use App\Core\Support\Contracts\StockService;
 use App\Modules\Hospital\Infrastructure\Persistence\Models\HospitalModel;
+use App\Modules\Inventory\Infrastructure\Persistence\Models\WarehouseModel;
 use App\Modules\Pharmacy\Infrastructure\Persistence\Models\MedicationModel;
 use App\Modules\Pharmacy\Infrastructure\Persistence\Models\PharmacyCustomerModel;
 use App\Modules\Pharmacy\Infrastructure\Persistence\Models\PharmacySaleItemModel;
@@ -15,7 +17,10 @@ use Illuminate\Support\Facades\DB;
 
 final class CreatePharmacySaleAction
 {
-    public function __construct(private readonly CurrentUser $currentUser) {}
+    public function __construct(
+        private readonly CurrentUser $currentUser,
+        private readonly StockService $stock,
+    ) {}
 
     /**
      * @param  array<int, array{medication_id: int, quantity: float|int|string}>  $lines
@@ -65,18 +70,27 @@ final class CreatePharmacySaleAction
                     throw BusinessRuleException::make('الدواء غير متاح في هذه الصيدلية');
                 }
 
-                $onHand = round((float) $medication->quantity, 2);
-                if ($onHand < $quantity) {
-                    throw BusinessRuleException::make('الكمية غير كافية: '.$medication->name);
-                }
+                $linked = $medication->inventory_item_id !== null;
+                $warehouseId = $linked ? $this->pharmacyWarehouseId($hospitalId, (int) $medication->inventory_item_id) : null;
+                if ($linked) {
+                    $onHand = $this->stock->availableQuantity((int) $medication->inventory_item_id, $warehouseId);
+                    if ($onHand + 1e-6 < $quantity) {
+                        throw BusinessRuleException::make('الكمية غير كافية: '.$medication->name);
+                    }
+                } else {
+                    $onHand = round((float) $medication->quantity, 2);
+                    if ($onHand < $quantity) {
+                        throw BusinessRuleException::make('الكمية غير كافية: '.$medication->name);
+                    }
 
-                $medication->quantity = round($onHand - $quantity, 2);
-                $medication->save();
+                    $medication->quantity = round($onHand - $quantity, 2);
+                    $medication->save();
+                }
 
                 $lineTotal = round($quantity * (float) $medication->price, 2);
                 $total += $lineTotal;
 
-                PharmacySaleItemModel::query()->create([
+                $saleItem = PharmacySaleItemModel::query()->create([
                     'pharmacy_sale_id' => $sale->getKey(),
                     'medication_id' => $medication->getKey(),
                     'name' => $medication->name,
@@ -85,6 +99,17 @@ final class CreatePharmacySaleAction
                     'unit_price' => $medication->price,
                     'line_total' => $lineTotal,
                 ]);
+
+                if ($linked) {
+                    $this->stock->issue(
+                        inventoryItemId: (int) $medication->inventory_item_id,
+                        warehouseId: (int) $warehouseId,
+                        quantity: $quantity,
+                        movementType: 'sale',
+                        referenceType: 'pharmacy_sale_item',
+                        referenceId: (int) $saleItem->getKey(),
+                    );
+                }
             }
 
             $subtotal = round($total, 2);
@@ -114,6 +139,35 @@ final class CreatePharmacySaleAction
 
             return $sale->load(['items', 'customer']);
         });
+    }
+
+    public function pharmacyWarehouseId(int $hospitalId, ?int $inventoryItemId = null): int
+    {
+        $withStock = $inventoryItemId === null
+            ? null
+            : WarehouseModel::query()
+                ->where('hospital_id', $hospitalId)
+                ->pharmacy()
+                ->active()
+                ->whereHas(
+                    'stockLevels',
+                    fn ($query) => $query->where('inventory_item_id', $inventoryItemId)->where('quantity', '>', 0),
+                )
+                ->orderBy('id')
+                ->value('id');
+
+        $warehouseId = $withStock ?? WarehouseModel::query()
+            ->where('hospital_id', $hospitalId)
+            ->pharmacy()
+            ->active()
+            ->orderBy('id')
+            ->value('id');
+
+        if ($warehouseId === null) {
+            throw BusinessRuleException::make('لا يوجد مستودع صيدلية لهذه المنشأة.');
+        }
+
+        return (int) $warehouseId;
     }
 
     public function hospitalId(): int

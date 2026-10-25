@@ -21,6 +21,7 @@ final class PosController extends ApiController
     public function index(Request $request, CreatePharmacySaleAction $sales): JsonResponse
     {
         $medications = MedicationModel::query()
+            ->with('inventoryItem')
             ->where('hospital_id', $sales->hospitalId())
             ->when(! $request->boolean('include_inactive'), fn ($query) => $query->active())
             ->search($request->string('search')->toString())
@@ -68,7 +69,7 @@ final class PosController extends ApiController
             return ApiResponse::message('لا يوجد دواء بهذا الباركود', 404);
         }
 
-        return ApiResponse::resource(new MedicationResource($medication));
+        return ApiResponse::resource(new MedicationResource($medication->load('inventoryItem')));
     }
 
     public function sell(StorePharmacySaleRequest $request, CreatePharmacySaleAction $sales): JsonResponse

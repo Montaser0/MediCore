@@ -21,6 +21,7 @@ import { formatMoney } from "@/lib/utils";
 import { dailyNo } from "@/lib/arabicText";
 import { PharmacyCatalogPage } from "@/modules/pharmacy/pages/PharmacyCatalogPage";
 import { CatalogueSearch, type CatalogueHit } from "@/modules/pharmacy/components/CatalogueSearch";
+import { defineDrug, earliestExpiry } from "@/modules/pharmacy/defineDrug";
 
 type Row = Record<string, unknown>;
 type RxItem = {
@@ -133,41 +134,24 @@ function PharmacyDeskPage() {
                 excel="prescriptions"
                 actionsHeader={t("app.operations")}
                 removeLabel={t("app.delete")}
-                onRemove={focused ? undefined : (row) => apiPost(`/pharmacy/prescriptions/${row.id}/cancel`, { reason: "cancelled" })}
+                onRemove={(row) => apiPost(`/pharmacy/prescriptions/${row.id}/cancel`, { reason: "cancelled" })}
                 extraActions={(row) => (
-                  <>
-                    <Button
-                      variant="success"
-                      onClick={() => {
-                        const person = row.patient as { id?: number; full_name?: string; encounter_id?: number } | undefined;
-                        setPrescription({
-                          id: Number(row.id),
-                          status: String(row.status ?? ""),
-                          patient: person?.full_name,
-                          patientId: person?.id,
-                          encounterId: person?.encounter_id ?? (Number(row.encounter_id ?? 0) || undefined),
-                          items: prescriptionItems(row),
-                        });
-                      }}
-                    >
-                      {t("app.done")}
-                    </Button>
-                    <Button
-                      onClick={() => {
-                        const person = row.patient as { id?: number; full_name?: string; encounter_id?: number } | undefined;
-                        setPrescription({
-                          id: Number(row.id),
-                          status: String(row.status ?? ""),
-                          patient: person?.full_name,
-                          patientId: person?.id,
-                          encounterId: person?.encounter_id ?? (Number(row.encounter_id ?? 0) || undefined),
-                          items: prescriptionItems(row),
-                        });
-                      }}
-                    >
-                      {t("laboratory.result")}
-                    </Button>
-                  </>
+                  <Button
+                    variant="success"
+                    onClick={() => {
+                      const person = row.patient as { id?: number; full_name?: string; encounter_id?: number } | undefined;
+                      setPrescription({
+                        id: Number(row.id),
+                        status: String(row.status ?? ""),
+                        patient: person?.full_name,
+                        patientId: person?.id,
+                        encounterId: person?.encounter_id ?? (Number(row.encounter_id ?? 0) || undefined),
+                        items: prescriptionItems(row),
+                      });
+                    }}
+                  >
+                    {t("app.done")}
+                  </Button>
                 )}
                 columns={[
                   { key: "id", header: "#", width: 60 },
@@ -235,6 +219,17 @@ function PharmacyDeskPage() {
                       { key: "strength", header: t("pharmacy.strength"), width: 110, render: (row) => String(row.strength ?? "—") },
                       { key: "dosage_form", header: t("pharmacy.form"), width: 120, render: (row) => String(row.dosage_form ?? "—") },
                       { key: "manufacturer", header: t("pharmacy.company"), render: (row) => String(row.manufacturer ?? "—") },
+                      {
+                        key: "on_hand",
+                        header: t("pharmacy.onHand"),
+                        width: 120,
+                        render: (row) => {
+                          const stock = row.stock as { quantity_on_hand?: number } | null | undefined;
+                          const ready = Boolean(row.stock_ready);
+                          const amount = ready ? Number(stock?.quantity_on_hand ?? 0) : Number(row.quantity ?? 0);
+                          return `${amount} · ${ready ? t("pharmacy.stockReady") : t("pharmacy.stockMissing")}`;
+                        },
+                      },
                       { key: "price", header: t("pharmacy.price"), width: 110, render: (row) => formatMoney(row.price) },
                     ]}
                     fields={[
@@ -259,6 +254,7 @@ function PharmacyDeskPage() {
           subtitle={prescription.patient ?? ""}
           busy={saving}
           patientId={prescription.patientId}
+          resultAction={false}
           onClose={() => setPrescription(null)}
           onSave={dispense}
           extra={
@@ -293,16 +289,29 @@ function HospitalCatalogueBar({ onAdded }: { onAdded: () => void }) {
   const t = useTranslations();
   const [picked, setPicked] = useState<CatalogueHit | null>(null);
   const [price, setPrice] = useState("");
+  const [cost, setCost] = useState("");
+  const [quantity, setQuantity] = useState("");
+  const [expiry, setExpiry] = useState("");
   const [saving, setSaving] = useState(false);
 
   async function add() {
     if (!picked) return;
     setSaving(true);
     try {
-      await apiPost(`/pharmacy/catalogue/${picked.id}/adopt`, price.trim() === "" ? {} : { price: Number(price) });
-      toast.success(t("pharmacy.adopted"));
+      await defineDrug({
+        catalogueId: picked.id,
+        medicationId: picked.stock?.medication_id,
+        price: Number(price),
+        cost: Number(cost),
+        quantity: Number(quantity),
+        expiry,
+      });
+      toast.success(t("pharmacy.drugSaved"));
       setPicked(null);
       setPrice("");
+      setCost("");
+      setQuantity("");
+      setExpiry("");
       onAdded();
     } catch (error) {
       toast.error(getErrorMessage(error));
@@ -312,19 +321,51 @@ function HospitalCatalogueBar({ onAdded }: { onAdded: () => void }) {
   }
 
   return (
-    <div className="grid gap-2 border-b border-[var(--his-border)] bg-white p-2 md:grid-cols-[1fr_140px_auto]">
+    <div className="grid gap-2 border-b border-[var(--his-border)] bg-white p-2">
+      <p className="text-[12px] text-[var(--his-muted)]">{t("pharmacy.catalogueHint")}</p>
       <CatalogueSearch selectedLabel={picked?.display_name} onSelect={setPicked} />
-      <Input
-        type="number"
-        min="0"
-        step="0.01"
-        placeholder={t("pharmacy.price")}
-        value={price}
-        onChange={(event) => setPrice(event.target.value)}
-      />
-      <Button type="button" variant="primary" disabled={saving || !picked} onClick={() => void add()}>
-        {t("pharmacy.adoptDrug")}
-      </Button>
+      {picked ? (
+        <div className="grid gap-2 md:grid-cols-5">
+          <label className="grid gap-1 text-[12px]">
+            <span>{t("pharmacy.expiry")}</span>
+            <Input required type="date" min={earliestExpiry()} value={expiry} onChange={(event) => setExpiry(event.target.value)} />
+          </label>
+          <label className="grid gap-1 text-[12px]">
+            <span>{t("pharmacy.price")}</span>
+            <Input required type="number" min="0" step="0.01" value={price} onChange={(event) => setPrice(event.target.value)} />
+          </label>
+          <label className="grid gap-1 text-[12px]">
+            <span>{t("pharmacy.purchasePrice")}</span>
+            <Input required type="number" min="0" step="0.01" value={cost} onChange={(event) => setCost(event.target.value)} />
+          </label>
+          <label className="grid gap-1 text-[12px]">
+            <span>{t("pharmacy.quantity")}</span>
+            <Input required type="number" min="0.01" step="0.01" value={quantity} onChange={(event) => setQuantity(event.target.value)} />
+          </label>
+          <div className="flex items-end gap-2">
+            <Button
+              type="button"
+              variant="primary"
+              disabled={saving || !expiry || price === "" || cost === "" || !(Number(quantity) > 0)}
+              onClick={() => void add()}
+            >
+              {t("pharmacy.adoptDrug")}
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                setPicked(null);
+                setPrice("");
+                setCost("");
+                setQuantity("");
+                setExpiry("");
+              }}
+            >
+              {t("app.cancel")}
+            </Button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
