@@ -111,6 +111,16 @@ export function NotificationBell() {
               ))
             )}
           </div>
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false);
+              router.push(`/${locale}/dashboard/notifications`);
+            }}
+            className="block w-full border-t border-[var(--his-border)] px-2 py-2 text-center text-[12px] font-semibold text-[var(--his-accent)] hover:bg-[var(--his-accent-soft)]"
+          >
+            {t("nav.viewAllNotifications")}
+          </button>
         </div>
       ) : null}
     </div>
