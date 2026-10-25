@@ -90,6 +90,7 @@
     "documents": "الوثائق",
     "notifications": "التنبيهات",
     "viewAllNotifications": "عرض الكل",
+    "markAllNotificationsRead": "قراءة الكل",
     "audit": "سجل التدقيق",
     "settings": "الإعدادات"
   },

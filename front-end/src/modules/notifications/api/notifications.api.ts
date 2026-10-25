@@ -14,4 +14,5 @@ export const notificationsApi = {
   list: () =>
     apiGet<NotificationRow[]>("/notifications", { params: { per_page: 20 } }),
   markRead: (id: number | string) => apiPost(`/notifications/${id}/read`),
+  markAllRead: () => apiPost("/notifications/read-all"),
 };

@@ -90,6 +90,7 @@
     "documents": "Documents",
     "notifications": "Notifications",
     "viewAllNotifications": "View all",
+    "markAllNotificationsRead": "Mark all read",
     "audit": "Audit",
     "settings": "Settings"
   },

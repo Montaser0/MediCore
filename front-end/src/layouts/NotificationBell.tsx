@@ -73,6 +73,12 @@ export function NotificationBell() {
     if (patientId) router.push(`/${locale}/dashboard/patients/${patientId}`);
   }
 
+  async function markAllRead() {
+    if (unread === 0) return;
+    await notificationsApi.markAllRead().catch(() => undefined);
+    void qc.invalidateQueries({ queryKey: ["notifications"] });
+  }
+
   return (
     <div className="relative" ref={box}>
       <button
@@ -90,8 +96,17 @@ export function NotificationBell() {
       </button>
       {open ? (
         <div className="absolute end-0 top-9 z-50 w-72 border border-[var(--his-border)] bg-white text-[var(--his-text)] shadow">
-          <div className="border-b border-[var(--his-border)] px-2 py-1 text-[12px] font-semibold">
-            {t("nav.notifications")}
+          <div className="flex items-center justify-between gap-2 border-b border-[var(--his-border)] px-2 py-1">
+            <span className="text-[12px] font-semibold">{t("nav.notifications")}</span>
+            {unread > 0 ? (
+              <button
+                type="button"
+                onClick={() => void markAllRead()}
+                className="shrink-0 text-[11px] text-[var(--his-accent)] hover:underline"
+              >
+                {t("nav.markAllNotificationsRead")}
+              </button>
+            ) : null}
           </div>
           <div className="max-h-80 overflow-auto">
             {rows.length === 0 ? (
