@@ -9,6 +9,7 @@ use App\Core\Support\PatientRecordRegistry;
 use App\Core\Support\Providers\ModuleServiceProvider;
 use App\Modules\Pharmacy\Application\Actions\FulfilPharmacyOrderAction;
 use App\Modules\Pharmacy\Application\Commands\ImportDrugCatalogueCommand;
+use App\Modules\Pharmacy\Application\Commands\ImportTurkishDrugCatalogueCommand;
 use App\Modules\Pharmacy\Infrastructure\PatientRecord\PharmacyRecordContributor;
 
 final class PharmacyServiceProvider extends ModuleServiceProvider
@@ -22,6 +23,7 @@ final class PharmacyServiceProvider extends ModuleServiceProvider
     {
         $this->commands([
             ImportDrugCatalogueCommand::class,
+            ImportTurkishDrugCatalogueCommand::class,
         ]);
     }
 
