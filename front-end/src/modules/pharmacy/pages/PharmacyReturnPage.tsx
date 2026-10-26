@@ -90,7 +90,6 @@ export function PharmacyReturnPage() {
   const lineColumns = useMemo<Column<SaleItem>[]>(
     () => [
       { key: "name", header: t("crud.name"), cell: (row) => row.name },
-      { key: "barcode", header: t("pharmacy.barcode"), width: 140, cell: (row) => row.barcode ?? "—" },
       { key: "sold", header: t("pharmacy.soldQty"), width: 90, cell: (row) => String(row.quantity) },
       {
         key: "returned",

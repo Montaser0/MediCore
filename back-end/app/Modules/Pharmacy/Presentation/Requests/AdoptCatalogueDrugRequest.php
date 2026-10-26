@@ -18,6 +18,7 @@ final class AdoptCatalogueDrugRequest extends ApiFormRequest
     {
         return [
             'price' => ['sometimes', 'nullable', 'numeric', 'min:0'],
+            'barcode' => ['sometimes', 'nullable', 'string', 'max:100'],
         ];
     }
 }

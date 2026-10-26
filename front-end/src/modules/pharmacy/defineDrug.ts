@@ -45,6 +45,7 @@ export async function defineDrug(input: {
   if (input.catalogueId && !medicationId) {
     const adopted = await apiPost<SavedDrug>(`/pharmacy/catalogue/${input.catalogueId}/adopt`, {
       price: input.price,
+      ...(input.barcode?.trim() ? { barcode: input.barcode.trim() } : {}),
     });
     medicationId = adopted.data?.id ?? 0;
   } else if (!medicationId) {
@@ -56,6 +57,7 @@ export async function defineDrug(input: {
       dosage_form: input.dosageForm?.trim() || undefined,
       strength: input.strength?.trim() || undefined,
       price: input.price,
+      ...(input.barcode?.trim() ? { barcode: input.barcode.trim() } : {}),
     });
     medicationId = created.data?.id ?? 0;
   }

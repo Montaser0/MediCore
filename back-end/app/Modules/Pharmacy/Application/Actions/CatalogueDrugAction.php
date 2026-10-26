@@ -27,6 +27,7 @@ final class CatalogueDrugAction
         ?string $barcode,
     ): MedicationModel {
         return DB::transaction(function () use ($item, $hospitalId, $quantity, $price, $barcode): MedicationModel {
+            $barcode = $this->rememberBarcode($item, $barcode);
             $medication = $this->locked($item, $hospitalId);
             $identity = $this->identity($item);
 
@@ -58,16 +59,20 @@ final class CatalogueDrugAction
     /**
      * Make the medicine prescribable. Does not invent a shelf quantity.
      */
-    public function adopt(DrugCatalogueItemModel $item, int $hospitalId, ?float $price = null): MedicationModel
+    public function adopt(DrugCatalogueItemModel $item, int $hospitalId, ?float $price = null, ?string $barcode = null): MedicationModel
     {
-        return DB::transaction(function () use ($item, $hospitalId, $price): MedicationModel {
+        return DB::transaction(function () use ($item, $hospitalId, $price, $barcode): MedicationModel {
+            $barcode = $this->rememberBarcode($item, $barcode);
             $medication = $this->locked($item, $hospitalId);
 
             if ($medication !== null) {
                 if ($price !== null) {
                     $medication->price = round($price, 2);
-                    $medication->save();
                 }
+                if ($barcode !== null && $barcode !== '') {
+                    $medication->barcode = $barcode;
+                }
+                $medication->save();
 
                 return $medication;
             }
@@ -75,12 +80,28 @@ final class CatalogueDrugAction
             return $this->insertOrLoad([
                 ...$this->identity($item),
                 'hospital_id' => $hospitalId,
+                'barcode' => $barcode,
                 'quantity' => 0,
                 'price' => round($price ?? 0, 2),
                 'requires_prescription' => $item->product_type === 'دواء',
                 'is_active' => true,
             ], $hospitalId, $item);
         });
+    }
+
+    private function rememberBarcode(DrugCatalogueItemModel $item, ?string $barcode): ?string
+    {
+        $typed = trim((string) $barcode);
+        if ($typed !== '') {
+            $item->barcode = $typed;
+            $item->save();
+
+            return $typed;
+        }
+
+        $stored = trim((string) $item->barcode);
+
+        return $stored === '' ? null : $stored;
     }
 
     /**

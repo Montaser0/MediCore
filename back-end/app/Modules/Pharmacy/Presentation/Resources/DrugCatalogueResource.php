@@ -20,6 +20,7 @@ final class DrugCatalogueResource extends JsonResource
         return [
             'id' => $this->id,
             'source_record_id' => $this->source_record_id,
+            'barcode' => $this->barcode,
             'name' => $this->name,
             'display_name' => $this->displayName(),
             'generic_name' => $this->generic_name,

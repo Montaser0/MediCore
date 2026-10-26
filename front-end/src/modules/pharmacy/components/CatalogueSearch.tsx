@@ -10,6 +10,7 @@ export type CatalogueHit = {
   id: number;
   name: string;
   display_name: string;
+  barcode?: string | null;
   generic_name?: string | null;
   strength?: string | null;
   dosage_form?: string | null;

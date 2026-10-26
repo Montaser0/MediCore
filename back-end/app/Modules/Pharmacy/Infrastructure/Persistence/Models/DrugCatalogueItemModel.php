@@ -27,10 +27,11 @@ final class DrugCatalogueItemModel extends BaseModel
         $like = '%'.addcslashes($term, '%_\\').'%';
 
         if ($nameOnly) {
-            return $query->where(function (Builder $inner) use ($like): void {
+            return $query->where(function (Builder $inner) use ($term, $like): void {
                 $inner->where('name', 'like', $like)
                     ->orWhere('company_ar', 'like', $like)
-                    ->orWhere('company', 'like', $like);
+                    ->orWhere('company', 'like', $like)
+                    ->orWhere('barcode', $term);
             });
         }
 
@@ -41,7 +42,8 @@ final class DrugCatalogueItemModel extends BaseModel
                 ->orWhere('company', 'like', $like)
                 ->orWhere('strength', 'like', $like)
                 ->orWhere('dosage_form', 'like', $like)
-                ->orWhere('source_record_id', $term);
+                ->orWhere('source_record_id', $term)
+                ->orWhere('barcode', $term);
         });
     }
 

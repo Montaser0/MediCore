@@ -105,7 +105,6 @@ export function PharmacySalePage() {
   const columns = useMemo<Column<Line>[]>(
     () => [
       { key: "name", header: t("crud.name"), cell: (row) => row.name },
-      { key: "barcode", header: t("pharmacy.barcode"), width: 140, cell: (row) => row.barcode },
       {
         key: "quantity",
         header: t("pharmacy.quantity"),

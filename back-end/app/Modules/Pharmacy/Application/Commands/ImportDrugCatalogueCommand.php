@@ -85,6 +85,7 @@ final class ImportDrugCatalogueCommand extends Command
                 'registration_status',
                 'dataset',
                 'published_category',
+                'barcode',
                 'updated_at',
             ]);
             $bar->advance();
@@ -123,6 +124,7 @@ final class ImportDrugCatalogueCommand extends Command
 
         return [
             'source_record_id' => $recordId,
+            'barcode' => $this->clip($record['barcode'] ?? null, 100),
             'name' => $name,
             'generic_name' => $this->clip($record['ingredient_as_published'] ?? null, 8000),
             'strength' => $this->clip($record['strength_as_published'] ?? null, 80),
@@ -173,7 +175,8 @@ final class ImportDrugCatalogueCommand extends Command
                 m.dosage_form = c.dosage_form,
                 m.pack = c.pack,
                 m.manufacturer = COALESCE(NULLIF(c.company_ar, \'\'), c.company),
-                m.category = c.product_type
+                m.category = c.product_type,
+                m.barcode = COALESCE(NULLIF(c.barcode, \'\'), m.barcode)
         ');
     }
 }

@@ -8,6 +8,7 @@ use App\Core\Exceptions\BusinessRuleException;
 use App\Modules\Inventory\Infrastructure\Persistence\Models\InventoryItemModel;
 use App\Modules\Inventory\Infrastructure\Persistence\Models\StockLevelModel;
 use App\Modules\Pharmacy\Application\Support\MedicationStockRules;
+use App\Modules\Pharmacy\Infrastructure\Persistence\Models\DrugCatalogueItemModel;
 use App\Modules\Pharmacy\Infrastructure\Persistence\Models\MedicationModel;
 use Illuminate\Support\Facades\DB;
 
@@ -34,6 +35,15 @@ final class ProvisionMedicationStockAction
                 $locked->hospital_id = $hospitalId;
             }
 
+            if (blank($locked->barcode) && $locked->catalogue_item_id !== null) {
+                $fromCatalogue = DrugCatalogueItemModel::query()
+                    ->whereKey($locked->catalogue_item_id)
+                    ->value('barcode');
+                if (filled($fromCatalogue)) {
+                    $locked->barcode = $fromCatalogue;
+                }
+            }
+
             if ($locked->inventory_item_id !== null) {
                 $existing = InventoryItemModel::query()->find($locked->inventory_item_id);
                 if (! $existing instanceof InventoryItemModel) {
@@ -46,10 +56,11 @@ final class ProvisionMedicationStockAction
                 return $existing;
             }
 
+            $code = $this->itemBarcode($locked, $hospitalId, $barcode);
             $item = InventoryItemModel::query()->create([
                 'name' => mb_substr($locked->displayName(), 0, 255),
                 'sku' => 'MED-'.$hospitalId.'-'.$locked->getKey(),
-                'barcode' => $this->itemBarcode($locked, $hospitalId, $barcode),
+                'barcode' => $code,
                 'category' => $locked->category !== null ? mb_substr((string) $locked->category, 0, 150) : null,
                 'unit' => $this->unit($unit),
                 'item_type' => 'medicine',
@@ -57,8 +68,13 @@ final class ProvisionMedicationStockAction
                 'is_active' => true,
             ]);
 
-            if (blank($locked->barcode)) {
-                $locked->barcode = $item->barcode;
+            if ($code === null && filled($item->barcode)) {
+                $item->barcode = null;
+                $item->save();
+            }
+
+            if (filled($code)) {
+                $locked->barcode = $code;
             }
 
             $locked->inventory_item_id = $item->getKey();

@@ -2,7 +2,6 @@
 
 import { useTranslations } from "next-intl";
 import { ResourceListPage, statusBadge } from "@/components/shared/ResourceListPage";
-import { BarcodeImage } from "@/modules/inventory/components/BarcodeImage";
 import { ReceiveStockForm } from "@/modules/inventory/components/ReceiveStockForm";
 
 export default function Page() {
@@ -26,15 +25,6 @@ export default function Page() {
           key: "warehouse",
           header: t("inventory.warehouses"),
           render: (row) => String(row.warehouse ?? "—"),
-        },
-        {
-          key: "barcode",
-          header: t("inventory.barcode"),
-          width: 190,
-          render: (row) => {
-            const code = String(row.barcode ?? "").trim();
-            return code ? <BarcodeImage code={code} /> : "—";
-          },
         },
         {
           key: "quantity",

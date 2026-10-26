@@ -77,7 +77,13 @@ final class DrugCatalogueController extends ApiController
             ? (float) $request->validated('price')
             : null;
 
-        $medication = $catalogue->adopt($catalogueItem, $sales->hospitalId(), $price);
+        $barcode = trim((string) ($request->validated('barcode') ?? ''));
+        $medication = $catalogue->adopt(
+            $catalogueItem,
+            $sales->hospitalId(),
+            $price,
+            $barcode === '' ? null : $barcode,
+        );
 
         return ApiResponse::resource(new MedicationResource($medication));
     }

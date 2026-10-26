@@ -304,6 +304,7 @@ function HospitalCatalogueBar({ onAdded }: { onAdded: () => void }) {
   const [company, setCompany] = useState("");
   const [kind, setKind] = useState("");
   const [size, setSize] = useState("");
+  const [barcode, setBarcode] = useState("");
 
   function reset() {
     setPicked(null);
@@ -312,6 +313,7 @@ function HospitalCatalogueBar({ onAdded }: { onAdded: () => void }) {
     setCompany("");
     setKind("");
     setSize("");
+    setBarcode("");
     setPrice("");
     setCost("");
     setQuantity("");
@@ -329,6 +331,7 @@ function HospitalCatalogueBar({ onAdded }: { onAdded: () => void }) {
         manufacturer: manual ? company : undefined,
         dosageForm: manual ? kind : undefined,
         strength: manual ? size : undefined,
+        barcode,
         price: Number(price),
         cost: Number(cost),
         quantity: Number(quantity),
@@ -382,11 +385,18 @@ function HospitalCatalogueBar({ onAdded }: { onAdded: () => void }) {
       ) : (
         <CatalogueSearch
           selectedLabel={picked ? [picked.name, catalogueDetail(picked)].filter(Boolean).join(" — ") : ""}
-          onSelect={setPicked}
+          onSelect={(item) => {
+            setPicked(item);
+            setBarcode(item.barcode || item.stock?.barcode || "");
+          }}
         />
       )}
       {picked || manual ? (
         <div className="grid gap-2 md:grid-cols-5">
+          <label className="grid gap-1 text-[12px]">
+            <span>{t("pharmacy.barcode")}</span>
+            <Input value={barcode} onChange={(event) => setBarcode(event.target.value)} />
+          </label>
           <label className="grid gap-1 text-[12px]">
             <span>{t("pharmacy.expiry")}</span>
             <Input required type="date" min={earliestExpiry()} value={expiry} onChange={(event) => setExpiry(event.target.value)} />
