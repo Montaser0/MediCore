@@ -27,11 +27,19 @@ export type CatalogueHit = {
   } | null;
 };
 
-export function catalogueDetail(item: CatalogueHit) {
-  return [item.generic_name, item.strength, item.dosage_form, item.pack, item.company_label || item.company_ar || item.company]
+export function catalogueFacts(item: CatalogueHit) {
+  const company = (item.company_label || item.company_ar || item.company || "").trim();
+  const type = (item.dosage_form || item.product_type || "").trim();
+  const size = [item.strength, item.pack]
     .map((part) => (part ?? "").trim())
     .filter(Boolean)
     .join(" · ");
+  return { name: item.name, company, type, size };
+}
+
+export function catalogueDetail(item: CatalogueHit) {
+  const facts = catalogueFacts(item);
+  return [facts.company, facts.type, facts.size].filter(Boolean).join(" · ");
 }
 
 export function CatalogueSearch({
@@ -97,7 +105,9 @@ export function CatalogueSearch({
           ) : hits.length === 0 ? (
             <p className="px-2 py-2 text-[12px] text-[var(--his-muted)]">{emptyText ?? t("app.noData")}</p>
           ) : (
-            hits.map((item) => (
+            hits.map((item) => {
+              const facts = catalogueFacts(item);
+              return (
               <button
                 key={item.id}
                 type="button"
@@ -109,16 +119,34 @@ export function CatalogueSearch({
                   onQueryChange?.("");
                 }}
               >
-                <span className="block text-[13px]">{nameOnly ? item.name : item.display_name}</span>
+                <span className="block text-[13px] font-semibold">{item.name}</span>
                 {nameOnly ? null : (
-                  <span className="block text-[11px] text-[var(--his-muted)]">
-                    {catalogueDetail(item)}
-                    {item.product_type ? ` · ${item.product_type}` : ""}
-                    {item.stock ? ` · ${t("pharmacy.onShelf")} ${item.stock.quantity ?? 0}` : ""}
+                  <span className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-[var(--his-muted)]">
+                    {facts.company ? (
+                      <span>
+                        {t("pharmacy.company")}: {facts.company}
+                      </span>
+                    ) : null}
+                    {facts.type ? (
+                      <span>
+                        {t("pharmacy.productType")}: {facts.type}
+                      </span>
+                    ) : null}
+                    {facts.size ? (
+                      <span>
+                        {t("pharmacy.size")}: {facts.size}
+                      </span>
+                    ) : null}
+                    {item.stock ? (
+                      <span>
+                        {t("pharmacy.onShelf")}: {item.stock.quantity ?? 0}
+                      </span>
+                    ) : null}
                   </span>
                 )}
               </button>
-            ))
+              );
+            })
           )}
         </div>
       ) : null}

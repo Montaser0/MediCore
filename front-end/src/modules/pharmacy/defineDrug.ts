@@ -28,6 +28,9 @@ export async function defineDrug(input: {
   medicationId?: number;
   name?: string;
   barcode?: string;
+  manufacturer?: string;
+  dosageForm?: string;
+  strength?: string;
   price: number;
   cost: number;
   quantity: number;
@@ -45,10 +48,13 @@ export async function defineDrug(input: {
     });
     medicationId = adopted.data?.id ?? 0;
   } else if (!medicationId) {
-    const created = await apiPost<SavedDrug>("/pharmacy/pos/medications", {
-      name: input.name?.trim(),
-      barcode: input.barcode?.trim() ?? "",
-      quantity: 0,
+    const name = input.name?.trim() ?? "";
+    if (!name) throw new Error("اكتب اسم الدواء");
+    const created = await apiPost<SavedDrug>("/pharmacy/medications", {
+      name,
+      manufacturer: input.manufacturer?.trim() || undefined,
+      dosage_form: input.dosageForm?.trim() || undefined,
+      strength: input.strength?.trim() || undefined,
       price: input.price,
     });
     medicationId = created.data?.id ?? 0;

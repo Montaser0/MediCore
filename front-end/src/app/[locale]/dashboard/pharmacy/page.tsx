@@ -20,7 +20,7 @@ import { useEditionStore } from "@/stores/edition-store";
 import { formatMoney } from "@/lib/utils";
 import { dailyNo } from "@/lib/arabicText";
 import { PharmacyCatalogPage } from "@/modules/pharmacy/pages/PharmacyCatalogPage";
-import { CatalogueSearch, type CatalogueHit } from "@/modules/pharmacy/components/CatalogueSearch";
+import { CatalogueSearch, catalogueDetail, type CatalogueHit } from "@/modules/pharmacy/components/CatalogueSearch";
 import { defineDrug, earliestExpiry } from "@/modules/pharmacy/defineDrug";
 
 type Row = Record<string, unknown>;
@@ -299,25 +299,43 @@ function HospitalCatalogueBar({ onAdded }: { onAdded: () => void }) {
   const [quantity, setQuantity] = useState("");
   const [expiry, setExpiry] = useState("");
   const [saving, setSaving] = useState(false);
+  const [manual, setManual] = useState(false);
+  const [manualName, setManualName] = useState("");
+  const [company, setCompany] = useState("");
+  const [kind, setKind] = useState("");
+  const [size, setSize] = useState("");
+
+  function reset() {
+    setPicked(null);
+    setManual(false);
+    setManualName("");
+    setCompany("");
+    setKind("");
+    setSize("");
+    setPrice("");
+    setCost("");
+    setQuantity("");
+    setExpiry("");
+  }
 
   async function add() {
-    if (!picked) return;
+    if (!picked && !manual) return;
     setSaving(true);
     try {
       await defineDrug({
-        catalogueId: picked.id,
-        medicationId: picked.stock?.medication_id,
+        catalogueId: picked?.id,
+        medicationId: picked?.stock?.medication_id,
+        name: manual ? manualName : picked?.name,
+        manufacturer: manual ? company : undefined,
+        dosageForm: manual ? kind : undefined,
+        strength: manual ? size : undefined,
         price: Number(price),
         cost: Number(cost),
         quantity: Number(quantity),
         expiry,
       });
       toast.success(t("pharmacy.drugSaved"));
-      setPicked(null);
-      setPrice("");
-      setCost("");
-      setQuantity("");
-      setExpiry("");
+      reset();
       onAdded();
     } catch (error) {
       toast.error(getErrorMessage(error));
@@ -326,11 +344,48 @@ function HospitalCatalogueBar({ onAdded }: { onAdded: () => void }) {
     }
   }
 
+  const ready = Boolean(expiry) && price !== "" && cost !== "" && Number(quantity) > 0 && (manual ? manualName.trim() !== "" : Boolean(picked));
+
   return (
     <div className="grid gap-2 border-b border-[var(--his-border)] bg-white p-2">
-      <p className="text-[12px] text-[var(--his-muted)]">{t("pharmacy.catalogueHint")}</p>
-      <CatalogueSearch selectedLabel={picked?.display_name} onSelect={setPicked} />
-      {picked ? (
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-[12px] text-[var(--his-muted)]">{t("pharmacy.catalogueHint")}</p>
+        <Button
+          type="button"
+          onClick={() => {
+            setManual((current) => !current);
+            setPicked(null);
+          }}
+        >
+          {t("pharmacy.manualDrug")}
+        </Button>
+      </div>
+      {manual ? (
+        <div className="grid gap-2 md:grid-cols-4">
+          <label className="grid gap-1 text-[12px]">
+            <span>{t("pharmacy.tradeName")}</span>
+            <Input required value={manualName} onChange={(event) => setManualName(event.target.value)} />
+          </label>
+          <label className="grid gap-1 text-[12px]">
+            <span>{t("pharmacy.company")}</span>
+            <Input value={company} onChange={(event) => setCompany(event.target.value)} />
+          </label>
+          <label className="grid gap-1 text-[12px]">
+            <span>{t("pharmacy.productType")}</span>
+            <Input value={kind} onChange={(event) => setKind(event.target.value)} />
+          </label>
+          <label className="grid gap-1 text-[12px]">
+            <span>{t("pharmacy.size")}</span>
+            <Input value={size} onChange={(event) => setSize(event.target.value)} />
+          </label>
+        </div>
+      ) : (
+        <CatalogueSearch
+          selectedLabel={picked ? [picked.name, catalogueDetail(picked)].filter(Boolean).join(" — ") : ""}
+          onSelect={setPicked}
+        />
+      )}
+      {picked || manual ? (
         <div className="grid gap-2 md:grid-cols-5">
           <label className="grid gap-1 text-[12px]">
             <span>{t("pharmacy.expiry")}</span>
@@ -349,24 +404,10 @@ function HospitalCatalogueBar({ onAdded }: { onAdded: () => void }) {
             <Input required type="number" min="0.01" step="0.01" value={quantity} onChange={(event) => setQuantity(event.target.value)} />
           </label>
           <div className="flex items-end gap-2">
-            <Button
-              type="button"
-              variant="primary"
-              disabled={saving || !expiry || price === "" || cost === "" || !(Number(quantity) > 0)}
-              onClick={() => void add()}
-            >
-              {t("pharmacy.adoptDrug")}
+            <Button type="button" variant="primary" disabled={saving || !ready} onClick={() => void add()}>
+              {manual ? t("pharmacy.saveMedicine") : t("pharmacy.adoptDrug")}
             </Button>
-            <Button
-              type="button"
-              onClick={() => {
-                setPicked(null);
-                setPrice("");
-                setCost("");
-                setQuantity("");
-                setExpiry("");
-              }}
-            >
+            <Button type="button" onClick={reset}>
               {t("app.cancel")}
             </Button>
           </div>

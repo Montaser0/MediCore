@@ -307,6 +307,7 @@
     "pack": "Pack",
     "company": "Company",
     "productType": "Type",
+    "size": "Size",
     "searchCatalogue": "Search by name, ingredient, or company",
     "searchByName": "Search by medicine or company name",
     "catalogueHint": "Search the list and choose the medicine, then enter the expiry date, selling price, purchase price, and quantity.",

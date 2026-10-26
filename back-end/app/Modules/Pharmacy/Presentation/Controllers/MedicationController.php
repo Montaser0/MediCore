@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Pharmacy\Presentation\Controllers;
 
+use App\Core\Auth\CurrentUser;
 use App\Core\Authorization\Permissions;
 use App\Core\Http\Controllers\ApiController;
 use App\Core\Http\DeactivateRecord;
@@ -45,10 +46,13 @@ final class MedicationController extends ApiController
         return ApiResponse::resource(new MedicationResource($medication->load('inventoryItem.stockLevels.warehouse')));
     }
 
-    public function store(StoreMedicationRequest $request): JsonResponse
+    public function store(StoreMedicationRequest $request, CurrentUser $currentUser): JsonResponse
     {
         return ApiResponse::created(new MedicationResource(
-            MedicationModel::query()->create($request->validated())
+            MedicationModel::query()->create([
+                ...$request->validated(),
+                'hospital_id' => $currentUser->hospitalId(),
+            ])
         ));
     }
 
