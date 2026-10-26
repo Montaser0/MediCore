@@ -188,15 +188,6 @@ export const modules: NavModule[] = [
     color: "#16A085",
   },
   {
-    id: "pharmacy-stocktake",
-    href: "/dashboard/pharmacy/stocktake",
-    labelKey: "nav.pharmacyStocktake",
-    icon: ClipboardList,
-    category: "medical",
-    permission: ["pharmacy.medications.manage", "pharmacy.dispensing.create"],
-    color: "#16A085",
-  },
-  {
     id: "inpatient",
     href: "/dashboard/inpatient",
     labelKey: "nav.inpatient",
@@ -366,7 +357,6 @@ export const navTree: NavNode[] = [
           { kind: "link", id: "pharmacy-return" },
           { kind: "link", id: "pharmacy-debts" },
           { kind: "link", id: "pharmacy-warehouses" },
-          { kind: "link", id: "pharmacy-stocktake" },
         ],
       },
       {
