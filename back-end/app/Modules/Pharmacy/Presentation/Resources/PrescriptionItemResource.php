@@ -19,12 +19,30 @@ final class PrescriptionItemResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'medication' => $this->whenLoaded('medication', fn () => [
-                'id' => $this->medication?->id,
-                'name' => $this->medication?->displayName(),
-                'price' => $this->medication?->price,
-                'inventory_item_id' => $this->medication?->inventory_item_id,
-            ]),
+            'medication' => $this->when(
+                $this->relationLoaded('medication') || filled($this->medication_name),
+                function () {
+                    if ($this->medication !== null) {
+                        return [
+                            'id' => $this->medication->id,
+                            'name' => $this->medication->displayName(),
+                            'trade_name' => $this->medication->name,
+                            'price' => $this->medication->price,
+                            'inventory_item_id' => $this->medication->inventory_item_id,
+                        ];
+                    }
+
+                    $written = trim((string) $this->medication_name);
+                    if ($written === '') {
+                        return null;
+                    }
+
+                    return [
+                        'name' => $written,
+                        'trade_name' => $written,
+                    ];
+                },
+            ),
             'dose' => $this->dose,
             'frequency' => $this->frequency,
             'duration' => $this->duration,

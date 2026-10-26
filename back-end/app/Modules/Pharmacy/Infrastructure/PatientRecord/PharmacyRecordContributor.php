@@ -48,11 +48,12 @@ final class PharmacyRecordContributor implements PatientRecordContributor
                 'id' => $prescription->getKey(),
                 'prescription_number' => $prescription->prescription_number,
                 'status' => $prescription->status->value,
+                'fulfillment' => $prescription->fulfillment ?? 'hospital',
                 'doctor' => $prescription->doctor?->staff?->full_name,
                 'by' => $prescription->enteredBy?->actorLabel() ?? $prescription->doctor?->staff?->full_name,
                 'prescribed_at' => $prescription->prescribed_at?->toIso8601String(),
                 'medications' => $prescription->items->map(fn ($item) => [
-                    'name' => $item->medication?->displayName(),
+                    'name' => $item->medication?->name ?? $item->medication_name,
                     'sig' => $item->sig(),
                     'price' => $item->medication?->price,
                     'quantity' => $item->quantity,
@@ -62,7 +63,7 @@ final class PharmacyRecordContributor implements PatientRecordContributor
             'dispenses' => $dispenses->map(fn (MedicationDispenseModel $dispense) => [
                 'id' => $dispense->getKey(),
                 'dispense_number' => $dispense->dispense_number,
-                'medication' => $dispense->medication?->displayName(),
+                'medication' => $dispense->medication?->name,
                 'quantity' => $dispense->quantity,
                 'total_price' => $dispense->total_price,
                 'batch_number' => $dispense->batch_number,

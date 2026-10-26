@@ -48,8 +48,20 @@ final class DispenseMedicationAction
         $prescription = $item->prescription;
         $medication = $item->medication;
 
-        if ($prescription === null || $medication === null) {
+        if ($prescription === null) {
             throw BusinessRuleException::make('بند الوصفة غير مكتمل.');
+        }
+
+        if ($medication === null) {
+            throw BusinessRuleException::make(
+                trim((string) $item->medication_name) !== ''
+                    ? 'هذا الدواء غير معرف في قاعدة البيانات، ولا يمكن صرفه من صيدلية المشفى.'
+                    : 'بند الوصفة غير مكتمل.',
+            );
+        }
+
+        if (($prescription->fulfillment ?? 'hospital') === 'external') {
+            throw BusinessRuleException::make('هذه الوصفة من خارج المشفى، ولا تُصرف من صيدلية المشفى ولا تُضاف إلى حساب المريض.');
         }
 
         if (! $prescription->status->isDispensable()) {
@@ -127,8 +139,8 @@ final class DispenseMedicationAction
                     patientId: (int) $encounter->patient_id,
                     encounterId: (int) $encounter->getKey(),
                     eventType: 'pharmacy.medication_dispensed',
-                    title: 'صُرف '.$medication->displayName(),
-                    description: $quantity.' × '.$medication->displayName(),
+                    title: 'صُرف '.$medication->name,
+                    description: $quantity.' × '.$medication->name,
                     departmentId: $encounter->department_id,
                     payload: [
                         'dispense_id' => $dispense->getKey(),

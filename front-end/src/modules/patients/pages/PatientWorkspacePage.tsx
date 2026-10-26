@@ -32,8 +32,10 @@ import { journeyApi, type Catalogs, type NamedRow } from "../api/journey.api";
 import { PatientAccountPanel } from "../components/PatientAccountPanel";
 import { formatDate, formatMoney, latinDigits } from "@/lib/utils";
 import { apiDelete, apiGet, apiPost, getErrorMessage } from "@/lib/api/client";
+import { env } from "@/config/environment";
 import { BLOOD_GROUPS } from "@/modules/laboratory/blood";
-import { CatalogueSearch } from "@/modules/pharmacy/components/CatalogueSearch";
+import { MedicationPrescriptionForm, type PrescriptionLine } from "../components/MedicationPrescriptionForm";
+import { printPrescription } from "../print/printPrescription";
 import { DocumentGallery, downloadImagingStudy } from "@/components/shared/DocumentGallery";
 import { useAuthStore } from "@/stores/auth-store";
 import { useEditionStore } from "@/stores/edition-store";
@@ -341,6 +343,61 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
     }
   }
 
+  async function saveMedication(input: { fulfillment: "hospital" | "external"; items: PrescriptionLine[] }) {
+    if (!current?.id) {
+      toast.error(t("workspace.needVisit"));
+      return;
+    }
+    const preview = window.open("", "_blank", "width=900,height=720");
+    if (!preview) {
+      toast.error("اسمح بالنوافذ المنبثقة لطباعة الوصفة");
+      return;
+    }
+    try {
+      const created = (await run.mutateAsync(() =>
+        journeyApi.prescription({
+          encounter_id: current.id,
+          doctor_id: current.doctor?.id ?? num(visit.doctor_id),
+          fulfillment: input.fulfillment,
+          items: input.items.map((line) => ({
+            ...(line.catalogue_item_id ? { catalogue_item_id: line.catalogue_item_id } : { name: line.name }),
+            dose: line.dose || undefined,
+            frequency: line.frequency || undefined,
+            duration: line.duration || undefined,
+            quantity: line.quantity,
+          })),
+        }),
+      )) as { data?: { prescription_number?: string } };
+      printPrescription(
+        {
+          prescriptionNumber: created.data?.prescription_number,
+          hospitalName: env.appName,
+          fulfillment: input.fulfillment,
+          patientName: patient?.full_name,
+          mrn: patient?.mrn ? dailyNo(patient.mrn) : undefined,
+          age: patient?.age == null ? undefined : String(patient.age),
+          gender: patient?.gender === "male" ? "ذكر" : patient?.gender === "female" ? "أنثى" : undefined,
+          doctor: current.doctor?.name,
+          clinic: current.clinic?.name,
+          lines: input.items.map((line) => ({
+            name: line.name,
+            dose: line.dose,
+            frequency: line.frequency,
+            duration: line.duration,
+            quantity: String(line.quantity),
+          })),
+        },
+        preview,
+      );
+      toast.success(input.fulfillment === "hospital" ? t("workspace.rxTransferred") : t("workspace.saved"));
+      setAction(null);
+      setForm({});
+    } catch (error) {
+      preview.close();
+      toast.error(getErrorMessage(error));
+    }
+  }
+
   async function submitAction() {
     if (!action) return;
     try {
@@ -423,23 +480,7 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
           ],
         });
       case "medication":
-        return journeyApi.prescription({
-          encounter_id: encounterId,
-          doctor_id: doctorId,
-          notes: form.notes,
-          items: [
-            {
-              ...(num(form.catalogue_item_id)
-                ? { catalogue_item_id: num(form.catalogue_item_id) }
-                : { medication_id: num(form.medication_id) }),
-              dose: form.dose,
-              frequency: form.frequency,
-              duration: form.duration,
-              quantity: num(form.quantity) ?? 1,
-              instructions: form.instructions,
-            },
-          ],
-        });
+        throw new Error(t("workspace.rxNeedDrug"));
       case "nursing":
         return journeyApi.nursingNote(encounterId!, { content: form.content, shift: form.shift });
       case "admit":
@@ -1008,7 +1049,8 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
                     { key: "number", header: t("crud.code"), width: 150, cell: (row) => localize(row.prescription_number) || "—" },
                     { key: "name", header: t("pharmacy.medications"), cell: (row) => text(row.name) },
                     { key: "quantity", header: t("workspace.quantity"), width: 80, cell: (row) => latinDigits(text(row.quantity, "0")) },
-                    { key: "price", header: t("crud.price"), width: 110, cell: (row) => formatMoney(row.price, "0") },
+                    { key: "price", header: t("crud.price"), width: 110, cell: (row) => (row.fulfillment === "external" ? "—" : formatMoney(row.price, "0")) },
+                    { key: "source", header: t("workspace.rxSource"), width: 130, cell: (row) => (row.fulfillment === "external" ? t("workspace.rxExternal") : t("workspace.rxHospital")) },
                     { key: "status", header: t("app.status"), width: 120, cell: (row) => arabicLabel(row.status) },
                     { key: "actor", header: t("patients.actor"), width: 150, cell: (row) => actorOf(row) || "—" },
                     { key: "when", header: t("app.date"), width: 140, cell: (row) => timelineWhen(row.prescribed_at) },
@@ -1032,7 +1074,8 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
                     { key: "number", header: t("crud.code"), width: 150, cell: (row) => localize(row.prescription_number) || "—" },
                     { key: "name", header: t("pharmacy.medications"), cell: (row) => text(row.name) },
                     { key: "quantity", header: t("workspace.quantity"), width: 80, cell: (row) => latinDigits(text(row.quantity, "0")) },
-                    { key: "price", header: t("crud.price"), width: 110, cell: (row) => formatMoney(row.price, "0") },
+                    { key: "price", header: t("crud.price"), width: 110, cell: (row) => (row.fulfillment === "external" ? "—" : formatMoney(row.price, "0")) },
+                    { key: "source", header: t("workspace.rxSource"), width: 130, cell: (row) => (row.fulfillment === "external" ? t("workspace.rxExternal") : t("workspace.rxHospital")) },
                     { key: "status", header: t("app.status"), width: 120, cell: (row) => arabicLabel(row.status) },
                     { key: "actor", header: t("patients.actor"), width: 150, cell: (row) => actorOf(row) || "—" },
                     { key: "when", header: t("app.date"), width: 140, cell: (row) => timelineWhen(row.prescribed_at) },
@@ -1232,13 +1275,16 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
 
       {action ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
-          <div className="his-panel w-full max-w-lg bg-white">
+          <div className={`his-panel w-full bg-white ${action === "medication" ? "max-w-2xl" : "max-w-lg"}`}>
             <div className="his-panel-header flex items-center justify-between">
               <span>{dialogTitle(action, tr)}</span>
               <button type="button" onClick={() => setAction(null)}>
                 ×
               </button>
             </div>
+            {action === "medication" ? (
+              <MedicationPrescriptionForm pending={run.isPending} onCancel={() => setAction(null)} onSubmit={(input) => void saveMedication(input)} />
+            ) : (
             <form
               className="space-y-2 p-3"
               onSubmit={(event) => {
@@ -1269,6 +1315,7 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
                 </Button>
               </div>
             </form>
+            )}
           </div>
         </div>
       ) : null}
@@ -1446,35 +1493,7 @@ function ActionFields({
         </Field>
       );
     case "medication":
-      return (
-        <>
-          <div>
-            <span className="mb-1 block text-[12px] text-[var(--his-muted)]">{t("workspace.medAction")}</span>
-            <CatalogueSearch
-              selectedLabel={form.medication_label ?? ""}
-              onSelect={(item) => {
-                setField("catalogue_item_id", String(item.id));
-                setField("medication_label", item.display_name);
-                setField("medication_id", "");
-              }}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <Field label={t("workspace.dose")}>
-              <Input value={form.dose ?? ""} onChange={(e) => setField("dose", e.target.value)} />
-            </Field>
-            <Field label={t("workspace.frequency")}>
-              <Input value={form.frequency ?? ""} onChange={(e) => setField("frequency", e.target.value)} />
-            </Field>
-            <Field label={t("workspace.duration")}>
-              <Input value={form.duration ?? ""} onChange={(e) => setField("duration", e.target.value)} />
-            </Field>
-            <Field label={t("workspace.quantity")}>
-              <Input value={form.quantity ?? "1"} onChange={(e) => setField("quantity", e.target.value)} />
-            </Field>
-          </div>
-        </>
-      );
+      return null;
     case "admit":
       return (
         <>
@@ -2028,13 +2047,14 @@ function prescriptionFromApi(row: Rec): Rec {
     id: row.id,
     prescription_number: row.prescription_number,
     status: row.status,
+    fulfillment: row.fulfillment ?? "hospital",
     by: entered.name ?? doctor.name,
     doctor: doctor.name,
     prescribed_at: row.prescribed_at,
     medications: nestedRows(row.items).map((item) => {
       const medication = asObj(item.medication);
       return {
-        name: medication.name ?? item.name,
+        name: medication.trade_name ?? medication.name ?? item.name,
         quantity: item.quantity,
         price: medication.price,
       };
@@ -2047,7 +2067,7 @@ function dispenseFromApi(row: Rec): Rec {
   return {
     id: row.id,
     dispense_number: row.dispense_number,
-    medication: medication.name ?? row.medication,
+    medication: medication.trade_name ?? medication.name ?? row.medication,
     quantity: row.quantity,
     total_price: row.total_price,
     by: row.dispensed_by,
@@ -2358,7 +2378,8 @@ function prescriptionRows(prescriptions: Rec[]): Rec[] {
         by: prescription.by,
         doctor: prescription.doctor,
         prescribed_at: prescription.prescribed_at,
-        name: medication.name,
+        fulfillment: prescription.fulfillment,
+        name: medication.trade_name ?? medication.name,
         quantity: medication.quantity,
         price: medication.price,
       };

@@ -21,10 +21,23 @@ final class StorePrescriptionRequest extends ApiFormRequest
             'doctor_id' => ['nullable', 'integer', 'exists:doctors,id'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'is_draft' => ['nullable', 'boolean'],
+            'fulfillment' => ['nullable', 'in:hospital,external'],
 
             'items' => ['required', 'array', 'min:1', 'max:50'],
-            'items.*.medication_id' => ['nullable', 'integer', 'exists:medications,id', 'required_without:items.*.catalogue_item_id'],
-            'items.*.catalogue_item_id' => ['nullable', 'integer', 'exists:drug_catalogue_items,id', 'required_without:items.*.medication_id'],
+            'items.*' => [
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if (! is_array($value)) {
+                        return;
+                    }
+                    $written = trim((string) ($value['name'] ?? ''));
+                    if (empty($value['medication_id']) && empty($value['catalogue_item_id']) && $written === '') {
+                        $fail('اختر الدواء من الدليل أو اكتب اسمه.');
+                    }
+                },
+            ],
+            'items.*.medication_id' => ['nullable', 'integer', 'exists:medications,id'],
+            'items.*.catalogue_item_id' => ['nullable', 'integer', 'exists:drug_catalogue_items,id'],
+            'items.*.name' => ['nullable', 'string', 'max:255'],
             'items.*.dose' => ['nullable', 'string', 'max:100'],
             'items.*.frequency' => ['nullable', 'string', 'max:100'],
             'items.*.duration' => ['nullable', 'string', 'max:100'],
@@ -40,8 +53,7 @@ final class StorePrescriptionRequest extends ApiFormRequest
     public function messages(): array
     {
         return [
-            'items.*.medication_id.required_without' => 'اختر الدواء من الدليل.',
-            'items.*.catalogue_item_id.required_without' => 'اختر الدواء من الدليل.',
+            'items.*.name.max' => 'اسم الدواء أطول من المسموح.',
         ];
     }
 }

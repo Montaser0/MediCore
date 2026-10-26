@@ -25,6 +25,14 @@ final class PrescriptionController extends ApiController
             ->forCurrentHospital()
             ->when($request->filled('status'), fn ($query) => $query->whereIn('status', (array) $request->input('status')))
             ->when($request->boolean('dispensable_only'), fn ($query) => $query->dispensable())
+            ->when(
+                ! $request->filled('patient_id') && ! $request->filled('encounter_id'),
+                fn ($query) => $query->where('fulfillment', 'hospital'),
+            )
+            ->when(
+                in_array($request->string('fulfillment')->toString(), ['hospital', 'external'], true),
+                fn ($query) => $query->where('fulfillment', $request->string('fulfillment')->toString()),
+            )
             ->when($request->filled('encounter_id'), fn ($query) => $query->where('encounter_id', $request->integer('encounter_id')))
             ->when($request->filled('patient_id'), fn ($query) => $query->whereHas(
                 'encounter',

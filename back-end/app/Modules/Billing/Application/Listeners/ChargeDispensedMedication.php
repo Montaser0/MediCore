@@ -29,7 +29,11 @@ final class ChargeDispensedMedication
             return;
         }
 
-        $dispense->loadMissing('medication');
+        $dispense->loadMissing(['medication', 'prescription']);
+
+        if (($dispense->prescription?->fulfillment ?? 'hospital') === 'external') {
+            return;
+        }
 
         $this->createCharge->execute([
             'encounter_id' => $dispense->encounter_id,

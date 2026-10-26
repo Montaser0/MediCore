@@ -57,10 +57,12 @@ final class PrescriptionModel extends BaseModel
 
     public function scopeDispensable(Builder $query): Builder
     {
-        return $query->whereIn('status', [
-            PrescriptionStatus::Active->value,
-            PrescriptionStatus::PartiallyDispensed->value,
-        ]);
+        return $query
+            ->where('fulfillment', 'hospital')
+            ->whereIn('status', [
+                PrescriptionStatus::Active->value,
+                PrescriptionStatus::PartiallyDispensed->value,
+            ]);
     }
 
     /**

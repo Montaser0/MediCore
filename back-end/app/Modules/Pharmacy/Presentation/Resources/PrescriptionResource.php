@@ -22,6 +22,7 @@ final class PrescriptionResource extends JsonResource
             'prescription_number' => $this->prescription_number,
             'status' => $this->status->value,
             'status_label' => $this->status->label(),
+            'fulfillment' => $this->fulfillment ?? 'hospital',
             'notes' => $this->notes,
             'cancellation_reason' => $this->cancellation_reason,
             'prescribed_at' => $this->prescribed_at?->toIso8601String(),

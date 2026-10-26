@@ -17,7 +17,7 @@ final class DrugCatalogueItemModel extends BaseModel
         return $this->hasOne(MedicationModel::class, 'catalogue_item_id');
     }
 
-    public function scopeSearch(Builder $query, ?string $term): Builder
+    public function scopeSearch(Builder $query, ?string $term, bool $nameOnly = false): Builder
     {
         $term = trim((string) $term);
         if ($term === '') {
@@ -25,6 +25,14 @@ final class DrugCatalogueItemModel extends BaseModel
         }
 
         $like = '%'.addcslashes($term, '%_\\').'%';
+
+        if ($nameOnly) {
+            return $query->where(function (Builder $inner) use ($like): void {
+                $inner->where('name', 'like', $like)
+                    ->orWhere('company_ar', 'like', $like)
+                    ->orWhere('company', 'like', $like);
+            });
+        }
 
         return $query->where(function (Builder $inner) use ($term, $like): void {
             $inner->where('name', 'like', $like)

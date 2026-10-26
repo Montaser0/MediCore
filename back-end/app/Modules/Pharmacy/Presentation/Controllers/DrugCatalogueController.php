@@ -34,7 +34,7 @@ final class DrugCatalogueController extends ApiController
         $hospitalId = $this->hospitalId($sales);
 
         $items = DrugCatalogueItemModel::query()
-            ->search($term)
+            ->search($term, $request->boolean('name_only'))
             ->when(
                 $request->filled('product_type'),
                 fn ($query) => $query->where('product_type', $request->string('product_type')->toString()),

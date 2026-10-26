@@ -28,7 +28,7 @@ type RxItem = {
   id: number;
   quantity?: number;
   remaining_quantity?: number;
-  medication?: { name?: string; price?: number };
+  medication?: { id?: number; name?: string; price?: number };
 };
 type Warehouse = { id: number; name?: string; is_pharmacy?: boolean };
 
@@ -101,7 +101,12 @@ function PharmacyDeskPage() {
           await apiPost(`/pharmacy/prescriptions/${prescription.id}/activate`);
         }
         const lines = prescription.items.filter((item) => Number(item.remaining_quantity ?? item.quantity ?? 0) > 0);
-        for (const line of lines) {
+        const stockLines = lines.filter((item) => item.medication?.id);
+        if (lines.length > 0 && stockLines.length === 0) {
+          toast.error(t("workspace.rxNotInDatabase"));
+          return;
+        }
+        for (const line of stockLines) {
           await apiPost(`/pharmacy/prescription-items/${line.id}/dispense`, {
             warehouse_id: Number(warehouseId),
             quantity: Number(line.remaining_quantity ?? line.quantity),
@@ -131,6 +136,7 @@ function PharmacyDeskPage() {
               <ResourceListPage
                 title={t("pharmacy.title")}
                 endpoint="/pharmacy/prescriptions"
+                params={{ fulfillment: "hospital" }}
                 excel="prescriptions"
                 actionsHeader={t("app.operations")}
                 removeLabel={t("app.delete")}

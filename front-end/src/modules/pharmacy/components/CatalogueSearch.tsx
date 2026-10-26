@@ -38,10 +38,18 @@ export function CatalogueSearch({
   productType = "",
   selectedLabel,
   onSelect,
+  onQueryChange,
+  nameOnly = false,
+  placeholder,
+  emptyText,
 }: {
   productType?: string;
   selectedLabel?: string;
   onSelect: (item: CatalogueHit) => void;
+  onQueryChange?: (value: string) => void;
+  nameOnly?: boolean;
+  placeholder?: string;
+  emptyText?: string;
 }) {
   const t = useTranslations();
   const [q, setQ] = useState("");
@@ -53,7 +61,7 @@ export function CatalogueSearch({
   }, [q]);
 
   const { data: hits = [], isFetching } = useQuery({
-    queryKey: ["pharmacy-catalogue", term, productType],
+    queryKey: ["pharmacy-catalogue", term, productType, nameOnly],
     enabled: term.length >= 2,
     queryFn: async () => {
       const res = await apiGet<CatalogueHit[]>("/pharmacy/catalogue", {
@@ -61,6 +69,7 @@ export function CatalogueSearch({
           search: term,
           per_page: 20,
           ...(productType ? { product_type: productType } : {}),
+          ...(nameOnly ? { name_only: 1 } : {}),
         },
       });
       return res.data ?? [];
@@ -71,8 +80,11 @@ export function CatalogueSearch({
     <div>
       <Input
         value={q}
-        onChange={(event) => setQ(event.target.value)}
-        placeholder={t("pharmacy.searchCatalogue")}
+        onChange={(event) => {
+          setQ(event.target.value);
+          onQueryChange?.(event.target.value);
+        }}
+        placeholder={placeholder ?? (nameOnly ? t("pharmacy.searchByName") : t("pharmacy.searchCatalogue"))}
       />
       {selectedLabel ? <p className="mt-1 text-[12px]">{selectedLabel}</p> : null}
       {term.length > 0 && term.length < 2 ? (
@@ -83,7 +95,7 @@ export function CatalogueSearch({
           {isFetching && hits.length === 0 ? (
             <p className="px-2 py-2 text-[12px] text-[var(--his-muted)]">{t("app.loading")}</p>
           ) : hits.length === 0 ? (
-            <p className="px-2 py-2 text-[12px] text-[var(--his-muted)]">{t("app.noData")}</p>
+            <p className="px-2 py-2 text-[12px] text-[var(--his-muted)]">{emptyText ?? t("app.noData")}</p>
           ) : (
             hits.map((item) => (
               <button
@@ -94,14 +106,17 @@ export function CatalogueSearch({
                   onSelect(item);
                   setQ("");
                   setTerm("");
+                  onQueryChange?.("");
                 }}
               >
-                <span className="block text-[13px]">{item.display_name}</span>
-                <span className="block text-[11px] text-[var(--his-muted)]">
-                  {catalogueDetail(item)}
-                  {item.product_type ? ` · ${item.product_type}` : ""}
-                  {item.stock ? ` · ${t("pharmacy.onShelf")} ${item.stock.quantity ?? 0}` : ""}
-                </span>
+                <span className="block text-[13px]">{nameOnly ? item.name : item.display_name}</span>
+                {nameOnly ? null : (
+                  <span className="block text-[11px] text-[var(--his-muted)]">
+                    {catalogueDetail(item)}
+                    {item.product_type ? ` · ${item.product_type}` : ""}
+                    {item.stock ? ` · ${t("pharmacy.onShelf")} ${item.stock.quantity ?? 0}` : ""}
+                  </span>
+                )}
               </button>
             ))
           )}

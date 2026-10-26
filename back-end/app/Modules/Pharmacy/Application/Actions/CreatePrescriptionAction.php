@@ -54,8 +54,9 @@ final class CreatePrescriptionAction
         $status = ($data['is_draft'] ?? false)
             ? PrescriptionStatus::Draft
             : PrescriptionStatus::Active;
+        $fulfillment = ($data['fulfillment'] ?? 'hospital') === 'external' ? 'external' : 'hospital';
 
-        return DB::transaction(function () use ($encounter, $data, $doctorId, $items, $status): PrescriptionModel {
+        return DB::transaction(function () use ($encounter, $data, $doctorId, $items, $status, $fulfillment): PrescriptionModel {
             $prescription = PrescriptionModel::query()->create([
                 'hospital_id' => $encounter->hospitalId,
                 'encounter_id' => $encounter->id,
@@ -64,11 +65,30 @@ final class CreatePrescriptionAction
                 'entered_by' => $this->currentUser->id(),
                 'order_id' => $data['order_id'] ?? null,
                 'status' => $status->value,
+                'fulfillment' => $fulfillment,
                 'notes' => $data['notes'] ?? null,
                 'prescribed_at' => now(),
             ]);
 
             foreach ($items as $item) {
+                $written = trim((string) ($item['name'] ?? ''));
+                $linked = ! empty($item['medication_id']) || ! empty($item['catalogue_item_id']);
+
+                if (! $linked && $written !== '') {
+                    $prescription->items()->create([
+                        'medication_id' => null,
+                        'medication_name' => mb_substr($written, 0, 255),
+                        'dose' => $item['dose'] ?? null,
+                        'frequency' => $item['frequency'] ?? null,
+                        'duration' => $item['duration'] ?? null,
+                        'route' => $item['route'] ?? null,
+                        'quantity' => $item['quantity'] ?? null,
+                        'instructions' => $item['instructions'] ?? null,
+                    ]);
+
+                    continue;
+                }
+
                 $medication = MedicationModel::query()->findOrFail(
                     $this->medicationId($item, (int) $encounter->hospitalId),
                 );
@@ -88,20 +108,27 @@ final class CreatePrescriptionAction
 
             PrescriptionCreated::dispatch($prescription);
 
+            $names = $prescription->items
+                ->map(fn ($item) => $item->medication?->name ?? $item->medication_name)
+                ->filter()
+                ->implode(', ');
+            $place = $fulfillment === 'external' ? 'من الخارج' : 'صيدلية المشفى';
+
             $this->timeline->record(
                 patientId: $encounter->patientId,
                 encounterId: $encounter->id,
                 eventType: 'pharmacy.prescription_created',
                 title: 'وصفة طبية',
-                description: $prescription->items
-                    ->map(fn ($item) => $item->medication?->displayName())
-                    ->filter()
-                    ->implode(', '),
+                description: trim($names.($names !== '' ? ' — ' : '').$place),
                 departmentId: $encounter->departmentId,
-                payload: ['prescription_id' => $prescription->getKey(), 'status' => $status->value],
+                payload: [
+                    'prescription_id' => $prescription->getKey(),
+                    'status' => $status->value,
+                    'fulfillment' => $fulfillment,
+                ],
             );
 
-            if ($status === PrescriptionStatus::Active && empty($data['order_id'])) {
+            if ($status === PrescriptionStatus::Active && $fulfillment === 'hospital' && empty($data['order_id'])) {
                 $prescription->loadMissing('encounter.patient');
                 $patientName = $prescription->encounter?->patient?->full_name;
 

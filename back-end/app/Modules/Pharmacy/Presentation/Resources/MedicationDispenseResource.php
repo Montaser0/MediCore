@@ -31,6 +31,7 @@ final class MedicationDispenseResource extends JsonResource
             'medication' => $this->whenLoaded('medication', fn () => [
                 'id' => $this->medication?->id,
                 'name' => $this->medication?->displayName(),
+                'trade_name' => $this->medication?->name,
             ]),
             'warehouse' => $this->whenLoaded('warehouse', fn () => $this->warehouse?->name),
             'dispensed_by' => $this->whenLoaded('dispensedBy', fn () => $this->dispensedBy?->displayName()),
