@@ -222,6 +222,11 @@ export function PatientCreatePage() {
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
+    if (!nationalId) {
+      toast.error(t("patients.nationalIdRequired"));
+      nationalIdRef.current?.focus();
+      return;
+    }
     if (existing[0] && !directDesk) {
       toast.error(t("patients.existingBody"));
       router.push(`/${locale}/dashboard/patients/${existing[0].id}`);
@@ -409,6 +414,7 @@ export function PatientCreatePage() {
               <div className="flex gap-1">
                 <Input
                   ref={nationalIdRef}
+                  required
                   dir="ltr"
                   lang="en"
                   inputMode="numeric"

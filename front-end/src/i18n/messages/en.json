@@ -112,6 +112,7 @@
     "nationalIdScan": "Scan the barcode or type the number, then search",
     "nationalIdHint": "Focus this field, then scan the national ID card. The reader fills the number and searches.",
     "nationalIdNotFound": "No patient has this national ID. You can continue registering.",
+    "nationalIdRequired": "National ID is required",
     "phone": "Phone",
     "city": "City",
     "bloodType": "Blood type",
