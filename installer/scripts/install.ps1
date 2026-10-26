@@ -478,7 +478,7 @@ file_put_contents(__DIR__ . '/seed-count.txt', (string) Illuminate\Support\Facad
     } while ((Get-Date) -lt $deadline)
     if (-not $healthy) { throw "HMS did not answer on $siteUrl/up" }
 
-    & schtasks.exe /Create /F /TN "MediCore Daily Backup" /SC DAILY /ST 02:00 /RU SYSTEM /RL HIGHEST /TR "$Root\scripts\backup-scheduled.cmd" | Out-Null
+    & schtasks.exe /Create /F /TN "MediCore Daily Backup" /SC HOURLY /MO 1 /RU SYSTEM /RL HIGHEST /TR "$Root\scripts\backup-scheduled.cmd" | Out-Null
     if (Test-Path (Join-Path $Root 'config\upgrade-backup.ok')) {
         Remove-Item (Join-Path $Root 'config\upgrade-backup.ok') -Force
     }

@@ -138,6 +138,10 @@ export function isDoctorDesk(user: AuthUser | null): boolean {
 }
 
 export function canOpenPath(user: AuthUser | null, path: string, edition?: EditionMenu | null): boolean {
+  if (path === "/dashboard/pharmacy/backups" || path.startsWith("/dashboard/pharmacy/backups/")) {
+    return roleNames(user).includes("admin") || hasPermission(user, "settings.manage");
+  }
+
   if (editionBlocks(path, edition)) return false;
 
   if (usesCustomScreens(user)) {

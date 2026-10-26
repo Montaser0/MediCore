@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { CrudResourcePage } from "@/components/shared/CrudResourcePage";
-import { ExcelButtons } from "@/components/shared/ExcelButtons";
 import { ModuleTabs } from "@/components/shared/ModuleTabs";
 import { OrderResultDialog, uploadResultFiles } from "@/components/shared/OrderResultDialog";
 import { ResourceListPage, dateCell, statusBadge } from "@/components/shared/ResourceListPage";
@@ -211,14 +210,6 @@ function PharmacyDeskPage() {
                     title={t("pharmacy.medications")}
                     endpoint="/pharmacy/medications"
                     excel="medications"
-                    excelCaption={t("nav.pharmacyCatalog")}
-                    toolbarExtra={
-                      <ExcelButtons
-                        resource="pharmacy"
-                        caption={t("nav.pharmacy")}
-                        onImported={() => qc.invalidateQueries({ queryKey: ["/pharmacy/medications"] })}
-                      />
-                    }
                     columns={[
                       { key: "name", header: t("pharmacy.tradeName"), render: (row) => String(row.name ?? "—") },
                       { key: "generic_name", header: t("pharmacy.generic"), render: (row) => String(row.generic_name ?? "—") },

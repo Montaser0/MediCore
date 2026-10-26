@@ -7,7 +7,9 @@ namespace App\Core\Providers;
 use App\Core\Auth\CurrentUser;
 use App\Core\Excel\ExcelController;
 use App\Core\Authorization\PermissionChecker;
+use App\Core\Backup\AutomaticBackupCommand;
 use App\Core\Backup\BackupController;
+use App\Core\Backup\BackupKick;
 use App\Core\Backup\CreateBackupCommand;
 use App\Core\Backup\RestoreBackupCommand;
 use App\Core\Http\Controllers\SystemModulesController;
@@ -39,11 +41,13 @@ final class CoreServiceProvider extends ServiceProvider
         $this->commands([
             CreateBackupCommand::class,
             RestoreBackupCommand::class,
+            AutomaticBackupCommand::class,
         ]);
     }
 
     public function boot(): void
     {
+        BackupKick::afterRequest();
         Route::middleware('api')
             ->prefix('api')
             ->get('system/modules', [SystemModulesController::class, 'show']);

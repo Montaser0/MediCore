@@ -67,15 +67,134 @@ final class BackupService
         return $rows;
     }
 
+    private function forgetOlder(string $letter, int $keep): void
+    {
+        $names = [];
+
+        foreach ($this->history('usb', $letter) as $row) {
+            if (str_starts_with($row['name'], 'pharmacy-')) {
+                $names[] = $row['name'];
+            }
+        }
+
+        foreach (BackupSchedule::expired($names, $keep) as $name) {
+            $path = $this->directory('usb', $letter).DIRECTORY_SEPARATOR.$name;
+
+            if (is_file($path)) {
+                unlink($path);
+            }
+        }
+    }
+
     /**
-     * @return list<array{letter: string}>
+     * @return array{time: string, keep: int, last_on: string|null, retry_after: string|null}
+     */
+    private function readSchedule(): array
+    {
+        $defaults = [
+            'time' => '08:00',
+            'keep' => 7,
+            'last_on' => null,
+            'retry_after' => null,
+        ];
+        $path = $this->schedulePath();
+
+        if (! is_file($path)) {
+            return $defaults;
+        }
+
+        $decoded = json_decode((string) file_get_contents($path), true);
+
+        if (! is_array($decoded)) {
+            return $defaults;
+        }
+
+        return [
+            'time' => '08:00',
+            'keep' => max(1, min(30, (int) ($decoded['keep'] ?? $defaults['keep']))),
+            'last_on' => is_string($decoded['last_on'] ?? null) ? $decoded['last_on'] : null,
+            'retry_after' => is_string($decoded['retry_after'] ?? null) ? $decoded['retry_after'] : null,
+        ];
+    }
+
+    /**
+     * @param  array{time: string, keep: int, last_on: string|null, retry_after: string|null}  $schedule
+     */
+    private function writeSchedule(array $schedule): void
+    {
+        $path = $this->schedulePath();
+        $directory = dirname($path);
+
+        if (! is_dir($directory)) {
+            mkdir($directory, 0777, true);
+        }
+
+        file_put_contents($path, json_encode($schedule, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT), LOCK_EX);
+    }
+
+    private function schedulePath(): string
+    {
+        return storage_path('app/hms-backup-schedule.json');
+    }
+
+    private function timezoneName(): string
+    {
+        $timezone = (string) config('hms.local.backup_timezone', 'Asia/Damascus');
+
+        return $timezone !== '' ? $timezone : 'Asia/Damascus';
+    }
+
+    /**
+     * @return list<array{letter: string, name: string|null}>
      */
     public function drives(): array
     {
-        return array_map(
-            static fn (string $letter): array => ['letter' => $letter],
-            $this->removableDrives(),
-        );
+        return $this->listedDrives();
+    }
+
+    public function runScheduled(): bool
+    {
+        $stored = $this->readSchedule();
+        $now = new \DateTimeImmutable('now', new \DateTimeZone($this->timezoneName()));
+
+        if (! BackupSchedule::isDue($now, $stored['time'], $stored['last_on'])) {
+            return false;
+        }
+
+        $retryAfter = $stored['retry_after'];
+
+        if ($retryAfter !== null && $now < new \DateTimeImmutable($retryAfter)) {
+            return false;
+        }
+
+        $drives = $this->drives();
+
+        if ($drives === []) {
+            return false;
+        }
+
+        try {
+            $created = $this->create('usb', $drives[0]['letter']);
+            $this->forgetOlder($drives[0]['letter'], $stored['keep']);
+            $fresh = $this->readSchedule();
+            $fresh['last_on'] = $now->format('Y-m-d');
+            $fresh['retry_after'] = null;
+            $this->writeSchedule($fresh);
+            logger()->info('backup.automatic', ['file' => $created['name'], 'drive' => $drives[0]['letter']]);
+        } catch (BackupException $exception) {
+            $fresh = $this->readSchedule();
+
+            if ($fresh['last_on'] !== $now->format('Y-m-d')) {
+                $fresh['retry_after'] = $now->modify('+30 minutes')->format('c');
+                $this->writeSchedule($fresh);
+            }
+
+            logger()->error('backup.automatic', ['message' => $exception->getMessage()]);
+
+            return false;
+        }
+
+        return true;
     }
 
     /**
@@ -114,7 +233,7 @@ final class BackupService
         $cnf = $this->clientDefaults();
 
         try {
-            $result = Process::timeout(600)->run([
+            $result = Process::timeout(600)->env($this->windowsEnvironment())->run([
                 $this->binary('mysqldump'),
                 '--defaults-extra-file='.$this->slash($cnf),
                 '--protocol=tcp',
@@ -128,6 +247,12 @@ final class BackupService
             ]);
 
             if (! $result->successful() || ! is_file($plain) || filesize($plain) === 0) {
+                logger()->error('backup.dump', [
+                    'exit' => $result->exitCode(),
+                    'err' => $result->errorOutput(),
+                    'out' => $result->output(),
+                    'file' => is_file($plain) ? filesize($plain) : null,
+                ]);
                 throw new BackupException('تعذر إنشاء النسخة الاحتياطية.');
             }
 
@@ -185,7 +310,7 @@ final class BackupService
                 ],
                 $pipes,
                 null,
-                null,
+                $this->windowsEnvironment(),
                 ['bypass_shell' => true],
             );
 
@@ -293,7 +418,37 @@ final class BackupService
             return $path;
         }
 
+        foreach ($this->candidateBinaries($tool) as $candidate) {
+            if (is_file($candidate)) {
+                return $candidate;
+            }
+        }
+
         throw new BackupException('أداة قاعدة البيانات غير متوفرة على هذا الجهاز.');
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function candidateBinaries(string $tool): array
+    {
+        $candidates = [];
+
+        if (PHP_OS_FAMILY === 'Windows') {
+            $candidates[] = 'C:\\xampp\\mysql\\bin\\'.$tool.'.exe';
+        }
+
+        $path = (string) getenv('PATH');
+        foreach (explode(PATH_SEPARATOR, $path) as $directory) {
+            $directory = rtrim($directory, '\\/');
+            if ($directory === '') {
+                continue;
+            }
+
+            $candidates[] = $directory.DIRECTORY_SEPARATOR.$tool.(PHP_OS_FAMILY === 'Windows' ? '.exe' : '');
+        }
+
+        return $candidates;
     }
 
     private function database(): string
@@ -398,36 +553,181 @@ final class BackupService
     }
 
     /**
+     * @var list<array{letter: string, name: string|null}>|null
+     */
+    private ?array $driveCache = null;
+
+    /**
      * @return list<string>
      */
     private function removableDrives(): array
     {
-        if (PHP_OS_FAMILY !== 'Windows') {
-            return [];
+        return array_map(
+            static fn (array $drive): string => $drive['letter'],
+            $this->listedDrives(),
+        );
+    }
+
+    /**
+     * @return list<array{letter: string, name: string|null}>
+     */
+    private function listedDrives(): array
+    {
+        if ($this->driveCache !== null) {
+            return $this->driveCache;
         }
 
-        $result = Process::timeout(20)->run([
-            'powershell.exe',
+        if (PHP_OS_FAMILY !== 'Windows') {
+            return $this->driveCache = [];
+        }
+
+        return $this->driveCache = $this->drivesFromCom()
+            ?? $this->drivesFromFsutil()
+            ?? $this->drivesFromPowerShell();
+    }
+
+    /**
+     * @return list<array{letter: string, name: string|null}>|null
+     */
+    private function drivesFromCom(): ?array
+    {
+        if (! class_exists(\COM::class)) {
+            return null;
+        }
+
+        try {
+            $wmi = new \COM('winmgmts:{impersonationLevel=impersonate}!\\\\.\\root\\cimv2');
+            $disks = $wmi->ExecQuery('SELECT DeviceID, VolumeName FROM Win32_LogicalDisk WHERE DriveType=2');
+            $drives = [];
+
+            foreach ($disks as $disk) {
+                $letter = $this->driveLetter((string) $disk->DeviceID);
+
+                if ($letter === null || isset($drives[$letter])) {
+                    continue;
+                }
+
+                $name = trim((string) $disk->VolumeName);
+                $drives[$letter] = ['letter' => $letter, 'name' => $name !== '' ? $name : null];
+            }
+
+            return array_values($drives);
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * @return list<array{letter: string, name: string|null}>|null
+     */
+    private function drivesFromFsutil(): ?array
+    {
+        $drives = [];
+        $sawOutput = false;
+
+        foreach (range('D', 'Z') as $letter) {
+            if (! is_dir($letter.':\\')) {
+                continue;
+            }
+
+            $output = shell_exec('fsutil fsinfo drivetype '.$letter.':');
+
+            if (! is_string($output) || trim($output) === '') {
+                continue;
+            }
+
+            $sawOutput = true;
+
+            if (preg_match('/removable|قابل للإزالة|قابل للازالة/ui', $output) === 1) {
+                $drives[] = ['letter' => $letter, 'name' => $this->volumeName($letter)];
+            }
+        }
+
+        return $sawOutput ? $drives : null;
+    }
+
+    /**
+     * @return list<array{letter: string, name: string|null}>
+     */
+    private function drivesFromPowerShell(): array
+    {
+        $result = Process::timeout(20)->env($this->windowsEnvironment())->run([
+            'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe',
             '-NoProfile',
+            '-NonInteractive',
             '-Command',
-            '(Get-CimInstance Win32_LogicalDisk -Filter "DriveType=2").DeviceID',
+            'Get-CimInstance Win32_LogicalDisk -Filter "DriveType=2" | ForEach-Object { $_.DeviceID + "|" + $_.VolumeName }',
         ]);
 
         if (! $result->successful()) {
             return [];
         }
 
-        $letters = [];
+        $drives = [];
 
         foreach (preg_split("/\r\n|\n|\r/", trim($result->output())) ?: [] as $line) {
-            $line = strtoupper(trim($line));
+            [$device, $name] = array_pad(explode('|', trim($line), 2), 2, '');
+            $letter = $this->driveLetter($device);
 
-            if (preg_match('/^([A-Z]):$/', $line, $matches) === 1) {
-                $letters[] = $matches[1];
+            if ($letter === null || isset($drives[$letter])) {
+                continue;
             }
+
+            $name = trim($name);
+            $drives[$letter] = ['letter' => $letter, 'name' => $name !== '' ? $name : null];
         }
 
-        return array_values(array_unique($letters));
+        return array_values($drives);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function windowsEnvironment(): array
+    {
+        $root = getenv('SystemRoot') ?: 'C:\\Windows';
+
+        return [
+            'SystemRoot' => $root,
+            'WINDIR' => getenv('WINDIR') ?: $root,
+            'PATH' => getenv('PATH') ?: $root.'\\System32',
+            'COMSPEC' => getenv('COMSPEC') ?: $root.'\\System32\\cmd.exe',
+            'TEMP' => getenv('TEMP') ?: sys_get_temp_dir(),
+            'TMP' => getenv('TMP') ?: sys_get_temp_dir(),
+            'PATHEXT' => getenv('PATHEXT') ?: '.COM;.EXE;.BAT;.CMD',
+        ];
+    }
+
+    private function driveLetter(string $value): ?string
+    {
+        $value = strtoupper(trim($value));
+
+        if (preg_match('/^([A-Z]):$/', $value, $matches) !== 1) {
+            return null;
+        }
+
+        return $matches[1];
+    }
+
+    private function volumeName(string $letter): ?string
+    {
+        $output = shell_exec('cmd /c vol '.$letter.':');
+
+        if (! is_string($output)) {
+            return null;
+        }
+
+        if (preg_match('/\bis ([^\r\n]+)/u', $output, $matches) !== 1) {
+            return null;
+        }
+
+        $name = trim($matches[1]);
+
+        if ($name === '' || preg_match('/no label/i', $name) === 1) {
+            return null;
+        }
+
+        return $name;
     }
 
     /**

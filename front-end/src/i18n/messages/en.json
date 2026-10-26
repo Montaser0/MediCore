@@ -722,6 +722,8 @@
     "local": "This computer",
     "usb": "USB drive",
     "noDrive": "No USB drive is connected",
+    "scanning": "Looking for a USB drive",
+    "chooseDrive": "Choose a drive",
     "empty": "No backups yet",
     "file": "File",
     "size": "Size",

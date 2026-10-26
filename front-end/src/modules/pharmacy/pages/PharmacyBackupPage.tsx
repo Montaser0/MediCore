@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
@@ -16,7 +16,7 @@ type BackupFile = {
   drive?: string | null;
 };
 
-type Drive = { letter: string };
+type Drive = { letter: string; name?: string | null };
 
 function formatSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
@@ -35,6 +35,19 @@ export function PharmacyBackupPage() {
     queryKey: ["hms-backup-drives"],
     queryFn: async () => (await apiGet<Drive[]>("/system/backup-drives")).data ?? [],
   });
+  const connected = drives.data ?? [];
+  const driveStatus = drives.isPending
+    ? t("station.scanning")
+    : drives.isError
+      ? getErrorMessage(drives.error)
+      : connected.length > 0
+        ? null
+        : t("station.noDrive");
+
+  useEffect(() => {
+    const first = drives.data?.[0]?.letter;
+    if (drive === "" && first) setDrive(first);
+  }, [drive, drives.data]);
 
   const local = useQuery({
     queryKey: ["hms-backups", "local"],
@@ -103,7 +116,7 @@ export function PharmacyBackupPage() {
           title={t("station.usb")}
           rows={drive ? (usb.data ?? []) : []}
           loading={usb.isLoading}
-          empty={drive ? t("station.empty") : t("station.noDrive")}
+          empty={drive ? t("station.empty") : (driveStatus ?? t("station.chooseDrive"))}
           fileLabel={t("station.file")}
           sizeLabel={t("station.size")}
           createdLabel={t("station.created")}
@@ -112,13 +125,14 @@ export function PharmacyBackupPage() {
         >
           <select
             className="his-input"
+            style={{ width: 180 }}
             value={drive}
             onChange={(event) => setDrive(event.target.value)}
           >
-            <option value="">{t("station.noDrive")}</option>
-            {(drives.data ?? []).map((item) => (
+            <option value="">{driveStatus ?? t("station.chooseDrive")}</option>
+            {connected.map((item) => (
               <option key={item.letter} value={item.letter}>
-                {item.letter}:\HMS-Backups
+                {item.name ? `${item.letter}: ${item.name}` : `${item.letter}:`}
               </option>
             ))}
           </select>
