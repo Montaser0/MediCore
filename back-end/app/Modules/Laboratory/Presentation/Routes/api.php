@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::middleware('auth:sanctum')->prefix('laboratory')->group(function (): void {
     // Catalogue: anyone who can raise an order needs to read it.
-    Route::middleware('permission:'.Permissions::ORDERS_VIEW)->group(function (): void {
+        Route::middleware('permission:'.Permissions::ORDERS_VIEW.'|'.Permissions::ENCOUNTERS_CREATE)->group(function (): void {
         Route::get('tests', [LabTestController::class, 'index']);
         Route::get('tests/categories', [LabTestController::class, 'categories']);
         Route::get('tests/{lab_test}', [LabTestController::class, 'show']);

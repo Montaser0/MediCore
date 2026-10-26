@@ -14,6 +14,7 @@ use App\Modules\Encounters\Application\Actions\CloseEncounterAction;
 use App\Modules\Encounters\Application\Actions\CreateEncounterAction;
 use App\Modules\Encounters\Application\Actions\StartEncounterAction;
 use App\Modules\Encounters\Application\Actions\TransferEncounterAction;
+use App\Modules\Orders\Application\Actions\CreateOrderAction;
 use App\Modules\Pharmacy\Application\Actions\CreatePrescriptionAction;
 use App\Modules\Encounters\Application\Queries\ListEncountersQuery;
 use App\Modules\Encounters\Infrastructure\Persistence\Models\EncounterModel;
@@ -131,6 +132,7 @@ final class EncounterController extends ApiController
         StoreEncounterRequest $request,
         CreateEncounterAction $action,
         CreatePrescriptionAction $prescriptions,
+        CreateOrderAction $orders,
         CurrentUser $currentUser,
     ): JsonResponse {
         abort_if($currentUser->isClinicalDesk(), 403, 'لا يمكنك فتح زيارة جديدة.');
@@ -144,29 +146,47 @@ final class EncounterController extends ApiController
         $department = isset($payload['department_id'])
             ? DepartmentModel::query()->find($payload['department_id'])
             : null;
-        $pharmacy = $department?->type === DepartmentType::Pharmacy;
+        $desk = match ($department?->type) {
+            DepartmentType::Pharmacy => 'pharmacy',
+            DepartmentType::Laboratory => 'laboratory',
+            DepartmentType::Radiology => 'radiology',
+            default => null,
+        };
 
-        if ($pharmacy && $items === []) {
-            throw BusinessRuleException::make('أضف دواءً إلى الوصفة قبل تحويل المريض إلى الصيدلية.');
+        if ($desk !== null && $items === []) {
+            throw BusinessRuleException::make(match ($desk) {
+                'laboratory' => 'حدد تحليلاً واحداً على الأقل قبل تحويل المريض إلى المخبر.',
+                'radiology' => 'حدد صورة واحدة على الأقل قبل تحويل المريض إلى الأشعة.',
+                default => 'أضف دواءً إلى الوصفة قبل تحويل المريض إلى الصيدلية.',
+            });
         }
 
-        if (! $pharmacy && $items !== []) {
-            throw BusinessRuleException::make('الوصفة تُرفق فقط عند اختيار قسم الصيدلية.');
+        if ($desk === null && $items !== []) {
+            throw BusinessRuleException::make('البنود تُرفق فقط عند اختيار قسم الصيدلية أو المخبر أو الأشعة.');
         }
 
-        $created = DB::transaction(function () use ($patient, $payload, $items, $pharmacy, $action, $prescriptions) {
-            if ($pharmacy) {
+        $created = DB::transaction(function () use ($patient, $payload, $items, $desk, $department, $action, $prescriptions, $orders) {
+            if ($desk !== null) {
                 $payload['allow_parallel'] = true;
                 $payload['clinic_id'] = null;
                 $payload['doctor_id'] = null;
-                $payload['reason'] = $payload['reason'] ?? 'صرف أدوية فقط';
-                $payload['chief_complaint'] = $payload['chief_complaint'] ?? 'صرف أدوية من صيدلية المشفى فقط';
+                $payload['reason'] = $payload['reason'] ?? match ($desk) {
+                    'laboratory' => 'تحاليل مخبرية فقط',
+                    'radiology' => 'صور أشعة فقط',
+                    default => 'صرف أدوية فقط',
+                };
+                $payload['chief_complaint'] = $payload['chief_complaint'] ?? match ($desk) {
+                    'laboratory' => 'تحويل من الاستقبال إلى المخبر',
+                    'radiology' => 'تحويل من الاستقبال إلى الأشعة',
+                    default => 'صرف أدوية من صيدلية المشفى فقط',
+                };
             }
 
             $encounter = $action->execute($patient, $payload);
             $prescription = null;
+            $order = null;
 
-            if ($pharmacy) {
+            if ($desk === 'pharmacy') {
                 $prescription = $prescriptions->execute([
                     'encounter_id' => $encounter->getKey(),
                     'fulfillment' => 'hospital',
@@ -176,13 +196,37 @@ final class EncounterController extends ApiController
                 ]);
             }
 
-            return [$encounter, $prescription];
+            if ($desk === 'laboratory' || $desk === 'radiology') {
+                $order = $orders->execute([
+                    'encounter_id' => $encounter->getKey(),
+                    'type' => $desk,
+                    'priority' => 'routine',
+                    'department_id' => $department?->getKey(),
+                    'clinical_notes' => $desk === 'laboratory'
+                        ? 'تحويل من الاستقبال إلى المخبر'
+                        : 'تحويل من الاستقبال إلى الأشعة',
+                    'items' => array_map(static function (array $item) use ($desk): array {
+                        return [
+                            'service_type' => $item['service_type'] ?? ($desk === 'laboratory' ? 'lab_test' : 'radiology_service'),
+                            'service_id' => $item['service_id'] ?? null,
+                            'name' => (string) ($item['name'] ?? ''),
+                            'quantity' => $item['quantity'] ?? 1,
+                            'with_injection' => $item['with_injection'] ?? false,
+                        ];
+                    }, $items),
+                ]);
+            }
+
+            return [$encounter, $prescription, $order];
         });
 
-        [$encounter, $prescription] = $created;
+        [$encounter, $prescription, $order] = $created;
         $body = (new EncounterResource($encounter))->resolve();
         if ($prescription !== null) {
             $body['prescription_number'] = $prescription->prescription_number;
+        }
+        if ($order !== null) {
+            $body['order_number'] = $order->order_number;
         }
 
         return ApiResponse::data($body, [], 201);

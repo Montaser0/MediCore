@@ -143,7 +143,13 @@
     "doctorRequired": "Choose a doctor before saving the patient",
     "pharmacyRx": "Create prescription",
     "pharmacyPrint": "Print the prescription",
-    "pharmacySaved": "The file was opened and the patient was sent to the pharmacy with the chosen prescription"
+    "pharmacySaved": "The file was opened and the patient was sent to the pharmacy with the chosen prescription",
+    "labSaved": "The file was opened and the patient was sent to the laboratory with the tests",
+    "radSaved": "The file was opened and the patient was sent to radiology with the studies",
+    "labHint": "The chosen tests go to the laboratory, and their price is added to the patient account when the result is issued.",
+    "radHint": "The chosen studies go to radiology, and their price is added to the patient account when the report is issued.",
+    "serviceSearch": "Search by test or study name",
+    "deskPrint": "Print the order"
   },
   "appointments": {
     "title": "Appointments",

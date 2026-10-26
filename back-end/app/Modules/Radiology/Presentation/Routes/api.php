@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::middleware('auth:sanctum')->prefix('radiology')->group(function (): void {
     // Catalogue: readable by anyone who can raise an order.
-    Route::middleware('permission:'.Permissions::ORDERS_VIEW)->group(function (): void {
+        Route::middleware('permission:'.Permissions::ORDERS_VIEW.'|'.Permissions::ENCOUNTERS_CREATE)->group(function (): void {
         Route::get('services', [RadiologyServiceController::class, 'index']);
         Route::get('services/modalities', [RadiologyServiceController::class, 'modalities']);
         Route::get('injection-price', [RadiologyServiceController::class, 'injectionPrice']);

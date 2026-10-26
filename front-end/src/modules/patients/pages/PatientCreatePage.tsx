@@ -17,15 +17,18 @@ import { journeyApi, type NamedRow } from "../api/journey.api";
 import { apiGet, getErrorMessage } from "@/lib/api/client";
 import { dailyNo } from "@/lib/arabicText";
 import { readNationalId } from "@/lib/nationalId";
-import { latinDigits } from "@/lib/utils";
+import { latinDigits, formatMoney } from "@/lib/utils";
 import { env } from "@/config/environment";
 import { MedicationPrescriptionForm, type PrescriptionLine } from "../components/MedicationPrescriptionForm";
 import { printPrescription } from "../print/printPrescription";
+import { printOrderSlip } from "../print/printOrderSlip";
 
 type RegisterDepartment = NamedRow & {
   type?: string;
   clinics?: NamedRow[];
 };
+
+type ServiceLine = { id: number; name: string; price: number };
 
 export function PatientCreatePage() {
   const t = useTranslations();
@@ -58,6 +61,9 @@ export function PatientCreatePage() {
     fulfillment: "hospital",
     items: [],
   });
+  const [serviceLines, setServiceLines] = useState<ServiceLine[]>([]);
+  const [serviceQuery, setServiceQuery] = useState("");
+  const [withInjection, setWithInjection] = useState(false);
 
   const nationalId = form.national_id.trim();
   const lookup = [nationalId, form.phone, `${form.first_name} ${form.last_name}`]
@@ -96,6 +102,11 @@ export function PatientCreatePage() {
   const departmentOptions = departments.filter((row) => isVisitDepartment(row, clinics));
   const selectedDepartment = departmentOptions.find((row) => String(row.id) === form.department_id);
   const pharmacy = selectedDepartment?.type === "pharmacy";
+  const serviceKind =
+    selectedDepartment?.type === "laboratory" || selectedDepartment?.type === "radiology"
+      ? selectedDepartment.type
+      : null;
+  const directDesk = pharmacy || serviceKind !== null;
   const clinicOptions = form.department_id
     ? clinics.filter((row) => String(row.department_id ?? "") === form.department_id)
     : [];
@@ -109,6 +120,26 @@ export function PatientCreatePage() {
       return Array.isArray(res.data) ? res.data : [];
     },
   });
+  const { data: serviceCatalog = [] } = useQuery({
+    queryKey: ["/register-services", serviceKind],
+    enabled: serviceKind !== null,
+    queryFn: async () => {
+      const path = serviceKind === "laboratory" ? "/laboratory/tests" : "/radiology/services";
+      const res = await apiGet<NamedRow[]>(path, { params: { per_page: 200 } });
+      return Array.isArray(res.data) ? res.data : [];
+    },
+  });
+  const serviceTerm = serviceQuery.trim().toLowerCase();
+  const serviceHits =
+    serviceTerm.length < 1
+      ? []
+      : serviceCatalog
+          .filter((row) => {
+            const name = (row.name ?? "").toLowerCase();
+            const code = (row.code ?? "").toLowerCase();
+            return name.includes(serviceTerm) || code.includes(serviceTerm);
+          })
+          .slice(0, 12);
 
   function set<K extends keyof typeof form>(key: K, value: string) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -191,7 +222,7 @@ export function PatientCreatePage() {
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    if (existing[0] && !pharmacy) {
+    if (existing[0] && !directDesk) {
       toast.error(t("patients.existingBody"));
       router.push(`/${locale}/dashboard/patients/${existing[0].id}`);
       return;
@@ -199,21 +230,25 @@ export function PatientCreatePage() {
     const departmentId = num(form.department_id);
     const clinicId = num(form.clinic_id);
     const doctorId = num(form.doctor_id);
-    if (!departmentId || (!pharmacy && !clinicId)) {
+    if (!departmentId || (!directDesk && !clinicId)) {
       toast.error(t("patients.placeRequired"));
       return;
     }
-    if (!pharmacy && !doctorId) {
+    if (!directDesk && !doctorId) {
       toast.error(t("patients.doctorRequired"));
       return;
     }
-    const items = pharmacy ? draftItems() : [];
-    if (pharmacy && items.length === 0) {
+    const rxItems = pharmacy ? draftItems() : [];
+    if (pharmacy && rxItems.length === 0) {
       toast.error(t("workspace.rxNeedDrug"));
       return;
     }
-    const preview = pharmacy ? window.open("", "_blank", "width=900,height=720") : null;
-    if (pharmacy && !preview) {
+    if (serviceKind && serviceLines.length === 0) {
+      toast.error(serviceKind === "laboratory" ? t("laboratory.pickTests") : t("radiology.pickStudies"));
+      return;
+    }
+    const preview = directDesk ? window.open("", "_blank", "width=900,height=720") : null;
+    if (directDesk && !preview) {
       toast.error("اسمح بالنوافذ المنبثقة لطباعة الوصفة");
       return;
     }
@@ -242,12 +277,12 @@ export function PatientCreatePage() {
           patient_id: patientId,
           type: selectedDepartment?.type === "emergency" ? "emergency" : "outpatient",
           department_id: departmentId,
-          clinic_id: pharmacy ? undefined : clinicId,
-          doctor_id: pharmacy ? undefined : doctorId,
+          clinic_id: directDesk ? undefined : clinicId,
+          doctor_id: directDesk ? undefined : doctorId,
           ...(pharmacy
             ? {
                 reason: "صرف أدوية فقط",
-                items: items.map((line) => ({
+                items: rxItems.map((line) => ({
                   ...(line.catalogue_item_id ? { catalogue_item_id: line.catalogue_item_id } : { name: line.name }),
                   dose: line.dose || undefined,
                   frequency: line.frequency || undefined,
@@ -256,8 +291,19 @@ export function PatientCreatePage() {
                 })),
               }
             : {}),
+          ...(serviceKind
+            ? {
+                reason: serviceKind === "laboratory" ? "تحاليل مخبرية فقط" : "صور أشعة فقط",
+                items: serviceLines.map((line) => ({
+                  service_type: serviceKind === "laboratory" ? "lab_test" : "radiology_service",
+                  service_id: line.id,
+                  name: line.name,
+                  ...(serviceKind === "radiology" ? { with_injection: withInjection } : {}),
+                })),
+              }
+            : {}),
         });
-        if (preview) {
+        if (preview && pharmacy) {
           const person = existing[0];
           printPrescription(
             {
@@ -268,7 +314,7 @@ export function PatientCreatePage() {
               mrn: person?.mrn ? dailyNo(person.mrn) : undefined,
               age: form.age || (person?.age == null ? undefined : String(person.age)),
               gender: form.gender === "male" ? "ذكر" : form.gender === "female" ? "أنثى" : undefined,
-              lines: items.map((line) => ({
+              lines: rxItems.map((line) => ({
                 name: line.name,
                 dose: line.dose,
                 frequency: line.frequency,
@@ -279,7 +325,32 @@ export function PatientCreatePage() {
             preview,
           );
         }
-        toast.success(pharmacy ? t("patients.pharmacySaved") : "المريض بانتظار المعاينة");
+        if (preview && serviceKind) {
+          const person = existing[0];
+          printOrderSlip(
+            {
+              kind: serviceKind,
+              orderNumber: (created.data as { order_number?: string }).order_number,
+              hospitalName: env.appName,
+              patientName: person?.full_name || [form.first_name, form.father_name, form.last_name].filter(Boolean).join(" "),
+              mrn: person?.mrn ? dailyNo(person.mrn) : undefined,
+              age: form.age || (person?.age == null ? undefined : String(person.age)),
+              gender: form.gender === "male" ? "ذكر" : form.gender === "female" ? "أنثى" : undefined,
+              phone: form.phone || person?.phone || undefined,
+              lines: serviceLines.map((line) => ({ name: line.name, price: line.price })),
+            },
+            preview,
+          );
+        }
+        toast.success(
+          pharmacy
+            ? t("patients.pharmacySaved")
+            : serviceKind === "laboratory"
+              ? t("patients.labSaved")
+              : serviceKind === "radiology"
+                ? t("patients.radSaved")
+                : "المريض بانتظار المعاينة",
+        );
       } catch (error) {
         preview?.close();
         toast.error(getErrorMessage(error));
@@ -303,7 +374,7 @@ export function PatientCreatePage() {
     <div className="flex h-full flex-col">
       <PageToolbar title={t("patients.new")}>
         <Button onClick={() => router.back()}>{t("app.back")}</Button>
-        <Button variant="primary" onClick={onSubmit as unknown as () => void} disabled={saving || (existing.length > 0 && !pharmacy)}>
+        <Button variant="primary" onClick={onSubmit as unknown as () => void} disabled={saving || (existing.length > 0 && !directDesk)}>
           {t("app.save")}
         </Button>
       </PageToolbar>
@@ -424,6 +495,9 @@ export function PatientCreatePage() {
                 value={form.department_id}
                 onChange={(e) => {
                   rxDraft.current = { fulfillment: "hospital", items: [] };
+                  setServiceLines([]);
+                  setServiceQuery("");
+                  setWithInjection(false);
                   setForm((current) => ({ ...current, department_id: e.target.value, clinic_id: "", doctor_id: "" }));
                 }}
               >
@@ -446,6 +520,80 @@ export function PatientCreatePage() {
                     rxDraft.current = draft;
                   }}
                 />
+              </div>
+            ) : serviceKind ? (
+              <div className="col-span-full border border-[var(--his-border)] bg-white">
+                <div className="his-panel-header">
+                  {serviceKind === "laboratory" ? t("laboratory.orderSheet") : t("radiology.orderSheet")}
+                </div>
+                <div className="space-y-2 p-3">
+                  <p className="text-[12px] text-[var(--his-muted)]">
+                    {serviceKind === "laboratory" ? t("patients.labHint") : t("patients.radHint")}
+                  </p>
+                  <div className="relative max-w-md">
+                    <Input
+                      value={serviceQuery}
+                      placeholder={t("patients.serviceSearch")}
+                      onChange={(event) => setServiceQuery(event.target.value)}
+                    />
+                    {serviceHits.length > 0 ? (
+                      <div className="absolute z-20 mt-1 max-h-64 w-full overflow-auto border border-[var(--his-border)] bg-white shadow">
+                        {serviceHits.map((row) => (
+                          <button
+                            key={row.id}
+                            type="button"
+                            className="block w-full border-b border-[var(--his-border)] px-2 py-1 text-start text-[13px] last:border-b-0 hover:bg-[var(--his-surface)]"
+                            onClick={() => {
+                              setServiceLines((current) =>
+                                current.some((line) => line.id === row.id)
+                                  ? current
+                                  : [...current, { id: row.id, name: row.name ?? "—", price: Number(row.price) || 0 }],
+                              );
+                              setServiceQuery("");
+                            }}
+                          >
+                            {row.name}
+                            {row.price != null ? ` — ${formatMoney(Number(row.price), "0")}` : ""}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                  {serviceKind === "radiology" ? (
+                    <label className="flex items-center gap-2 text-[13px]">
+                      <input
+                        type="checkbox"
+                        checked={withInjection}
+                        onChange={(event) => setWithInjection(event.target.checked)}
+                      />
+                      {t("radiology.withInjection")}
+                    </label>
+                  ) : null}
+                  {serviceLines.length > 0 ? (
+                    <ul className="m-0 space-y-1 border border-[var(--his-border)] p-2 text-[12px]">
+                      {serviceLines.map((line) => (
+                        <li key={line.id} className="flex items-center justify-between gap-2">
+                          <span>
+                            {line.name}
+                            {line.price ? ` — ${formatMoney(line.price, "0")}` : ""}
+                          </span>
+                          <Button
+                            type="button"
+                            variant="danger"
+                            onClick={() => setServiceLines((current) => current.filter((item) => item.id !== line.id))}
+                          >
+                            {t("app.delete")}
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                  <div className="flex justify-end">
+                    <Button type="submit" variant="primary" disabled={saving}>
+                      {t("patients.deskPrint")}
+                    </Button>
+                  </div>
+                </div>
               </div>
             ) : (
               <>
@@ -518,7 +666,7 @@ function startOfToday() {
 }
 
 function isVisitDepartment(row: RegisterDepartment, clinics: NamedRow[]) {
-  if (row.type === "emergency" || row.type === "pharmacy") return true;
+  if (row.type === "emergency" || row.type === "pharmacy" || row.type === "laboratory" || row.type === "radiology") return true;
   const hasClinic =
     (row.clinics?.length ?? 0) > 0 ||
     clinics.some((clinic) => String(clinic.department_id ?? "") === String(row.id));
