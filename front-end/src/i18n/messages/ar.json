@@ -140,7 +140,10 @@
     "allDepartments": "كل الأقسام",
     "allClinics": "كل العيادات",
     "placeRequired": "اختر القسم أو العيادة قبل فتح الزيارة",
-    "doctorRequired": "اختر الطبيب قبل حفظ المريض"
+    "doctorRequired": "اختر الطبيب قبل حفظ المريض",
+    "pharmacyRx": "إنشاء الوصفة",
+    "pharmacyPrint": "طباعة الوصفة",
+    "pharmacySaved": "فُتحت الإضبارة وتحوّل المريض إلى الصيدلية مع الوصفة"
   },
   "appointments": {
     "title": "المواعيد",
@@ -325,6 +328,13 @@
     "addDrug": "حفظ الدواء",
     "drugSaved": "حُفظ الدواء",
     "posTitle": "نقطة البيع",
+    "counterSend": "صيدلية فقط",
+    "counterSent": "تم تحويل المريض إلى صيدلية المشفى لصرف الدواء",
+    "counterWaiting": "مرضى محوّلون من الاستقبال",
+    "counterEmpty": "لا يوجد مريض محوّل من الاستقبال",
+    "counterPick": "اختر المريض المحوّل من الاستقبال",
+    "counterComplete": "إتمام البيع",
+    "counterSaved": "تم البيع وأُضيف المبلغ إلى حساب المريض",
     "scan": "باركود أو اسم دواء على الرف",
     "completeSale": "إتمام البيع",
     "lineTotal": "المجموع",

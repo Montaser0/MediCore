@@ -27,6 +27,27 @@ final class StoreEncounterRequest extends ApiFormRequest
             'reason' => ['nullable', 'string'],
             'chief_complaint' => ['nullable', 'string'],
             'allow_parallel' => ['sometimes', 'boolean'],
+            'items' => ['sometimes', 'array', 'max:50'],
+            'items.*' => [
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if (! is_array($value)) {
+                        return;
+                    }
+                    $written = trim((string) ($value['name'] ?? ''));
+                    if (empty($value['medication_id']) && empty($value['catalogue_item_id']) && $written === '') {
+                        $fail('اختر الدواء من الدليل أو اكتب اسمه.');
+                    }
+                },
+            ],
+            'items.*.medication_id' => ['nullable', 'integer', 'exists:medications,id'],
+            'items.*.catalogue_item_id' => ['nullable', 'integer', 'exists:drug_catalogue_items,id'],
+            'items.*.name' => ['nullable', 'string', 'max:255'],
+            'items.*.dose' => ['nullable', 'string', 'max:100'],
+            'items.*.frequency' => ['nullable', 'string', 'max:100'],
+            'items.*.duration' => ['nullable', 'string', 'max:100'],
+            'items.*.route' => ['nullable', 'string', 'max:100'],
+            'items.*.quantity' => ['nullable', 'numeric', 'min:0.01'],
+            'items.*.instructions' => ['nullable', 'string', 'max:1000'],
         ];
     }
 }

@@ -22,6 +22,7 @@ enum ChargeSource: string
     case BedAssignment = 'bed_assignment';
     case Supply = 'supply';
     case OrderItem = 'order_item';
+    case PharmacyCounter = 'pharmacy_counter';
 
     public function label(): string
     {
@@ -38,6 +39,7 @@ enum ChargeSource: string
             self::BedAssignment => 'أجر السرير',
             self::Supply => 'مستلزمات',
             self::OrderItem => 'بند طلب',
+            self::PharmacyCounter => 'بيع صيدلية',
         };
     }
 

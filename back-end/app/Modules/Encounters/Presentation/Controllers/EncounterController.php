@@ -5,12 +5,16 @@ declare(strict_types=1);
 namespace App\Modules\Encounters\Presentation\Controllers;
 
 use App\Core\Auth\CurrentUser;
+use App\Core\Exceptions\BusinessRuleException;
 use App\Core\Http\Controllers\ApiController;
 use App\Core\Http\Responses\ApiResponse;
+use App\Modules\Departments\Domain\Enums\DepartmentType;
+use App\Modules\Departments\Infrastructure\Persistence\Models\DepartmentModel;
 use App\Modules\Encounters\Application\Actions\CloseEncounterAction;
 use App\Modules\Encounters\Application\Actions\CreateEncounterAction;
 use App\Modules\Encounters\Application\Actions\StartEncounterAction;
 use App\Modules\Encounters\Application\Actions\TransferEncounterAction;
+use App\Modules\Pharmacy\Application\Actions\CreatePrescriptionAction;
 use App\Modules\Encounters\Application\Queries\ListEncountersQuery;
 use App\Modules\Encounters\Infrastructure\Persistence\Models\EncounterModel;
 use App\Modules\Encounters\Presentation\Requests\CloseEncounterRequest;
@@ -21,6 +25,7 @@ use App\Modules\Encounters\Presentation\Resources\EncounterTransferResource;
 use App\Modules\Patients\Infrastructure\Persistence\Models\PatientModel;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 final class EncounterController extends ApiController
 {
@@ -122,13 +127,65 @@ final class EncounterController extends ApiController
         return ApiResponse::paginated(EncounterResource::collection($encounters), $encounters);
     }
 
-    public function store(StoreEncounterRequest $request, CreateEncounterAction $action, CurrentUser $currentUser): JsonResponse
-    {
+    public function store(
+        StoreEncounterRequest $request,
+        CreateEncounterAction $action,
+        CreatePrescriptionAction $prescriptions,
+        CurrentUser $currentUser,
+    ): JsonResponse {
         abort_if($currentUser->isClinicalDesk(), 403, 'لا يمكنك فتح زيارة جديدة.');
 
         $patient = PatientModel::query()->findOrFail($request->integer('patient_id'));
+        $payload = $request->validated();
+        /** @var array<int, array<string, mixed>> $items */
+        $items = $payload['items'] ?? [];
+        unset($payload['items']);
 
-        return ApiResponse::created(new EncounterResource($action->execute($patient, $request->validated())));
+        $department = isset($payload['department_id'])
+            ? DepartmentModel::query()->find($payload['department_id'])
+            : null;
+        $pharmacy = $department?->type === DepartmentType::Pharmacy;
+
+        if ($pharmacy && $items === []) {
+            throw BusinessRuleException::make('أضف دواءً إلى الوصفة قبل تحويل المريض إلى الصيدلية.');
+        }
+
+        if (! $pharmacy && $items !== []) {
+            throw BusinessRuleException::make('الوصفة تُرفق فقط عند اختيار قسم الصيدلية.');
+        }
+
+        $created = DB::transaction(function () use ($patient, $payload, $items, $pharmacy, $action, $prescriptions) {
+            if ($pharmacy) {
+                $payload['allow_parallel'] = true;
+                $payload['clinic_id'] = null;
+                $payload['doctor_id'] = null;
+                $payload['reason'] = $payload['reason'] ?? 'صرف أدوية فقط';
+                $payload['chief_complaint'] = $payload['chief_complaint'] ?? 'صرف أدوية من صيدلية المشفى فقط';
+            }
+
+            $encounter = $action->execute($patient, $payload);
+            $prescription = null;
+
+            if ($pharmacy) {
+                $prescription = $prescriptions->execute([
+                    'encounter_id' => $encounter->getKey(),
+                    'fulfillment' => 'hospital',
+                    'allow_without_doctor' => true,
+                    'notes' => 'تحويل من الاستقبال إلى صيدلية المشفى',
+                    'items' => $items,
+                ]);
+            }
+
+            return [$encounter, $prescription];
+        });
+
+        [$encounter, $prescription] = $created;
+        $body = (new EncounterResource($encounter))->resolve();
+        if ($prescription !== null) {
+            $body['prescription_number'] = $prescription->prescription_number;
+        }
+
+        return ApiResponse::data($body, [], 201);
     }
 
     public function start(Request $request, EncounterModel $encounter, StartEncounterAction $action): JsonResponse

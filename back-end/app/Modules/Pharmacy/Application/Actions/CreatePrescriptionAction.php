@@ -40,8 +40,9 @@ final class CreatePrescriptionAction
         $encounter = $this->encounters->requireOpen((int) $data['encounter_id']);
 
         $doctorId = $data['doctor_id'] ?? $encounter->doctorId ?? $this->currentUser->doctorId();
+        $allowWithoutDoctor = ($data['allow_without_doctor'] ?? false) === true;
 
-        if ($doctorId === null) {
+        if ($doctorId === null && ! $allowWithoutDoctor) {
             throw BusinessRuleException::make('الوصفة يجب أن يكتبها طبيب.');
         }
 

@@ -155,7 +155,7 @@ export function PatientsPage() {
       {
         key: "actions",
         header: t("app.actions"),
-        width: 150,
+        width: 160,
         cell: (r: Patient) => (
           <div className="flex gap-1">
             {canUpdatePatient ? (

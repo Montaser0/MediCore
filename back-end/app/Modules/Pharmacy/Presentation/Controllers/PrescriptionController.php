@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Modules\Pharmacy\Presentation\Controllers;
 
+use App\Core\Exceptions\BusinessRuleException;
 use App\Core\Http\Controllers\ApiController;
 use App\Core\Http\Responses\ApiResponse;
+use App\Modules\Departments\Domain\Enums\DepartmentType;
 use App\Modules\Encounters\Infrastructure\Persistence\Models\EncounterModel;
 use App\Modules\Pharmacy\Application\Actions\ChangePrescriptionStatusAction;
 use App\Modules\Pharmacy\Application\Actions\CreatePrescriptionAction;
@@ -13,6 +15,7 @@ use App\Modules\Pharmacy\Domain\Enums\PrescriptionStatus;
 use App\Modules\Pharmacy\Infrastructure\Persistence\Models\PrescriptionModel;
 use App\Modules\Pharmacy\Presentation\Requests\StorePrescriptionRequest;
 use App\Modules\Pharmacy\Presentation\Resources\PrescriptionResource;
+use App\Core\Authorization\Permissions;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -67,8 +70,19 @@ final class PrescriptionController extends ApiController
 
     public function store(StorePrescriptionRequest $request, CreatePrescriptionAction $action): JsonResponse
     {
+        $data = $request->validated();
+        $prescriber = $request->user()?->can(Permissions::PHARMACY_PRESCRIPTIONS_CREATE) === true;
+
+        if (! $prescriber) {
+            $encounter = EncounterModel::query()->with('department')->find($data['encounter_id'] ?? null);
+            if ($encounter?->department?->type !== DepartmentType::Pharmacy) {
+                throw BusinessRuleException::make('إنشاء الوصفة من الاستقبال متاح لزيارة قسم الصيدلية فقط.');
+            }
+            $data['allow_without_doctor'] = true;
+        }
+
         return ApiResponse::created(new PrescriptionResource(
-            $action->execute($request->validated())->load(['items.medication', 'doctor.staff'])
+            $action->execute($data)->load(['items.medication', 'doctor.staff'])
         ));
     }
 

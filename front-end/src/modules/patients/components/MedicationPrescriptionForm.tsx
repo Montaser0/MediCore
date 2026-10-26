@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
@@ -20,13 +20,19 @@ export function MedicationPrescriptionForm({
   pending,
   onCancel,
   onSubmit,
+  embedded = false,
+  fulfillmentLocked,
+  onDraftChange,
 }: {
   pending: boolean;
-  onCancel: () => void;
-  onSubmit: (input: { fulfillment: "hospital" | "external"; items: PrescriptionLine[] }) => void;
+  onCancel?: () => void;
+  onSubmit?: (input: { fulfillment: "hospital" | "external"; items: PrescriptionLine[] }) => void;
+  embedded?: boolean;
+  fulfillmentLocked?: "hospital" | "external";
+  onDraftChange?: (input: { fulfillment: "hospital" | "external"; items: PrescriptionLine[] }) => void;
 }) {
   const t = useTranslations();
-  const [fulfillment, setFulfillment] = useState<"hospital" | "external">("hospital");
+  const [fulfillment, setFulfillment] = useState<"hospital" | "external">(fulfillmentLocked ?? "hospital");
   const [lines, setLines] = useState<PrescriptionLine[]>([]);
   const [picked, setPicked] = useState<{ id: number; name: string } | null>(null);
   const [typed, setTyped] = useState("");
@@ -76,17 +82,37 @@ export function MedicationPrescriptionForm({
       toast.error(t("workspace.rxNeedDrug"));
       return;
     }
-    onSubmit({ fulfillment, items });
+    onSubmit?.({ fulfillment, items });
   }
 
+  const notify = useRef(onDraftChange);
+  notify.current = onDraftChange;
+
+  useEffect(() => {
+    const pendingLine = draftLine();
+    notify.current?.({
+      fulfillment,
+      items: pendingLine ? [...lines, pendingLine] : lines,
+    });
+  }, [fulfillment, lines, picked, typed, dose, frequency, duration, quantity]);
+
+  const Root = embedded ? "div" : "form";
+
   return (
-    <form
+    <Root
       className="space-y-2 p-3"
-      onSubmit={(event) => {
-        event.preventDefault();
-        submit();
-      }}
+      {...(embedded
+        ? {}
+        : {
+            onSubmit: (event: FormEvent) => {
+              event.preventDefault();
+              submit();
+            },
+          })}
     >
+      {fulfillmentLocked ? (
+        <p className="text-[12px] text-[var(--his-muted)]">{t("workspace.rxHospitalHint")}</p>
+      ) : (
       <fieldset className="space-y-1">
         <legend className="mb-1 text-[12px] text-[var(--his-muted)]">{t("workspace.rxSource")}</legend>
         <label className="flex items-center gap-2 text-[13px]">
@@ -111,6 +137,7 @@ export function MedicationPrescriptionForm({
           {fulfillment === "hospital" ? t("workspace.rxHospitalHint") : t("workspace.rxExternalHint")}
         </p>
       </fieldset>
+      )}
 
       <div>
         <span className="mb-1 block text-[12px] text-[var(--his-muted)]">{t("workspace.medAction")}</span>
@@ -170,6 +197,13 @@ export function MedicationPrescriptionForm({
         </ul>
       ) : null}
 
+      {embedded ? (
+        <div className="flex justify-end pt-2">
+          <Button type="submit" variant="primary" disabled={pending}>
+            {t("patients.pharmacyPrint")}
+          </Button>
+        </div>
+      ) : (
       <div className="flex flex-wrap justify-end gap-2 pt-2">
         <Button type="button" onClick={onCancel}>
           {t("app.cancel")}
@@ -178,6 +212,7 @@ export function MedicationPrescriptionForm({
           {t("workspace.rxPrint")}
         </Button>
       </div>
-    </form>
+      )}
+    </Root>
   );
 }

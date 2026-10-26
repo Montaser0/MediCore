@@ -9,7 +9,17 @@ use App\Core\Http\Requests\ApiFormRequest;
 
 final class StorePrescriptionRequest extends ApiFormRequest
 {
-    protected ?string $permission = Permissions::PHARMACY_PRESCRIPTIONS_CREATE;
+    public function authorize(): bool
+    {
+        $user = $this->user();
+
+        if ($user === null) {
+            return false;
+        }
+
+        return $user->can(Permissions::PHARMACY_PRESCRIPTIONS_CREATE) === true
+            || $user->can(Permissions::ENCOUNTERS_CREATE) === true;
+    }
 
     /**
      * @return array<string, mixed>

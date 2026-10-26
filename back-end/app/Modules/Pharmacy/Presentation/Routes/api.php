@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Route;
 
 $registry = app(ModuleRegistry::class);
 
-$catalogueRead = 'permission:'.Permissions::PHARMACY_MEDICATIONS_MANAGE.'|'.Permissions::PHARMACY_PRESCRIPTIONS_CREATE.'|'.Permissions::ORDERS_VIEW;
+$catalogueRead = 'permission:'.Permissions::PHARMACY_MEDICATIONS_MANAGE.'|'.Permissions::PHARMACY_PRESCRIPTIONS_CREATE.'|'.Permissions::ORDERS_VIEW.'|'.Permissions::ENCOUNTERS_CREATE;
 
 Route::middleware(['auth:sanctum', $catalogueRead])->prefix('pharmacy')->group(function (): void {
     Route::get('catalogue', [DrugCatalogueController::class, 'index']);

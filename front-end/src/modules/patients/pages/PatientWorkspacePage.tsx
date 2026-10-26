@@ -1204,7 +1204,7 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
           )}
         </div>
 
-        {canVitals || canNote || canDiagnosis || showLab || showRadiology || showPrescribe || showSurgery || showAdmit || showCharge ? (
+        {canVitals || canNote || canDiagnosis || showLab || showRadiology || showPrescribe || (canOpenVisit && current?.department?.type === "pharmacy" && featureOn("pharmacy.prescriptions")) || showSurgery || showAdmit || showCharge ? (
         <div className="his-action-bar">
           {canVitals ? (
             <Button variant="danger" onClick={() => openAction("vitals")}>
@@ -1250,10 +1250,10 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
               {t("nav.radiology")}
             </Button>
           ) : null}
-          {showPrescribe ? (
+          {showPrescribe || (canOpenVisit && current?.department?.type === "pharmacy" && featureOn("pharmacy.prescriptions")) ? (
             <Button variant="teal" onClick={() => openAction("medication")}>
               <Pill size={13} />
-              {t("workspace.medAction")}
+              {showPrescribe ? t("workspace.medAction") : t("patients.pharmacyRx")}
             </Button>
           ) : null}
           {showSurgery ? (

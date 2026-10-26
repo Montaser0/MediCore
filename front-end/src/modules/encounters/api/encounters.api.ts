@@ -12,7 +12,7 @@ export type EncounterRow = {
   patient?: { id?: number; mrn?: string; full_name?: string };
   doctor?: { id?: number; name?: string };
   clinic?: { id?: number; name?: string };
-  department?: { id?: number; name?: string };
+  department?: { id?: number; name?: string; type?: string };
 };
 
 export type EncountersListParams = {

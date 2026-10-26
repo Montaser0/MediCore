@@ -140,7 +140,10 @@
     "allDepartments": "All departments",
     "allClinics": "All clinics",
     "placeRequired": "Choose a department or clinic before opening the visit",
-    "doctorRequired": "Choose a doctor before saving the patient"
+    "doctorRequired": "Choose a doctor before saving the patient",
+    "pharmacyRx": "Create prescription",
+    "pharmacyPrint": "Print the prescription",
+    "pharmacySaved": "The file was opened and the patient was sent to the pharmacy with the chosen prescription"
   },
   "appointments": {
     "title": "Appointments",
@@ -325,6 +328,13 @@
     "addDrug": "Save medicine",
     "drugSaved": "Medicine saved",
     "posTitle": "Point of sale",
+    "counterSend": "Pharmacy only",
+    "counterSent": "The patient was sent to the hospital pharmacy to buy medicine",
+    "counterWaiting": "Patients sent from reception",
+    "counterEmpty": "No patient has been sent from reception",
+    "counterPick": "Choose the patient sent from reception",
+    "counterComplete": "Complete sale",
+    "counterSaved": "The sale is done and the amount was added to the patient account",
     "scan": "Barcode or a shelf medicine name",
     "completeSale": "Complete sale",
     "lineTotal": "Total",

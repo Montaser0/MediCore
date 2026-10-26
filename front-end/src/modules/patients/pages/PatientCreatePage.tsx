@@ -18,6 +18,9 @@ import { apiGet, getErrorMessage } from "@/lib/api/client";
 import { dailyNo } from "@/lib/arabicText";
 import { readNationalId } from "@/lib/nationalId";
 import { latinDigits } from "@/lib/utils";
+import { env } from "@/config/environment";
+import { MedicationPrescriptionForm, type PrescriptionLine } from "../components/MedicationPrescriptionForm";
+import { printPrescription } from "../print/printPrescription";
 
 type RegisterDepartment = NamedRow & {
   type?: string;
@@ -50,6 +53,10 @@ export function PatientCreatePage() {
     department_id: "",
     clinic_id: "",
     doctor_id: "",
+  });
+  const rxDraft = useRef<{ fulfillment: "hospital" | "external"; items: PrescriptionLine[] }>({
+    fulfillment: "hospital",
+    items: [],
   });
 
   const nationalId = form.national_id.trim();
@@ -88,6 +95,7 @@ export function PatientCreatePage() {
   });
   const departmentOptions = departments.filter((row) => isVisitDepartment(row, clinics));
   const selectedDepartment = departmentOptions.find((row) => String(row.id) === form.department_id);
+  const pharmacy = selectedDepartment?.type === "pharmacy";
   const clinicOptions = form.department_id
     ? clinics.filter((row) => String(row.department_id ?? "") === form.department_id)
     : [];
@@ -177,9 +185,13 @@ export function PatientCreatePage() {
     !lookingUp &&
     existing.length === 0;
 
+  function draftItems() {
+    return rxDraft.current.items;
+  }
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    if (existing[0]) {
+    if (existing[0] && !pharmacy) {
       toast.error(t("patients.existingBody"));
       router.push(`/${locale}/dashboard/patients/${existing[0].id}`);
       return;
@@ -187,45 +199,94 @@ export function PatientCreatePage() {
     const departmentId = num(form.department_id);
     const clinicId = num(form.clinic_id);
     const doctorId = num(form.doctor_id);
-    if (!departmentId || !clinicId) {
+    if (!departmentId || (!pharmacy && !clinicId)) {
       toast.error(t("patients.placeRequired"));
       return;
     }
-    if (!doctorId) {
+    if (!pharmacy && !doctorId) {
       toast.error(t("patients.doctorRequired"));
+      return;
+    }
+    const items = pharmacy ? draftItems() : [];
+    if (pharmacy && items.length === 0) {
+      toast.error(t("workspace.rxNeedDrug"));
+      return;
+    }
+    const preview = pharmacy ? window.open("", "_blank", "width=900,height=720") : null;
+    if (pharmacy && !preview) {
+      toast.error("اسمح بالنوافذ المنبثقة لطباعة الوصفة");
       return;
     }
     setSaving(true);
     try {
-      const res = await create.mutateAsync({
-        first_name: form.first_name,
-        father_name: form.father_name,
-        last_name: form.last_name,
-        mother_name: form.mother_name,
-        gender: form.gender as "male" | "female",
-        date_of_birth: form.date_of_birth,
-        national_id: form.national_id,
-        phone: form.phone,
-        city: form.city,
-        blood_type: form.blood_type,
-        address: form.address,
-        notes: form.notes,
-      });
-      const patientId = res.data.id;
+      let patientId = existing[0]?.id;
+      if (!patientId) {
+        const res = await create.mutateAsync({
+          first_name: form.first_name,
+          father_name: form.father_name,
+          last_name: form.last_name,
+          mother_name: form.mother_name,
+          gender: form.gender as "male" | "female",
+          date_of_birth: form.date_of_birth,
+          national_id: form.national_id,
+          phone: form.phone,
+          city: form.city,
+          blood_type: form.blood_type,
+          address: form.address,
+          notes: form.notes,
+        });
+        patientId = res.data.id;
+      }
       try {
-        await journeyApi.openVisit({
+        const created = await journeyApi.openVisit({
           patient_id: patientId,
           type: selectedDepartment?.type === "emergency" ? "emergency" : "outpatient",
           department_id: departmentId,
-          clinic_id: clinicId,
-          doctor_id: doctorId,
+          clinic_id: pharmacy ? undefined : clinicId,
+          doctor_id: pharmacy ? undefined : doctorId,
+          ...(pharmacy
+            ? {
+                reason: "صرف أدوية فقط",
+                items: items.map((line) => ({
+                  ...(line.catalogue_item_id ? { catalogue_item_id: line.catalogue_item_id } : { name: line.name }),
+                  dose: line.dose || undefined,
+                  frequency: line.frequency || undefined,
+                  duration: line.duration || undefined,
+                  quantity: line.quantity,
+                })),
+              }
+            : {}),
         });
-        toast.success("المريض بانتظار المعاينة");
+        if (preview) {
+          const person = existing[0];
+          printPrescription(
+            {
+              prescriptionNumber: (created.data as { prescription_number?: string }).prescription_number,
+              hospitalName: env.appName,
+              fulfillment: "hospital",
+              patientName: person?.full_name || [form.first_name, form.father_name, form.last_name].filter(Boolean).join(" "),
+              mrn: person?.mrn ? dailyNo(person.mrn) : undefined,
+              age: form.age || (person?.age == null ? undefined : String(person.age)),
+              gender: form.gender === "male" ? "ذكر" : form.gender === "female" ? "أنثى" : undefined,
+              lines: items.map((line) => ({
+                name: line.name,
+                dose: line.dose,
+                frequency: line.frequency,
+                duration: line.duration,
+                quantity: String(line.quantity),
+              })),
+            },
+            preview,
+          );
+        }
+        toast.success(pharmacy ? t("patients.pharmacySaved") : "المريض بانتظار المعاينة");
       } catch (error) {
+        preview?.close();
         toast.error(getErrorMessage(error));
       }
       router.push(`/${locale}/dashboard/patients/${patientId}`);
     } catch (error) {
+      preview?.close();
       const existingId = existingPatientId(error);
       if (existingId) {
         toast.error(getErrorMessage(error));
@@ -242,7 +303,7 @@ export function PatientCreatePage() {
     <div className="flex h-full flex-col">
       <PageToolbar title={t("patients.new")}>
         <Button onClick={() => router.back()}>{t("app.back")}</Button>
-        <Button variant="primary" onClick={onSubmit as unknown as () => void} disabled={saving || existing.length > 0}>
+        <Button variant="primary" onClick={onSubmit as unknown as () => void} disabled={saving || (existing.length > 0 && !pharmacy)}>
           {t("app.save")}
         </Button>
       </PageToolbar>
@@ -361,9 +422,10 @@ export function PatientCreatePage() {
               <Select
                 required
                 value={form.department_id}
-                onChange={(e) =>
-                  setForm((current) => ({ ...current, department_id: e.target.value, clinic_id: "", doctor_id: "" }))
-                }
+                onChange={(e) => {
+                  rxDraft.current = { fulfillment: "hospital", items: [] };
+                  setForm((current) => ({ ...current, department_id: e.target.value, clinic_id: "", doctor_id: "" }));
+                }}
               >
                 <option value="">{t("workspace.department")}</option>
                 {departmentOptions.map((row) => (
@@ -373,6 +435,20 @@ export function PatientCreatePage() {
                 ))}
               </Select>
             </Field>
+            {pharmacy ? (
+              <div className="col-span-full border border-[var(--his-border)] bg-white">
+                <div className="his-panel-header">{t("patients.pharmacyRx")}</div>
+                <MedicationPrescriptionForm
+                  embedded
+                  fulfillmentLocked="hospital"
+                  pending={saving}
+                  onDraftChange={(draft) => {
+                    rxDraft.current = draft;
+                  }}
+                />
+              </div>
+            ) : (
+              <>
             <Field label={t("appointments.clinic")}>
               <Select
                 required
@@ -405,6 +481,8 @@ export function PatientCreatePage() {
                 ))}
               </Select>
             </Field>
+              </>
+            )}
           </div>
         </Panel>
       </form>
@@ -440,7 +518,7 @@ function startOfToday() {
 }
 
 function isVisitDepartment(row: RegisterDepartment, clinics: NamedRow[]) {
-  if (row.type === "emergency") return true;
+  if (row.type === "emergency" || row.type === "pharmacy") return true;
   const hasClinic =
     (row.clinics?.length ?? 0) > 0 ||
     clinics.some((clinic) => String(clinic.department_id ?? "") === String(row.id));
