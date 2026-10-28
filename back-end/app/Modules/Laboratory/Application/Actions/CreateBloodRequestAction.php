@@ -6,6 +6,8 @@ namespace App\Modules\Laboratory\Application\Actions;
 
 use App\Core\Auth\CurrentUser;
 use App\Modules\Encounters\Infrastructure\Persistence\Models\EncounterModel;
+use App\Modules\Laboratory\Application\Support\LabBarcode;
+use App\Modules\Laboratory\Application\Support\LabOrderSource;
 use App\Modules\Laboratory\Domain\Enums\BloodRequestStatus;
 use App\Modules\Laboratory\Domain\Events\BloodRequestCreated;
 use App\Modules\Laboratory\Domain\Exceptions\BloodRequestException;
@@ -40,11 +42,16 @@ final class CreateBloodRequestAction
             throw BloodRequestException::productUnavailable();
         }
 
-        return DB::transaction(function () use ($patient, $encounter, $product, $data): BloodRequestModel {
+        $encounter->loadMissing(['clinic', 'doctor.staff', 'department']);
+        $source = LabOrderSource::fromVisit($encounter, $this->currentUser->model());
+
+        return DB::transaction(function () use ($patient, $encounter, $product, $data, $source): BloodRequestModel {
             $request = BloodRequestModel::query()->create([
                 'hospital_id' => $patient->hospital_id ?? $this->currentUser->hospitalId(),
                 'patient_id' => $patient->getKey(),
                 'encounter_id' => $encounter->getKey(),
+                'barcode' => LabBarcode::nextBlood(),
+                'clinic_name' => $source['clinic'],
                 'blood_product_id' => $product->getKey(),
                 'product_type' => $product->code,
                 'product_name' => $product->name,

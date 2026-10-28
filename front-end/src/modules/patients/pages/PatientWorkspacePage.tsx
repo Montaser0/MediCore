@@ -35,7 +35,9 @@ import { apiDelete, apiGet, apiPost, getErrorMessage } from "@/lib/api/client";
 import { env } from "@/config/environment";
 import { BLOOD_GROUPS } from "@/modules/laboratory/blood";
 import { MedicationPrescriptionForm, type PrescriptionLine } from "../components/MedicationPrescriptionForm";
+import { printLabBarcode } from "@/modules/laboratory/print/printLabBarcode";
 import { printPrescription } from "../print/printPrescription";
+import { printOrderSlip } from "../print/printOrderSlip";
 import { DocumentGallery, downloadImagingStudy } from "@/components/shared/DocumentGallery";
 import { useAuthStore } from "@/stores/auth-store";
 import { useEditionStore } from "@/stores/edition-store";
@@ -398,14 +400,72 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
     }
   }
 
-  async function submitAction() {
+  async function submitAction(print: "prescription" | "barcode" | null = null) {
     if (!action) return;
+    const preview =
+      action === "blood" && print
+        ? window.open("", "_blank", print === "barcode" ? "width=420,height=320" : "width=820,height=720")
+        : null;
+    if (action === "blood" && print && !preview) {
+      toast.error(t("laboratory.popupBlocked"));
+      return;
+    }
     try {
-      await run.mutateAsync(() => perform(action));
-      toast.success(t("workspace.saved"));
+      const created = (await run.mutateAsync(() => perform(action))) as {
+        data?: {
+          barcode?: string;
+          clinic_name?: string | null;
+          product_label?: string;
+          blood_group?: string;
+          units?: number;
+        };
+      };
+      const data = created?.data;
+      if (action === "blood" && print === "barcode" && preview) {
+        if (!data?.barcode) {
+          preview.close();
+          toast.error(t("laboratory.bloodBarcodeMissing"));
+        } else {
+          printLabBarcode(
+            {
+              barcode: data.barcode,
+              clinic: data.clinic_name || current?.clinic?.name,
+              patientName: patient?.full_name,
+            },
+            preview,
+          );
+          toast.success(t("laboratory.barcodeSaved", { barcode: data.barcode }));
+        }
+      } else if (action === "blood" && print === "prescription" && preview) {
+        printOrderSlip(
+          {
+            kind: "laboratory",
+            title: t("laboratory.bloodSlip"),
+            hospitalName: env.appName,
+            patientName: patient?.full_name,
+            mrn: patient?.mrn,
+            doctor: current?.doctor?.name,
+            clinic: data?.clinic_name || current?.clinic?.name,
+            lines: [
+              {
+                name: [data?.product_label, data?.blood_group, data?.units != null ? String(data.units) : ""]
+                  .filter(Boolean)
+                  .join(" — "),
+                price: 0,
+              },
+            ],
+          },
+          preview,
+        );
+        toast.success(t("workspace.saved"));
+      } else {
+        preview?.close();
+        toast.success(t("workspace.saved"));
+      }
       setAction(null);
       setForm({});
     } catch (error) {
+      preview?.close();
       toast.error(getErrorMessage(error));
     }
   }
@@ -1310,6 +1370,16 @@ export function PatientWorkspacePage({ patientId }: { patientId: string }) {
                 <Button type="button" onClick={() => setAction(null)}>
                   {t("app.cancel")}
                 </Button>
+                {action === "blood" ? (
+                  <>
+                    <Button type="button" disabled={run.isPending} onClick={() => void submitAction("prescription")}>
+                      {t("laboratory.prescription")}
+                    </Button>
+                    <Button type="button" disabled={run.isPending} onClick={() => void submitAction("barcode")}>
+                      {t("laboratory.barcode")}
+                    </Button>
+                  </>
+                ) : null}
                 <Button type="submit" variant="primary" disabled={run.isPending}>
                   {t("app.save")}
                 </Button>

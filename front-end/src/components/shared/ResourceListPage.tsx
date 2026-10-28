@@ -31,6 +31,8 @@ export function ResourceListPage({
   toolbarExtra,
   excel,
   excelExportOnly = false,
+  searchPlaceholder,
+  scanSearch = false,
 }: {
   title: string;
   endpoint: string;
@@ -50,6 +52,8 @@ export function ResourceListPage({
   toolbarExtra?: ReactNode;
   excel?: string;
   excelExportOnly?: boolean;
+  searchPlaceholder?: string;
+  scanSearch?: boolean;
 }) {
   const t = useTranslations("app");
   const messages = useTranslations();
@@ -119,10 +123,20 @@ export function ResourceListPage({
         {toolbarExtra}
         <Input
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          dir={scanSearch ? "ltr" : undefined}
+          onChange={(e) => {
+            const value = e.target.value;
+            setSearch(value);
+            if (!scanSearch) return;
+            const digits = value
+              .replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)))
+              .replace(/[۰-۹]/g, (digit) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)))
+              .replace(/\D/g, "");
+            if (digits.length === 13) setQ(digits);
+          }}
           onKeyDown={(e) => e.key === "Enter" && setQ(search)}
-          placeholder={t("search")}
-          className="w-56"
+          placeholder={searchPlaceholder ?? t("search")}
+          className={scanSearch ? "w-56 font-mono" : "w-56"}
         />
         <Button onClick={() => setQ(search)}>{t("search")}</Button>
         <Button onClick={() => refetch()} disabled={isFetching}>

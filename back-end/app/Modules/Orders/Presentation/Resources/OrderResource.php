@@ -20,6 +20,9 @@ final class OrderResource extends JsonResource
         return [
             'id' => $this->id,
             'order_number' => $this->order_number,
+            'barcode' => $this->when($this->getAttribute('lab_barcode') !== null, $this->getAttribute('lab_barcode')),
+            'clinic_name' => $this->when($this->getAttribute('lab_clinic') !== null, $this->getAttribute('lab_clinic')),
+            'doctor_name' => $this->when($this->getAttribute('lab_doctor') !== null, $this->getAttribute('lab_doctor')),
             'type' => $this->type->value,
             'type_label' => $this->type->label(),
             'status' => $this->status->value,

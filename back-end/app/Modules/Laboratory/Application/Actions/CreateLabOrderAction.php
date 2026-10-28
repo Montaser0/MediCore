@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Modules\Laboratory\Application\Actions;
 
 use App\Core\Support\Contracts\OrderFulfiller;
+use App\Modules\Laboratory\Application\Support\LabBarcode;
+use App\Modules\Laboratory\Application\Support\LabOrderSource;
 use App\Modules\Laboratory\Domain\Enums\LabOrderItemStatus;
 use App\Modules\Laboratory\Domain\Events\LabOrderCreated;
 use App\Modules\Laboratory\Infrastructure\Persistence\Models\LabOrderItemModel;
@@ -12,6 +14,7 @@ use App\Modules\Laboratory\Infrastructure\Persistence\Models\LabOrderModel;
 use App\Modules\Laboratory\Infrastructure\Persistence\Models\LabTestModel;
 use App\Modules\Orders\Domain\Enums\OrderItemStatus;
 use App\Modules\Orders\Infrastructure\Persistence\Models\OrderItemModel;
+use App\Modules\Orders\Infrastructure\Persistence\Models\OrderModel;
 
 /**
  * The laboratory's side of a `laboratory` order. Invoked by the order engine
@@ -30,7 +33,15 @@ final class CreateLabOrderAction implements OrderFulfiller
      */
     public function fulfil(int $orderId, array $items): void
     {
-        $labOrder = LabOrderModel::query()->create(['order_id' => $orderId]);
+        $order = OrderModel::query()->findOrFail($orderId);
+        $source = LabOrderSource::names($order);
+
+        $labOrder = LabOrderModel::query()->create([
+            'order_id' => $orderId,
+            'barcode' => LabBarcode::next(),
+            'clinic_name' => $source['clinic'],
+            'doctor_name' => $source['doctor'],
+        ]);
 
         foreach ($items as $item) {
             $test = $this->resolveTest($item);

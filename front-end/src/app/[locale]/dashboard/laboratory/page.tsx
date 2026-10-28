@@ -11,6 +11,8 @@ import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { ModuleTabs } from "@/components/shared/ModuleTabs";
 import { BLOOD_GROUPS } from "@/modules/laboratory/blood";
+import { BloodBarcodePanel } from "@/modules/laboratory/components/BloodBarcodePanel";
+import { LabBarcodePanel } from "@/modules/laboratory/components/LabBarcodePanel";
 import { LabCatalogPage } from "@/modules/laboratory/pages/LabCatalogPage";
 import { OrderResultDialog, uploadResultFiles } from "@/components/shared/OrderResultDialog";
 import { ResourceListPage, dateCell, statusBadge } from "@/components/shared/ResourceListPage";
@@ -100,6 +102,9 @@ export default function Page() {
             id: "worklist",
             label: t("laboratory.worklist"),
             content: (
+              <div className="flex h-full min-h-0 flex-col">
+              <LabBarcodePanel onOpen={setItem} />
+              <div className="min-h-0 flex-1">
               <ResourceListPage
                 title={t("laboratory.title")}
                 endpoint="/laboratory/worklist"
@@ -132,6 +137,21 @@ export default function Page() {
                     },
                   },
                   {
+                    key: "barcode",
+                    header: t("laboratory.barcode"),
+                    width: 150,
+                    render: (row) => {
+                      const code = (row.order as { barcode?: string } | undefined)?.barcode;
+                      return code ? (
+                        <span dir="ltr" className="font-mono text-[12px]">
+                          {code}
+                        </span>
+                      ) : (
+                        "—"
+                      );
+                    },
+                  },
+                  {
                     key: "test",
                     header: t("laboratory.tests"),
                     render: (row) => String((row.test as { name?: string } | undefined)?.name ?? row.test_name ?? "—"),
@@ -156,15 +176,22 @@ export default function Page() {
                   },
                 ]}
               />
+              </div>
+              </div>
             ),
           },
           {
             id: "blood",
             label: t("laboratory.bloodRequests"),
             content: (
+              <div className="flex h-full min-h-0 flex-col">
+              <BloodBarcodePanel onOpen={canConfirmBlood ? setBlood : undefined} />
+              <div className="min-h-0 flex-1">
               <ResourceListPage
                 title={t("laboratory.bloodRequests")}
                 endpoint="/laboratory/blood-requests"
+                searchPlaceholder={t("laboratory.scanBarcode")}
+                scanSearch
                 excel="blood-requests"
                 actionsHeader={t("app.operations")}
                 extraActions={
@@ -178,6 +205,16 @@ export default function Page() {
                 }
                 columns={[
                   { key: "id", header: "#", width: 60 },
+                  {
+                    key: "barcode",
+                    header: t("laboratory.barcodeNumber"),
+                    width: 150,
+                    render: (row) => (
+                      <span className="font-mono" dir="ltr">
+                        {String(row.barcode ?? "—")}
+                      </span>
+                    ),
+                  },
                   {
                     key: "patient",
                     header: t("patients.fullName"),
@@ -233,6 +270,8 @@ export default function Page() {
                   },
                 ]}
               />
+              </div>
+              </div>
             ),
           },
           ...(canManageTests ? [{

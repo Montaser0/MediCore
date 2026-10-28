@@ -8,6 +8,7 @@ export type OrderSlipLine = {
 
 export type OrderSlip = {
   kind: "laboratory" | "radiology";
+  title?: string;
   orderNumber?: string;
   hospitalName: string;
   patientName?: string;
@@ -35,7 +36,7 @@ export function printOrderSlip(slip: OrderSlip, preview?: Window | null) {
 }
 
 function render(slip: OrderSlip) {
-  const title = slip.kind === "laboratory" ? "وصفة مخبر" : "وصفة أشعة";
+  const title = slip.title ?? (slip.kind === "laboratory" ? "وصفة مخبر" : "وصفة أشعة");
   const withInjection = (slip.injection ?? 0) > 0;
   const rows = slip.lines
     .map((line, index) => `<tr><td>${index + 1}</td><td>${esc(line.name)}</td></tr>`)

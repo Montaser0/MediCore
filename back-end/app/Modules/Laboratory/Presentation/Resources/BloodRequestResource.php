@@ -19,6 +19,8 @@ final class BloodRequestResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'barcode' => $this->barcode,
+            'clinic_name' => $this->clinic_name,
             'blood_product_id' => $this->blood_product_id,
             'product_name' => $this->product_name,
             'product_label' => $this->product_name ?: $this->product_type,

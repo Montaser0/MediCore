@@ -12,6 +12,7 @@ import { env } from "@/config/environment";
 import { dailyNo } from "@/lib/arabicText";
 import { formatMoney } from "@/lib/utils";
 import { LAB_CATEGORIES, type LabCategoryId } from "@/modules/laboratory/categories";
+import { printLabBarcode } from "@/modules/laboratory/print/printLabBarcode";
 import { printOrderSlip } from "../print/printOrderSlip";
 import { usePatient } from "../hooks/usePatients";
 import { useJourneyAction, usePatientEncounters } from "../hooks/useJourney";
@@ -83,7 +84,7 @@ export function PatientLabOrderPage({ patientId }: { patientId: string }) {
     });
   }
 
-  async function submit(printSlip = false) {
+  async function submit(print: "prescription" | "barcode" | null = null) {
     if (!visit) {
       toast.error(t("workspace.needVisit"));
       return;
@@ -92,9 +93,9 @@ export function PatientLabOrderPage({ patientId }: { patientId: string }) {
       toast.error(t("laboratory.pickTests"));
       return;
     }
-    const preview = printSlip ? window.open("", "_blank", "width=900,height=720") : null;
-    if (printSlip && !preview) {
-      toast.error("اسمح بالنوافذ المنبثقة لطباعة الوصفة");
+    const preview = print ? window.open("", "_blank", "width=820,height=720") : null;
+    if (print && !preview) {
+      toast.error(print === "barcode" ? t("laboratory.popupBlocked") : "اسمح بالنوافذ المنبثقة لطباعة الوصفة");
       return;
     }
     try {
@@ -110,27 +111,39 @@ export function PatientLabOrderPage({ patientId }: { patientId: string }) {
             name: row.name,
           })),
         }),
-      )) as { data?: { order_number?: string } };
-      if (printSlip) {
+      )) as { data?: { order_number?: string; barcode?: string; clinic_name?: string | null; doctor_name?: string | null } };
+      const barcode = created.data?.barcode;
+      if (print === "barcode" && barcode && preview) {
+        printLabBarcode(
+          {
+            barcode,
+            clinic: created.data?.clinic_name || visit.clinic?.name,
+            patientName: patient?.full_name,
+          },
+          preview,
+        );
+      } else if (print === "prescription" && preview) {
         printOrderSlip(
           {
             kind: "laboratory",
             orderNumber: created.data?.order_number,
             hospitalName: env.appName,
             patientName: patient?.full_name,
-            mrn: patient?.mrn,
+            mrn: patient?.mrn ? dailyNo(patient.mrn) : undefined,
             age: patient?.age == null ? undefined : String(patient.age),
             gender: patient?.gender === "male" ? "ذكر" : patient?.gender === "female" ? "أنثى" : undefined,
             phone: patient?.phone ?? undefined,
-            doctor: visit.doctor?.name,
-            clinic: visit.clinic?.name,
+            doctor: created.data?.doctor_name || visit.doctor?.name,
+            clinic: created.data?.clinic_name || visit.clinic?.name,
             notes: notes.trim(),
             lines: selected.map((row) => ({ name: row.name ?? "—", price: Number(row.price) || 0 })),
           },
           preview,
         );
+      } else {
+        preview?.close();
       }
-      toast.success(t("workspace.saved"));
+      toast.success(print === "barcode" && barcode ? t("laboratory.barcodeSaved", { barcode }) : t("workspace.saved"));
       router.push(backHref);
     } catch (error) {
       preview?.close();
@@ -209,7 +222,7 @@ export function PatientLabOrderPage({ patientId }: { patientId: string }) {
         className="his-action-bar items-center"
         onSubmit={(event) => {
           event.preventDefault();
-          void submit();
+          void submit(null);
         }}
       >
         <span className="text-[12px]">
@@ -225,8 +238,11 @@ export function PatientLabOrderPage({ patientId }: { patientId: string }) {
         <Button type="button" onClick={() => router.push(backHref)}>
           {t("app.cancel")}
         </Button>
-        <Button type="button" disabled={run.isPending || !visit} onClick={() => void submit(true)}>
+        <Button type="button" disabled={run.isPending || !visit} onClick={() => void submit("prescription")}>
           {t("laboratory.prescription")}
+        </Button>
+        <Button type="button" disabled={run.isPending || !visit} onClick={() => void submit("barcode")}>
+          {t("laboratory.barcode")}
         </Button>
         <Button type="submit" variant="primary" disabled={run.isPending || !visit}>
           {t("app.save")}

@@ -41,6 +41,9 @@ final class LabOrderItemResource extends JsonResource
             'order' => $order === null ? null : [
                 'id' => $order->id,
                 'order_number' => $order->order_number,
+                'barcode' => $this->labOrder?->barcode,
+                'clinic' => $this->labOrder?->clinic_name,
+                'doctor' => $this->labOrder?->doctor_name,
                 'priority' => $order->priority->value,
                 'status' => $order->status->value,
                 'ordered_at' => $order->ordered_at?->toIso8601String(),

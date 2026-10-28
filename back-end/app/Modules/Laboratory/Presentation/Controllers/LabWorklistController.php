@@ -7,6 +7,7 @@ namespace App\Modules\Laboratory\Presentation\Controllers;
 use App\Core\Http\Controllers\ApiController;
 use App\Core\Http\Responses\ApiResponse;
 use App\Modules\Laboratory\Application\Actions\CancelLabOrderItemAction;
+use App\Modules\Laboratory\Application\Queries\LabBarcodeQuery;
 use App\Modules\Laboratory\Application\Queries\LabWorklistQuery;
 use App\Modules\Laboratory\Infrastructure\Persistence\Models\LabOrderItemModel;
 use App\Modules\Laboratory\Presentation\Resources\LabOrderItemResource;
@@ -26,6 +27,17 @@ final class LabWorklistController extends ApiController
         );
 
         return ApiResponse::paginated(LabOrderItemResource::collection($items), $items);
+    }
+
+    public function showByBarcode(string $barcode, LabBarcodeQuery $query): JsonResponse
+    {
+        $ticket = $query->find($barcode);
+
+        if ($ticket === null) {
+            return ApiResponse::message('لا يوجد طلب تحاليل بهذا الباركود.', 404);
+        }
+
+        return ApiResponse::data($ticket);
     }
 
     public function show(LabOrderItemModel $labItem): JsonResponse

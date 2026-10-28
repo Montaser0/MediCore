@@ -22,6 +22,7 @@ import { env } from "@/config/environment";
 import { MedicationPrescriptionForm, type PrescriptionLine } from "../components/MedicationPrescriptionForm";
 import { printPrescription } from "../print/printPrescription";
 import { printOrderSlip } from "../print/printOrderSlip";
+import { printLabBarcode } from "@/modules/laboratory/print/printLabBarcode";
 
 type RegisterDepartment = NamedRow & {
   type?: string;
@@ -57,6 +58,7 @@ export function PatientCreatePage() {
     clinic_id: "",
     doctor_id: "",
   });
+  const labPrint = useRef<"prescription" | "barcode" | null>(null);
   const rxDraft = useRef<{ fulfillment: "hospital" | "external"; items: PrescriptionLine[] }>({
     fulfillment: "hospital",
     items: [],
@@ -222,6 +224,8 @@ export function PatientCreatePage() {
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
+    const labChoice = labPrint.current;
+    labPrint.current = null;
     if (!nationalId) {
       toast.error(t("patients.nationalIdRequired"));
       nationalIdRef.current?.focus();
@@ -252,14 +256,18 @@ export function PatientCreatePage() {
       toast.error(serviceKind === "laboratory" ? t("laboratory.pickTests") : t("radiology.pickStudies"));
       return;
     }
-    const preview = directDesk ? window.open("", "_blank", "width=900,height=720") : null;
-    if (directDesk && !preview) {
-      toast.error("اسمح بالنوافذ المنبثقة لطباعة الوصفة");
+    const shouldPrint = directDesk && (serviceKind !== "laboratory" || labChoice !== null);
+    const preview = shouldPrint ? window.open("", "_blank", "width=820,height=720") : null;
+    if (shouldPrint && !preview) {
+      toast.error(labChoice === "barcode" ? t("laboratory.popupBlocked") : "اسمح بالنوافذ المنبثقة لطباعة الوصفة");
       return;
     }
     setSaving(true);
     try {
       let patientId = existing[0]?.id;
+      let patientName = existing[0]?.full_name || [form.first_name, form.father_name, form.last_name].filter(Boolean).join(" ");
+      let patientMrn = existing[0]?.mrn;
+      let patientAge = form.age || (existing[0]?.age == null ? undefined : String(existing[0].age));
       if (!patientId) {
         const res = await create.mutateAsync({
           first_name: form.first_name,
@@ -276,6 +284,9 @@ export function PatientCreatePage() {
           notes: form.notes,
         });
         patientId = res.data.id;
+        patientName = res.data.full_name || patientName;
+        patientMrn = res.data.mrn || patientMrn;
+        if (res.data.age != null) patientAge = String(res.data.age);
       }
       try {
         const created = await journeyApi.openVisit({
@@ -309,15 +320,14 @@ export function PatientCreatePage() {
             : {}),
         });
         if (preview && pharmacy) {
-          const person = existing[0];
           printPrescription(
             {
               prescriptionNumber: (created.data as { prescription_number?: string }).prescription_number,
               hospitalName: env.appName,
               fulfillment: "hospital",
-              patientName: person?.full_name || [form.first_name, form.father_name, form.last_name].filter(Boolean).join(" "),
-              mrn: person?.mrn ? dailyNo(person.mrn) : undefined,
-              age: form.age || (person?.age == null ? undefined : String(person.age)),
+              patientName,
+              mrn: patientMrn ? dailyNo(patientMrn) : undefined,
+              age: patientAge,
               gender: form.gender === "male" ? "ذكر" : form.gender === "female" ? "أنثى" : undefined,
               lines: rxItems.map((line) => ({
                 name: line.name,
@@ -330,28 +340,63 @@ export function PatientCreatePage() {
             preview,
           );
         }
-        if (preview && serviceKind) {
-          const person = existing[0];
+        const slip = created.data as {
+          order_number?: string;
+          barcode?: string;
+          clinic_name?: string | null;
+          doctor_name?: string | null;
+        };
+        if (preview && serviceKind === "laboratory" && labChoice === "barcode" && slip.barcode) {
+          printLabBarcode(
+            {
+              barcode: slip.barcode,
+              clinic: slip.clinic_name,
+              patientName,
+            },
+            preview,
+          );
+        } else if (preview && serviceKind === "laboratory" && labChoice === "prescription") {
           printOrderSlip(
             {
-              kind: serviceKind,
-              orderNumber: (created.data as { order_number?: string }).order_number,
+              kind: "laboratory",
+              orderNumber: slip.order_number,
               hospitalName: env.appName,
-              patientName: person?.full_name || [form.first_name, form.father_name, form.last_name].filter(Boolean).join(" "),
-              mrn: person?.mrn ? dailyNo(person.mrn) : undefined,
-              age: form.age || (person?.age == null ? undefined : String(person.age)),
+              patientName,
+              mrn: patientMrn ? dailyNo(patientMrn) : undefined,
+              age: patientAge,
               gender: form.gender === "male" ? "ذكر" : form.gender === "female" ? "أنثى" : undefined,
-              phone: form.phone || person?.phone || undefined,
+              phone: form.phone || existing[0]?.phone || undefined,
+              doctor: slip.doctor_name ?? undefined,
+              clinic: slip.clinic_name ?? undefined,
               lines: serviceLines.map((line) => ({ name: line.name, price: line.price })),
             },
             preview,
           );
+        } else if (preview && serviceKind === "radiology") {
+          printOrderSlip(
+            {
+              kind: serviceKind,
+              orderNumber: slip.order_number,
+              hospitalName: env.appName,
+              patientName,
+              mrn: patientMrn ? dailyNo(patientMrn) : undefined,
+              age: patientAge,
+              gender: form.gender === "male" ? "ذكر" : form.gender === "female" ? "أنثى" : undefined,
+              phone: form.phone || existing[0]?.phone || undefined,
+              lines: serviceLines.map((line) => ({ name: line.name, price: line.price })),
+            },
+            preview,
+          );
+        } else if (preview && serviceKind === "laboratory") {
+          preview.close();
         }
         toast.success(
           pharmacy
             ? t("patients.pharmacySaved")
             : serviceKind === "laboratory"
-              ? t("patients.labSaved")
+              ? labChoice === "barcode" && slip.barcode
+                ? t("laboratory.barcodeSaved", { barcode: slip.barcode })
+                : t("patients.labSaved")
               : serviceKind === "radiology"
                 ? t("patients.radSaved")
                 : "المريض بانتظار المعاينة",
@@ -594,10 +639,36 @@ export function PatientCreatePage() {
                       ))}
                     </ul>
                   ) : null}
-                  <div className="flex justify-end">
-                    <Button type="submit" variant="primary" disabled={saving}>
-                      {t("patients.deskPrint")}
-                    </Button>
+                  <div className="flex justify-end gap-1">
+                    {serviceKind === "laboratory" ? (
+                      <>
+                        <Button
+                          type="button"
+                          disabled={saving}
+                          onClick={(event) => {
+                            labPrint.current = "prescription";
+                            event.currentTarget.form?.requestSubmit();
+                          }}
+                        >
+                          {t("laboratory.prescription")}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="primary"
+                          disabled={saving}
+                          onClick={(event) => {
+                            labPrint.current = "barcode";
+                            event.currentTarget.form?.requestSubmit();
+                          }}
+                        >
+                          {t("laboratory.barcode")}
+                        </Button>
+                      </>
+                    ) : (
+                      <Button type="submit" variant="primary" disabled={saving}>
+                        {t("patients.deskPrint")}
+                      </Button>
+                    )}
                   </div>
                 </div>
               </div>

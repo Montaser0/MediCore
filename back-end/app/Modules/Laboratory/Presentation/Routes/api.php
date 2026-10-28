@@ -26,6 +26,10 @@ Route::middleware('auth:sanctum')->prefix('laboratory')->group(function (): void
 
     // Worklist and samples.
     Route::middleware('permission:'.Permissions::LABORATORY_ORDERS_VIEW)->group(function (): void {
+        Route::get('orders/barcode/{barcode}', [LabWorklistController::class, 'showByBarcode'])
+            ->where('barcode', '[0-9]{8,20}');
+        Route::get('blood-requests/barcode/{barcode}', [BloodRequestController::class, 'showByBarcode'])
+            ->where('barcode', '[0-9]{8,20}');
         Route::get('worklist', [LabWorklistController::class, 'index']);
         Route::get('blood-requests', [BloodRequestController::class, 'index']);
         Route::get('items/{labItem}', [LabWorklistController::class, 'show']);

@@ -227,6 +227,12 @@ final class EncounterController extends ApiController
         }
         if ($order !== null) {
             $body['order_number'] = $order->order_number;
+            if ($desk === 'laboratory') {
+                $slip = DB::table('lab_orders')->where('order_id', $order->getKey())->first();
+                $body['barcode'] = $slip?->barcode;
+                $body['clinic_name'] = $slip?->clinic_name;
+                $body['doctor_name'] = $slip?->doctor_name;
+            }
         }
 
         return ApiResponse::data($body, [], 201);
