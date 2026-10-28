@@ -103,11 +103,37 @@ export function PharmacyReportsPage() {
             <StatCard key={card.label} label={card.label} value={card.value} icon={Banknote} color={card.color} />
           ))}
         </div>
-        <div className="text-[12px] font-semibold text-[var(--his-header)]">{t("reports.netProfit")}</div>
+        <div className="text-[12px] font-semibold text-[var(--his-header)]">{t("reports.profitGoods")}</div>
+        <p className="text-[12px] text-[var(--his-muted)]">{t("reports.profitNote")}</p>
         <div className="grid gap-2 sm:grid-cols-3">
           {profits.map((card) => (
             <StatCard key={card.label} label={card.label} value={card.value} icon={TrendingUp} color={card.color} />
           ))}
+        </div>
+        <div className="text-[12px] font-semibold text-[var(--his-header)]">{t("reports.profitItems")}</div>
+        <div className="overflow-auto border border-[var(--his-border)] bg-white">
+          <table className="w-full text-[12px]">
+            <thead>
+              <tr className="border-b border-[var(--his-border)] text-start">
+                <th className="px-2 py-1 text-start">{t("crud.name")}</th>
+                <th className="px-2 py-1 text-start">{t("pharmacy.quantity")}</th>
+                <th className="px-2 py-1 text-start">{t("pharmacy.net")}</th>
+                <th className="px-2 py-1 text-start">{t("pharmacy.unitCost")}</th>
+                <th className="px-2 py-1 text-start">{t("reports.profitGoods")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(data?.item_profit_month ?? []).map((row) => (
+                <tr key={row.name} className="border-b border-[var(--his-border)]">
+                  <td className="px-2 py-1">{row.name}</td>
+                  <td className="px-2 py-1">{row.quantity}</td>
+                  <td className="px-2 py-1">{formatMoney(row.net, "0")}</td>
+                  <td className="px-2 py-1">{formatMoney(row.cost, "0")}</td>
+                  <td className="px-2 py-1">{formatMoney(row.profit, "0")}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

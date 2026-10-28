@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Reports\Application\Queries;
 
+use App\Modules\Pharmacy\Application\Queries\PharmacyProfitQuery;
 use App\Modules\Pharmacy\Infrastructure\Persistence\Models\PharmacyDebtPaymentModel;
 use App\Modules\Pharmacy\Infrastructure\Persistence\Models\PharmacyPurchaseModel;
 use App\Modules\Pharmacy\Infrastructure\Persistence\Models\PharmacyReturnItemModel;
@@ -20,6 +21,8 @@ use Illuminate\Support\Facades\DB;
  */
 final class PharmacyReportQuery
 {
+    public function __construct(private readonly PharmacyProfitQuery $profit) {}
+
     /**
      * @return array<string, mixed>
      */
@@ -51,9 +54,10 @@ final class PharmacyReportQuery
             'payments_today' => $this->supplierPayments($today),
             'payments_week' => $this->supplierPayments($week),
             'payments_month' => $this->supplierPayments($month),
-            'profit_today' => round($this->revenue($today) - $this->supplierPayments($today), 2),
-            'profit_week' => round($this->revenue($week) - $this->supplierPayments($week), 2),
-            'profit_month' => round($this->revenue($month) - $this->supplierPayments($month), 2),
+            'profit_today' => $this->profit->between($today),
+            'profit_week' => $this->profit->between($week),
+            'profit_month' => $this->profit->between($month),
+            'item_profit_month' => $this->profit->items($month),
             'cash_today' => round(
                 (float) (clone $salesToday)->sum('cash_amount')
                 + (float) (clone $paymentsToday)->sum('amount')

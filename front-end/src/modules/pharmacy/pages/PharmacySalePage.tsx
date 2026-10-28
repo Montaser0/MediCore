@@ -1,40 +1,70 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { PageToolbar } from "@/components/ui/PageToolbar";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
 import { DataTable, type Column } from "@/components/data-table/DataTable";
 import { apiGet, apiPost, getErrorMessage } from "@/lib/api/client";
 import { formatMoney } from "@/lib/utils";
 import { useEditionStore } from "@/stores/edition-store";
+import { printPharmacyReceipt, type PharmacyReceipt } from "../print/printPharmacyReceipt";
+import { availableIn, baseOnHand, formatPack, preferredSaleUnit, SALE_UNITS, unitPrice, type SaleUnit } from "../pack";
 
 type Drug = {
   id: number;
   name: string;
   barcode?: string | null;
+  generic_name?: string | null;
   quantity?: number;
   price?: number;
+  price_strip?: number;
+  price_tablet?: number;
+  strips_per_box?: number;
+  tablets_per_strip?: number;
   stock_ready?: boolean;
   stock?: { quantity_on_hand?: number } | null;
 };
 
-function sellable(drug: Drug): number {
-  if (drug.stock_ready) return Number(drug.stock?.quantity_on_hand ?? 0);
-  return Number(drug.quantity ?? 0);
-}
+type Alternative = {
+  id: number;
+  name: string;
+  generic_name?: string | null;
+  strength?: string | null;
+  manufacturer?: string | null;
+  barcode?: string | null;
+  price?: number;
+  price_strip?: number;
+  price_tablet?: number;
+  strips_per_box?: number;
+  tablets_per_strip?: number;
+  on_hand?: number;
+  expiry_date?: string | null;
+};
 
 type Line = {
   medication_id: number;
   name: string;
   barcode: string;
   quantity: number;
+  unit: SaleUnit;
   unit_price: number;
   stock: number;
+  base: number;
+  strips_per_box: number;
+  tablets_per_strip: number;
+  price_box: number;
+  price_strip: number;
+  price_tablet: number;
 };
+
+function lineKey(line: { medication_id: number; unit: SaleUnit }) {
+  return `${line.medication_id}-${line.unit}`;
+}
 
 export function PharmacySalePage() {
   const t = useTranslations();
@@ -43,12 +73,18 @@ export function PharmacySalePage() {
   const ready = useEditionStore((state) => state.ready);
   const pos = useEditionStore((state) => state.hasFeature("pharmacy.pos"));
   const input = useRef<HTMLInputElement>(null);
+  const discountRef = useRef<HTMLInputElement>(null);
+  const paidRef = useRef<HTMLInputElement>(null);
+  const sellRef = useRef<() => void>(() => {});
+  const pendingQty = useRef<string | null>(null);
   const shelf = useRef<Drug[]>([]);
   const linesRef = useRef<Line[]>([]);
   const barcodeRef = useRef("");
   const lookupTimer = useRef<number | null>(null);
   const [barcode, setBarcode] = useState("");
   const [nameHits, setNameHits] = useState<Drug[]>([]);
+  const [hitIndex, setHitIndex] = useState(0);
+  const [alternatives, setAlternatives] = useState<{ forName: string; rows: Alternative[] } | null>(null);
   const [lines, setLines] = useState<Line[]>([]);
   const [discount, setDiscount] = useState("");
   const [paid, setPaid] = useState("");
@@ -65,6 +101,44 @@ export function PharmacySalePage() {
 
   useEffect(() => {
     input.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    setHitIndex(0);
+  }, [nameHits]);
+
+  useEffect(() => {
+    if (pendingQty.current == null) return;
+    const id = pendingQty.current;
+    pendingQty.current = null;
+    document.querySelector<HTMLInputElement>(`[data-qty="${id}"]`)?.focus();
+  }, [lines]);
+
+  useEffect(() => {
+    function onKey(event: globalThis.KeyboardEvent) {
+      if (event.key === "F2") {
+        event.preventDefault();
+        discountRef.current?.focus();
+        return;
+      }
+      if (event.key === "F4") {
+        event.preventDefault();
+        paidRef.current?.focus();
+        return;
+      }
+      if (event.key === "Escape") {
+        setAlternatives(null);
+        setNameHits([]);
+        input.current?.focus();
+        return;
+      }
+      if (event.key === "F9" || (event.ctrlKey && event.key === "Enter")) {
+        event.preventDefault();
+        sellRef.current();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, []);
 
   useEffect(() => {
@@ -106,21 +180,59 @@ export function PharmacySalePage() {
     () => [
       { key: "name", header: t("crud.name"), cell: (row) => row.name },
       {
+        key: "unit",
+        header: t("pharmacy.saleUnit"),
+        width: 110,
+        cell: (row) => (
+          <Select
+            value={row.unit}
+            onChange={(event) => {
+              const unit = event.target.value as SaleUnit;
+              setLines((current) =>
+                current.map((line) => {
+                  if (lineKey(line) !== lineKey(row)) return line;
+                  const stock = availableIn(line.base, unit, line.strips_per_box, line.tablets_per_strip);
+                  if (stock < 1) return line;
+                  const price = unitPrice(
+                    { price: line.price_box, price_strip: line.price_strip, price_tablet: line.price_tablet, strips_per_box: line.strips_per_box, tablets_per_strip: line.tablets_per_strip },
+                    unit,
+                  );
+                  return { ...line, unit, unit_price: price, stock, quantity: Math.min(line.quantity, stock) };
+                }),
+              );
+            }}
+          >
+            {SALE_UNITS.map((unit) => (
+              <option key={unit} value={unit}>
+                {unit}
+              </option>
+            ))}
+          </Select>
+        ),
+      },
+      {
         key: "quantity",
         header: t("pharmacy.quantity"),
         width: 110,
         cell: (row) => (
-          <Input
+            <Input
+            data-qty={lineKey(row)}
             type="number"
-            min="0.01"
-            step="0.01"
+            min="1"
+            step="1"
             max={row.stock}
             value={String(row.quantity)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                input.current?.focus();
+              }
+            }}
             onChange={(event) => {
               const next = Number(event.target.value);
               setLines((current) =>
                 current.map((line) =>
-                  line.medication_id === row.medication_id
+                  lineKey(line) === lineKey(row)
                     ? { ...line, quantity: Number.isFinite(next) && next > 0 ? Math.min(next, line.stock) : line.quantity }
                     : line,
                 ),
@@ -136,6 +248,16 @@ export function PharmacySalePage() {
         width: 120,
         cell: (row) => formatMoney(row.quantity * row.unit_price),
       },
+      {
+        key: "alt",
+        header: t("pharmacy.alternatives"),
+        width: 90,
+        cell: (row) => (
+          <Button type="button" onClick={() => void loadAlternatives({ id: row.medication_id, name: row.name })}>
+            {t("pharmacy.alternatives")}
+          </Button>
+        ),
+      },
     ],
     [t],
   );
@@ -145,15 +267,31 @@ export function PharmacySalePage() {
     setBarcode(code);
   }
 
+  async function loadAlternatives(drug: Pick<Drug, "id" | "name">) {
+    try {
+      const res = await apiGet<Alternative[]>(`/pharmacy/pos/medications/${drug.id}/alternatives`);
+      setAlternatives({ forName: drug.name, rows: res.data ?? [] });
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    }
+  }
+
   function addDrug(drug: Drug, code: string) {
-    const stock = sellable(drug);
-    const existing = linesRef.current.find((line) => line.medication_id === drug.id);
+    const base = baseOnHand(drug);
+    const strips = Math.max(1, Number(drug.strips_per_box ?? 1));
+    const tablets = Math.max(1, Number(drug.tablets_per_strip ?? 1));
+    const unit = preferredSaleUnit(base, strips, tablets);
+    const stock = availableIn(base, unit, strips, tablets);
+    const existing = linesRef.current.find((line) => line.medication_id === drug.id && line.unit === unit);
     if (stock <= 0 || (existing && existing.quantity >= stock)) {
       toast.error(t("pharmacy.outOfStock"));
+      void loadAlternatives(drug);
       return;
     }
+    setAlternatives(null);
+    pendingQty.current = `${drug.id}-${unit}`;
     setLines((current) => {
-      const line = current.find((item) => item.medication_id === drug.id);
+      const line = current.find((item) => item.medication_id === drug.id && item.unit === unit);
       if (!line) {
         return [
           ...current,
@@ -162,14 +300,21 @@ export function PharmacySalePage() {
             name: drug.name,
             barcode: drug.barcode ?? code,
             quantity: 1,
-            unit_price: Number(drug.price ?? 0),
+            unit,
+            unit_price: unitPrice(drug, unit),
             stock,
+            base,
+            strips_per_box: strips,
+            tablets_per_strip: tablets,
+            price_box: Number(drug.price ?? 0),
+            price_strip: Number(drug.price_strip ?? 0),
+            price_tablet: Number(drug.price_tablet ?? 0),
           },
         ];
       }
       if (line.quantity >= stock) return current;
       return current.map((item) =>
-        item.medication_id === drug.id ? { ...item, quantity: item.quantity + 1 } : item,
+        item.medication_id === drug.id && item.unit === unit ? { ...item, quantity: item.quantity + 1, base, stock } : item,
       );
     });
     remember("");
@@ -261,9 +406,26 @@ export function PharmacySalePage() {
     }
   }
 
+  function onSearchKey(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "ArrowDown" && nameHits.length > 0) {
+      event.preventDefault();
+      setHitIndex((current) => Math.min(current + 1, nameHits.length - 1));
+    }
+    if (event.key === "ArrowUp" && nameHits.length > 0) {
+      event.preventDefault();
+      setHitIndex((current) => Math.max(current - 1, 0));
+    }
+  }
+
   function scan(event: FormEvent) {
     event.preventDefault();
     if (lookupTimer.current) window.clearTimeout(lookupTimer.current);
+    if (nameHits.length > 0) {
+      const drug = nameHits[Math.min(hitIndex, nameHits.length - 1)];
+      setNameHits([]);
+      addDrug(drug, drug.barcode ?? "");
+      return;
+    }
     const code = barcodeRef.current.trim();
     if (!code) return;
     if (hasLetter(code)) {
@@ -281,7 +443,7 @@ export function PharmacySalePage() {
     }
     setSaving(true);
     try {
-      const res = await apiPost<{ sale_number?: string; due_amount?: number; customer?: { name?: string } | null }>(
+      const res = await apiPost<PharmacyReceipt & { customer?: { name?: string } | null }>(
         "/pharmacy/pos/sales",
         {
           discount: discountAmount,
@@ -293,7 +455,7 @@ export function PharmacySalePage() {
                 customer_phone: customerPhone.trim() || undefined,
               }
             : {}),
-          lines: lines.map((line) => ({ medication_id: line.medication_id, quantity: line.quantity })),
+          lines: lines.map((line) => ({ medication_id: line.medication_id, quantity: line.quantity, unit: line.unit })),
         },
       );
       const name = res.data?.customer?.name;
@@ -306,6 +468,13 @@ export function PharmacySalePage() {
       setCustomerId(null);
       setCustomerName("");
       setCustomerPhone("");
+      if (res.data) {
+        try {
+          printPharmacyReceipt(res.data);
+        } catch (error) {
+          toast.error(getErrorMessage(error));
+        }
+      }
     } catch (error) {
       toast.error(getErrorMessage(error));
     } finally {
@@ -313,6 +482,10 @@ export function PharmacySalePage() {
       input.current?.focus();
     }
   }
+
+  sellRef.current = () => {
+    void sell();
+  };
 
   return (
     <div className="flex h-full flex-col">
@@ -328,22 +501,26 @@ export function PharmacySalePage() {
             ref={input}
             value={barcode}
             onChange={(event) => onCode(event.target.value)}
+            onKeyDown={onSearchKey}
             placeholder={t("pharmacy.scan")}
           />
           {nameHits.length > 0 ? (
             <div className="absolute z-20 mt-1 max-h-64 w-full overflow-auto border border-[var(--his-border)] bg-white shadow">
-              {nameHits.map((drug) => (
+              {nameHits.map((drug, index) => (
                 <button
                   key={drug.id}
                   type="button"
-                  className="block w-full border-b border-[var(--his-border)] px-2 py-1 text-start text-[13px] last:border-b-0 hover:bg-[var(--his-surface)]"
+                  className={`block w-full border-b border-[var(--his-border)] px-2 py-1 text-start text-[13px] last:border-b-0 hover:bg-[var(--his-surface)] ${index === hitIndex ? "bg-[var(--his-surface)]" : ""}`}
                   onClick={() => {
                     setNameHits([]);
                     addDrug(drug, drug.barcode ?? "");
                   }}
                 >
                   {drug.name}
-                  <span className="text-[var(--his-muted)]"> · {sellable(drug)}</span>
+                  <span className="text-[var(--his-muted)]">
+                    {" "}
+                    · {formatPack(baseOnHand(drug), drug.strips_per_box, drug.tablets_per_strip, { box: t("pharmacy.unitBox"), strip: t("pharmacy.unitStrip"), tablet: t("pharmacy.unitTablet") })}
+                  </span>
                 </button>
               ))}
             </div>
@@ -356,6 +533,7 @@ export function PharmacySalePage() {
         <label className="flex items-center gap-2 text-[13px]">
           {t("pharmacy.discount")}
           <Input
+            ref={discountRef}
             type="number"
             min="0"
             step="0.01"
@@ -369,6 +547,7 @@ export function PharmacySalePage() {
         <label className="flex items-center gap-2 text-[13px]">
           {t("pharmacy.paid")}
           <Input
+            ref={paidRef}
             type="number"
             min="0"
             step="0.01"
@@ -424,8 +603,46 @@ export function PharmacySalePage() {
         ) : null}
       </div>
       <p className="px-2 pt-2 text-[12px] text-[var(--his-muted)]">{t("pharmacy.debtHint")}</p>
+      <p className="px-2 text-[12px] text-[var(--his-muted)]">{t("pharmacy.keysHint")}</p>
+      {alternatives ? (
+        <div className="border-b border-[var(--his-border)] bg-white px-2 py-2">
+          <p className="mb-1 text-[13px] font-bold">{t("pharmacy.alternativesFor", { name: alternatives.forName })}</p>
+          {alternatives.rows.length === 0 ? (
+            <p className="text-[12px] text-[var(--his-muted)]">{t("pharmacy.alternativesEmpty")}</p>
+          ) : (
+            <div className="flex flex-wrap gap-1">
+              {alternatives.rows.map((drug) => (
+                <Button
+                  key={drug.id}
+                  type="button"
+                  onClick={() =>
+                    addDrug(
+                      {
+                        id: drug.id,
+                        name: drug.name,
+                        barcode: drug.barcode,
+                        price: drug.price,
+                        price_strip: drug.price_strip,
+                        price_tablet: drug.price_tablet,
+                        strips_per_box: drug.strips_per_box,
+                        tablets_per_strip: drug.tablets_per_strip,
+                        stock_ready: true,
+                        stock: { quantity_on_hand: drug.on_hand },
+                      },
+                      drug.barcode ?? "",
+                    )
+                  }
+                >
+                  {drug.name} · {drug.on_hand}
+                  {drug.expiry_date ? ` · ${drug.expiry_date}` : ""}
+                </Button>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : null}
       <div className="min-h-0 flex-1 p-2">
-        <DataTable columns={columns} rows={lines} rowKey={(row) => row.medication_id} emptyText={t("pharmacy.scan")} />
+        <DataTable columns={columns} rows={lines} rowKey={(row) => lineKey(row)} emptyText={t("pharmacy.scan")} />
       </div>
     </div>
   );

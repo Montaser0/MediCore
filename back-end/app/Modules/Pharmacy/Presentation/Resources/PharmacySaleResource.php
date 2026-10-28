@@ -31,12 +31,19 @@ final class PharmacySaleResource extends JsonResource
                 'phone' => $this->customer->phone,
             ]),
             'sold_at' => $this->sold_at?->toIso8601String(),
+            'hospital' => $this->whenLoaded('hospital', fn () => $this->hospital === null ? null : [
+                'name' => $this->hospital->name,
+                'phone' => $this->hospital->phone,
+                'address' => $this->hospital->address,
+                'city' => $this->hospital->city,
+            ]),
             'items' => $this->whenLoaded('items', fn () => $this->items->map(fn ($item) => [
                 'id' => $item->id,
                 'medication_id' => $item->medication_id,
                 'name' => $item->name,
                 'barcode' => $item->barcode,
                 'quantity' => $item->quantity,
+                'unit' => $item->unit,
                 'returned_quantity' => $item->relationLoaded('returnItems')
                     ? round((float) $item->returnItems->sum('quantity'), 2)
                     : 0,

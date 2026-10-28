@@ -16,7 +16,9 @@ import { roleNames } from "@/config/desk";
 import { useAuthStore } from "@/stores/auth-store";
 import { formatMoney } from "@/lib/utils";
 import { CatalogueSearch, catalogueDetail, type CatalogueHit } from "../components/CatalogueSearch";
+import { PharmacyBulletinPanel } from "../components/PharmacyBulletinPanel";
 import { defineDrug, earliestExpiry } from "../defineDrug";
+import { formatPack, PURCHASE_UNITS, type SaleUnit } from "../pack";
 
 type ShelfDrug = {
   id: number;
@@ -29,6 +31,10 @@ type ShelfDrug = {
   barcode?: string | null;
   quantity?: number;
   price?: number;
+  price_strip?: number;
+  price_tablet?: number;
+  strips_per_box?: number;
+  tablets_per_strip?: number;
   catalogue_item_id?: number | null;
   stock_ready?: boolean;
   stock?: { quantity_on_hand?: number } | null;
@@ -41,6 +47,11 @@ const blank = {
   detail: "",
   barcode: "",
   price: "",
+  priceStrip: "",
+  priceTablet: "",
+  stripsPerBox: "1",
+  tabletsPerStrip: "1",
+  purchaseUnit: "علبة" as SaleUnit,
   cost: "",
   quantity: "",
   expiry: "",
@@ -95,7 +106,13 @@ export function PharmacyCatalogPage() {
         width: 140,
         cell: (row) => (
           <span>
-            <span className="block">{onHand(row)}</span>
+            <span className="block">
+              {formatPack(onHand(row), row.strips_per_box, row.tablets_per_strip, {
+                box: t("pharmacy.unitBox"),
+                strip: t("pharmacy.unitStrip"),
+                tablet: t("pharmacy.unitTablet"),
+              })}
+            </span>
             <span className="block text-[11px] text-[var(--his-muted)]">
               {row.stock_ready ? t("pharmacy.stockReady") : t("pharmacy.stockMissing")}
             </span>
@@ -115,7 +132,17 @@ export function PharmacyCatalogPage() {
       name: item.display_name,
       detail: catalogueDetail(item),
       barcode: item.barcode || item.stock?.barcode || "",
-      price: item.stock ? String(item.stock.price ?? "") : "",
+      price:
+        item.stock?.price != null && Number(item.stock.price) > 0
+          ? String(item.stock.price)
+          : item.official_price != null
+            ? String(item.official_price)
+            : "",
+      priceStrip: known?.price_strip ? String(known.price_strip) : "",
+      priceTablet: known?.price_tablet ? String(known.price_tablet) : "",
+      stripsPerBox: String(known?.strips_per_box ?? 1),
+      tabletsPerStrip: String(known?.tablets_per_strip ?? 1),
+      purchaseUnit: "علبة",
       cost: "",
       quantity: "",
       expiry: "",
@@ -134,6 +161,11 @@ export function PharmacyCatalogPage() {
         name: draft.name,
         barcode: draft.barcode,
         price: Number(draft.price),
+        priceStrip: draft.priceStrip.trim() === "" ? 0 : Number(draft.priceStrip),
+        priceTablet: draft.priceTablet.trim() === "" ? 0 : Number(draft.priceTablet),
+        stripsPerBox: Number(draft.stripsPerBox),
+        tabletsPerStrip: Number(draft.tabletsPerStrip),
+        purchaseUnit: draft.purchaseUnit,
         cost: Number(draft.cost),
         quantity: Number(draft.quantity),
         expiry: draft.expiry,
@@ -167,6 +199,7 @@ export function PharmacyCatalogPage() {
       <p className="border-b border-[var(--his-border)] bg-white px-2 py-1 text-[12px] text-[var(--his-muted)]">
         {t("pharmacy.catalogueHint")}
       </p>
+      <PharmacyBulletinPanel />
       <div className="grid gap-2 border-b border-[var(--his-border)] bg-white p-2 md:grid-cols-[160px_1fr]">
         <Select value={productType} onChange={(event) => setProductType(event.target.value)}>
           <option value="">{t("pharmacy.productType")}</option>
@@ -193,8 +226,34 @@ export function PharmacyCatalogPage() {
             <Input required type="date" min={earliestExpiry()} value={draft.expiry} onChange={(event) => setDraft((current) => ({ ...current, expiry: event.target.value }))} />
           </label>
           <label className="grid gap-1 text-[12px]">
-            <span>{t("pharmacy.price")}</span>
+            <span>{t("pharmacy.stripsPerBox")}</span>
+            <Input required type="number" min="1" step="1" value={draft.stripsPerBox} onChange={(event) => setDraft((current) => ({ ...current, stripsPerBox: event.target.value }))} />
+          </label>
+          <label className="grid gap-1 text-[12px]">
+            <span>{t("pharmacy.tabletsPerStrip")}</span>
+            <Input required type="number" min="1" step="1" value={draft.tabletsPerStrip} onChange={(event) => setDraft((current) => ({ ...current, tabletsPerStrip: event.target.value }))} />
+          </label>
+          <label className="grid gap-1 text-[12px]">
+            <span>{t("pharmacy.purchaseUnit")}</span>
+            <Select value={draft.purchaseUnit} onChange={(event) => setDraft((current) => ({ ...current, purchaseUnit: event.target.value as SaleUnit }))}>
+              {PURCHASE_UNITS.map((unit) => (
+                <option key={unit} value={unit}>
+                  {unit}
+                </option>
+              ))}
+            </Select>
+          </label>
+          <label className="grid gap-1 text-[12px]">
+            <span>{t("pharmacy.priceBox")}</span>
             <Input required type="number" min="0" step="0.01" value={draft.price} onChange={(event) => setDraft((current) => ({ ...current, price: event.target.value }))} />
+          </label>
+          <label className="grid gap-1 text-[12px]">
+            <span>{t("pharmacy.priceStrip")}</span>
+            <Input type="number" min="0" step="0.01" value={draft.priceStrip} placeholder={t("pharmacy.priceSplit")} onChange={(event) => setDraft((current) => ({ ...current, priceStrip: event.target.value }))} />
+          </label>
+          <label className="grid gap-1 text-[12px]">
+            <span>{t("pharmacy.priceTablet")}</span>
+            <Input type="number" min="0" step="0.01" value={draft.priceTablet} placeholder={t("pharmacy.priceSplit")} onChange={(event) => setDraft((current) => ({ ...current, priceTablet: event.target.value }))} />
           </label>
           <label className="grid gap-1 text-[12px]">
             <span>{t("pharmacy.purchasePrice")}</span>

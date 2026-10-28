@@ -28,6 +28,9 @@ if ($registry->feature('pharmacy.pos')) {
     Route::middleware(['auth:sanctum', 'permission:'.Permissions::PHARMACY_MEDICATIONS_MANAGE])
         ->post('pharmacy/catalogue/{catalogueItem}/stock', [DrugCatalogueController::class, 'stock']);
 
+    Route::middleware(['auth:sanctum', 'permission:'.Permissions::PHARMACY_MEDICATIONS_MANAGE])
+        ->post('pharmacy/catalogue/bulletin', [DrugCatalogueController::class, 'bulletin']);
+
     Route::middleware(['auth:sanctum', $till])->prefix('pharmacy/pos')->group(function (): void {
         Route::get('medications', [PosController::class, 'index']);
         Route::post('medications', [PosController::class, 'store']);
@@ -36,6 +39,12 @@ if ($registry->feature('pharmacy.pos')) {
         Route::post('sales', [PosController::class, 'sell']);
         Route::get('sales', [PosController::class, 'sales']);
         Route::get('sales/{saleNumber}', [PosController::class, 'sale']);
+        Route::get('medications/{medication}/alternatives', [PosController::class, 'alternatives']);
+        Route::get('alerts', [PosController::class, 'alerts']);
+        Route::patch('medications/{medication}/reorder', [PosController::class, 'reorder']);
+        Route::get('cash-session', [PharmacyTillController::class, 'cashSession']);
+        Route::post('cash-session', [PharmacyTillController::class, 'openCash']);
+        Route::post('cash-session/close', [PharmacyTillController::class, 'closeCash']);
         Route::get('customers', [PharmacyTillController::class, 'customers']);
         Route::get('debts', [PharmacyTillController::class, 'debts']);
         Route::post('debts/payments', [PharmacyTillController::class, 'collect']);

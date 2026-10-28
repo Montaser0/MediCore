@@ -17,7 +17,12 @@ final class MedicationModel extends BaseModel
     {
         return [
             'price' => 'float',
+            'price_strip' => 'float',
+            'price_tablet' => 'float',
             'quantity' => 'float',
+            'reorder_level' => 'float',
+            'strips_per_box' => 'integer',
+            'tablets_per_strip' => 'integer',
             'requires_prescription' => 'boolean',
             'is_active' => 'boolean',
         ];

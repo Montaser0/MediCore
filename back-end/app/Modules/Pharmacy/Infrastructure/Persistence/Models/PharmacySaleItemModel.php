@@ -16,8 +16,11 @@ final class PharmacySaleItemModel extends BaseModel
     {
         return [
             'quantity' => 'float',
+            'base_quantity' => 'float',
             'unit_price' => 'float',
+            'unit_cost' => 'float',
             'line_total' => 'float',
+            'cost_total' => 'float',
         ];
     }
 

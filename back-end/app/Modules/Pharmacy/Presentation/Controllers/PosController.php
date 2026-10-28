@@ -7,8 +7,11 @@ namespace App\Modules\Pharmacy\Presentation\Controllers;
 use App\Core\Http\Controllers\ApiController;
 use App\Core\Http\Responses\ApiResponse;
 use App\Modules\Pharmacy\Application\Actions\CreatePharmacySaleAction;
+use App\Modules\Pharmacy\Application\Queries\MedicationAlternativeQuery;
+use App\Modules\Pharmacy\Application\Queries\PharmacyAlertQuery;
 use App\Modules\Pharmacy\Infrastructure\Persistence\Models\MedicationModel;
 use App\Modules\Pharmacy\Infrastructure\Persistence\Models\PharmacySaleModel;
+use App\Modules\Pharmacy\Presentation\Requests\UpdateReorderLevelRequest;
 use App\Modules\Pharmacy\Presentation\Requests\SavePosMedicationRequest;
 use App\Modules\Pharmacy\Presentation\Requests\StorePharmacySaleRequest;
 use App\Modules\Pharmacy\Presentation\Resources\MedicationResource;
@@ -87,6 +90,27 @@ final class PosController extends ApiController
         return ApiResponse::created(new PharmacySaleResource($sale));
     }
 
+    public function alternatives(MedicationModel $medication, CreatePharmacySaleAction $sales, MedicationAlternativeQuery $alternatives): JsonResponse
+    {
+        $this->guardShelf($medication, $sales->hospitalId());
+
+        return ApiResponse::data($alternatives->forMedication($medication));
+    }
+
+    public function alerts(CreatePharmacySaleAction $sales, PharmacyAlertQuery $alerts): JsonResponse
+    {
+        return ApiResponse::data($alerts->execute($sales->hospitalId()));
+    }
+
+    public function reorder(UpdateReorderLevelRequest $request, MedicationModel $medication, CreatePharmacySaleAction $sales): JsonResponse
+    {
+        $this->guardShelf($medication, $sales->hospitalId());
+        $medication->reorder_level = round((float) $request->validated('reorder_level'), 2);
+        $medication->save();
+
+        return ApiResponse::resource(new MedicationResource($medication->load('inventoryItem')));
+    }
+
     public function sales(Request $request, CreatePharmacySaleAction $sales): JsonResponse
     {
         $search = trim($request->string('search')->toString());
@@ -117,7 +141,7 @@ final class PosController extends ApiController
         $sale = PharmacySaleModel::query()
             ->where('hospital_id', $sales->hospitalId())
             ->where('sale_number', $saleNumber)
-            ->with(['items.returnItems'])
+            ->with(['items.returnItems', 'hospital'])
             ->first();
 
         if ($sale === null) {

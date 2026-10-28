@@ -7,10 +7,12 @@ namespace App\Modules\Pharmacy\Presentation\Controllers;
 use App\Core\Exceptions\BusinessRuleException;
 use App\Core\Http\Controllers\ApiController;
 use App\Core\Http\Responses\ApiResponse;
+use App\Modules\Pharmacy\Application\Actions\ApplyPriceBulletinAction;
 use App\Modules\Pharmacy\Application\Actions\CatalogueDrugAction;
 use App\Modules\Pharmacy\Application\Actions\CreatePharmacySaleAction;
 use App\Modules\Pharmacy\Infrastructure\Persistence\Models\DrugCatalogueItemModel;
 use App\Modules\Pharmacy\Presentation\Requests\AdoptCatalogueDrugRequest;
+use App\Modules\Pharmacy\Presentation\Requests\ApplyPriceBulletinRequest;
 use App\Modules\Pharmacy\Presentation\Requests\StockCatalogueDrugRequest;
 use App\Modules\Pharmacy\Presentation\Resources\DrugCatalogueResource;
 use App\Modules\Pharmacy\Presentation\Resources\MedicationResource;
@@ -86,6 +88,21 @@ final class DrugCatalogueController extends ApiController
         );
 
         return ApiResponse::resource(new MedicationResource($medication));
+    }
+
+    public function bulletin(
+        ApplyPriceBulletinRequest $request,
+        ApplyPriceBulletinAction $bulletin,
+        CreatePharmacySaleAction $sales,
+    ): JsonResponse {
+        $payload = $request->validated();
+
+        return ApiResponse::data($bulletin->execute(
+            $sales->hospitalId(),
+            (string) $payload['label'],
+            (bool) ($payload['update_shelf'] ?? true),
+            $payload['rows'],
+        ));
     }
 
     private function hospitalId(CreatePharmacySaleAction $sales): ?int

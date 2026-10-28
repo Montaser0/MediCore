@@ -7,10 +7,14 @@ namespace App\Modules\Pharmacy\Presentation\Controllers;
 use App\Core\Http\Controllers\ApiController;
 use App\Core\Http\Responses\ApiResponse;
 use App\Modules\Pharmacy\Application\Actions\CreatePharmacyReturnAction;
+use App\Modules\Pharmacy\Application\Actions\CreatePharmacySaleAction;
+use App\Modules\Pharmacy\Application\Actions\PharmacyCashSessionAction;
 use App\Modules\Pharmacy\Application\Actions\PharmacyDebtAction;
 use App\Modules\Pharmacy\Application\Actions\PharmacyPurchaseAction;
 use App\Modules\Pharmacy\Application\Actions\PharmacyStocktakeAction;
+use App\Modules\Pharmacy\Presentation\Requests\CloseCashSessionRequest;
 use App\Modules\Pharmacy\Presentation\Requests\CountStocktakeLineRequest;
+use App\Modules\Pharmacy\Presentation\Requests\OpenCashSessionRequest;
 use App\Modules\Pharmacy\Presentation\Requests\ManagePosShelfRequest;
 use App\Modules\Pharmacy\Presentation\Requests\StorePharmacyDebtPaymentRequest;
 use App\Modules\Pharmacy\Presentation\Requests\StorePharmacyPurchaseRequest;
@@ -122,5 +126,28 @@ final class PharmacyTillController extends ApiController
     public function postStocktake(ManagePosShelfRequest $request, int $stocktake, PharmacyStocktakeAction $stocktakes): JsonResponse
     {
         return ApiResponse::data((new PharmacyStocktakeResource($stocktakes->post($stocktake)))->resolve());
+    }
+
+    public function cashSession(CreatePharmacySaleAction $sales, PharmacyCashSessionAction $cash): JsonResponse
+    {
+        return ApiResponse::data($cash->current($sales->hospitalId()));
+    }
+
+    public function openCash(OpenCashSessionRequest $request, CreatePharmacySaleAction $sales, PharmacyCashSessionAction $cash): JsonResponse
+    {
+        $session = $cash->openSession($sales->hospitalId(), (float) $request->validated('opening_float'));
+
+        return ApiResponse::data($cash->current((int) $session->hospital_id), [], 201);
+    }
+
+    public function closeCash(CloseCashSessionRequest $request, CreatePharmacySaleAction $sales, PharmacyCashSessionAction $cash): JsonResponse
+    {
+        $cash->close(
+            $sales->hospitalId(),
+            (float) $request->validated('counted_cash'),
+            $request->validated('note'),
+        );
+
+        return ApiResponse::data($cash->current($sales->hospitalId()));
     }
 }

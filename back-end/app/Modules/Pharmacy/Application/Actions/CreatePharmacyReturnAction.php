@@ -93,10 +93,11 @@ final class CreatePharmacyReturnAction
                         ->lockForUpdate()
                         ->first();
 
+                    $restore = $this->baseQuantity($item, $quantity);
                     if ($medication !== null && $medication->inventory_item_id !== null) {
-                        $this->restoreStock($medication, $hospitalId, $quantity, (int) $item->getKey());
+                        $this->restoreStock($medication, $hospitalId, $restore, (int) $item->getKey());
                     } elseif ($medication !== null) {
-                        $medication->quantity = round((float) $medication->quantity + $quantity, 2);
+                        $medication->quantity = round((float) $medication->quantity + $restore, 2);
                         $medication->save();
                     }
                 }
@@ -144,6 +145,17 @@ final class CreatePharmacyReturnAction
 
             return $document->load('items');
         });
+    }
+
+    private function baseQuantity(PharmacySaleItemModel $item, float $unitQuantity): float
+    {
+        $sold = (float) $item->quantity;
+        $base = $item->base_quantity;
+        if ($base === null || (float) $base <= 0 || $sold <= 0) {
+            return $unitQuantity;
+        }
+
+        return round($unitQuantity * ((float) $base / $sold), 2);
     }
 
     private function restoreStock(MedicationModel $medication, int $hospitalId, float $quantity, int $saleItemId): void

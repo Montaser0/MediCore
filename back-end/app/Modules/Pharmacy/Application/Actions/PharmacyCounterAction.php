@@ -16,6 +16,7 @@ use App\Modules\Encounters\Application\Actions\CloseEncounterAction;
 use App\Modules\Encounters\Application\Actions\CreateEncounterAction;
 use App\Modules\Encounters\Domain\Enums\EncounterStatus;
 use App\Modules\Patients\Infrastructure\Persistence\Models\PatientModel;
+use App\Modules\Pharmacy\Application\Support\MedicinePack;
 use App\Modules\Pharmacy\Infrastructure\Persistence\Models\MedicationModel;
 use App\Modules\Pharmacy\Infrastructure\Persistence\Models\PharmacyCounterTicketModel;
 use Illuminate\Support\Facades\DB;
@@ -180,17 +181,24 @@ final class PharmacyCounterAction
 
     private function takeStock(MedicationModel $medication, int $hospitalId, float $quantity, int $ticketId): void
     {
+        $base = MedicinePack::toBase(
+            $quantity,
+            MedicinePack::BOX,
+            (int) $medication->strips_per_box,
+            (int) $medication->tablets_per_strip,
+        );
+
         if ($medication->inventory_item_id !== null) {
             $warehouseId = $this->sales->pharmacyWarehouseId($hospitalId, (int) $medication->inventory_item_id);
             $onHand = $this->stock->availableQuantity((int) $medication->inventory_item_id, $warehouseId);
-            if ($onHand + 1e-6 < $quantity) {
+            if ($onHand + 1e-6 < $base) {
                 throw BusinessRuleException::make('الكمية غير كافية: '.$medication->name);
             }
 
             $this->stock->issue(
                 inventoryItemId: (int) $medication->inventory_item_id,
                 warehouseId: $warehouseId,
-                quantity: $quantity,
+                quantity: $base,
                 movementType: 'sale',
                 referenceType: 'pharmacy_counter_ticket',
                 referenceId: $ticketId,
@@ -200,11 +208,11 @@ final class PharmacyCounterAction
         }
 
         $onHand = round((float) $medication->quantity, 2);
-        if ($onHand < $quantity) {
+        if ($onHand < $base) {
             throw BusinessRuleException::make('الكمية غير كافية: '.$medication->name);
         }
 
-        $medication->quantity = round($onHand - $quantity, 2);
+        $medication->quantity = round($onHand - $base, 2);
         $medication->save();
     }
 }

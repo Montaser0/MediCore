@@ -61,7 +61,7 @@ final class ModuleRegistryTest extends TestCase
         $this->assertFalse($registry->enabled('Inventory'));
         $this->assertTrue($registry->enabled('Reports'));
         $this->assertSame(
-            ['home', 'pharmacy-catalog', 'pharmacy-sale', 'pharmacy-return', 'pharmacy-debts', 'pharmacy-warehouses', 'reports'],
+            ['home', 'pharmacy-catalog', 'pharmacy-sale', 'pharmacy-return', 'pharmacy-debts', 'pharmacy-alerts', 'pharmacy-drawer', 'pharmacy-warehouses', 'reports'],
             $registry->navigation(),
         );
     }

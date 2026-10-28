@@ -423,6 +423,8 @@ final class Permissions
             'pharmacy-return' => self::screen('diagnostics', 'nav.pharmacyReturn', $pos),
             'pharmacy-debts' => self::screen('diagnostics', 'nav.pharmacyDebts', $pos),
             'pharmacy-warehouses' => self::screen('diagnostics', 'nav.pharmacyWarehouses', $pos),
+            'pharmacy-alerts' => self::screen('diagnostics', 'nav.pharmacyAlerts', $pos),
+            'pharmacy-drawer' => self::screen('diagnostics', 'nav.pharmacyDrawer', $pos),
             'inpatient' => self::screen('care', 'nav.inpatient', [
                 self::INPATIENT_VIEW, self::INPATIENT_ADMIT, self::INPATIENT_BEDS_MANAGE,
                 self::INPATIENT_TRANSFER, self::INPATIENT_DISCHARGE, self::PATIENTS_VIEW,
@@ -481,7 +483,8 @@ final class Permissions
             'radiologist' => ['radiology', 'radiology-services'],
             'pharmacist' => [
                 'pharmacy', 'pharmacy-stock', 'pharmacy-catalog', 'pharmacy-sale',
-                'pharmacy-return', 'pharmacy-debts', 'pharmacy-warehouses',
+                'pharmacy-return', 'pharmacy-debts', 'pharmacy-alerts', 'pharmacy-drawer',
+                'pharmacy-warehouses',
             ],
             'cashier' => ['patients', 'encounters', 'emergency', 'billing'],
             'warehouse' => ['inventory', 'pharmacy-stock'],

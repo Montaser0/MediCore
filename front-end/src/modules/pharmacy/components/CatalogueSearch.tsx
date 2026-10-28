@@ -20,6 +20,9 @@ export type CatalogueHit = {
   company_label?: string | null;
   product_type?: string | null;
   registration_status?: string | null;
+  official_price?: number | null;
+  composition?: string | null;
+  bulletin_label?: string | null;
   stock?: {
     medication_id: number;
     quantity?: number;
@@ -141,6 +144,16 @@ export function CatalogueSearch({
                     {item.stock ? (
                       <span>
                         {t("pharmacy.onShelf")}: {item.stock.quantity ?? 0}
+                      </span>
+                    ) : null}
+                    {item.official_price != null ? (
+                      <span>
+                        {t("pharmacy.officialPrice")}: {item.official_price}
+                      </span>
+                    ) : null}
+                    {item.composition ? (
+                      <span>
+                        {t("pharmacy.composition")}: {item.composition}
                       </span>
                     ) : null}
                   </span>

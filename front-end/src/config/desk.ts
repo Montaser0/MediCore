@@ -15,6 +15,8 @@ const desks: Record<string, string[]> = {
     "/dashboard/pharmacy/sale",
     "/dashboard/pharmacy/returns",
     "/dashboard/pharmacy/debts",
+    "/dashboard/pharmacy/alerts",
+    "/dashboard/pharmacy/drawer",
     "/dashboard/pharmacy/warehouses",
     "/dashboard/pharmacy/backups",
   ],
@@ -27,7 +29,7 @@ export type EditionMenu = {
 };
 
 const ACCOUNT_EDITIONS = new Set(["clinic", "laboratory", "radiology"]);
-const POS_ONLY = new Set(["pharmacy-catalog", "pharmacy-sale", "pharmacy-return", "pharmacy-debts", "pharmacy-warehouses"]);
+const POS_ONLY = new Set(["pharmacy-catalog", "pharmacy-sale", "pharmacy-return", "pharmacy-debts", "pharmacy-alerts", "pharmacy-drawer", "pharmacy-warehouses"]);
 
 function hrefOf(item: NavModule) {
   return item.href.split("?")[0];

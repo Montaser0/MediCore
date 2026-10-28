@@ -15,6 +15,7 @@ export type PharmacyReport = {
   profit_today?: number;
   profit_week?: number;
   profit_month?: number;
+  item_profit_month?: Array<{ name: string; quantity: number; net: number; cost: number; profit: number }>;
   returns_today?: number;
   cash_today?: number;
   debts_today?: number;

@@ -9,7 +9,7 @@ export function resolveApiUrl(): string {
     return window.__HMS__.apiUrl;
   }
 
-  return process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api";
+  return process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8001/api";
 }
 
 export const env = {

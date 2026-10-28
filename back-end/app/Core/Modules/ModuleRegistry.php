@@ -97,7 +97,7 @@ final class ModuleRegistry
         'clinic' => ['home', 'patients', 'appointments', 'booking-link', 'billing', 'departments', 'diagnoses', 'operation-types', 'staff', 'reports'],
         'laboratory' => ['home', 'patients', 'appointments', 'booking-link', 'billing', 'departments', 'diagnoses', 'operation-types', 'staff', 'laboratory', 'lab-tests', 'blood-products', 'reports'],
         'radiology' => ['home', 'patients', 'appointments', 'booking-link', 'billing', 'departments', 'diagnoses', 'operation-types', 'staff', 'radiology', 'radiology-services', 'reports'],
-        'pharmacy' => ['home', 'pharmacy-catalog', 'pharmacy-sale', 'pharmacy-return', 'pharmacy-debts', 'pharmacy-warehouses', 'reports'],
+        'pharmacy' => ['home', 'pharmacy-catalog', 'pharmacy-sale', 'pharmacy-return', 'pharmacy-debts', 'pharmacy-alerts', 'pharmacy-drawer', 'pharmacy-warehouses', 'reports'],
     ];
 
     /**

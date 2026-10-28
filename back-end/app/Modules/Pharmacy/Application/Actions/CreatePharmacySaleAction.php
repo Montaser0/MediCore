@@ -9,6 +9,7 @@ use App\Core\Exceptions\BusinessRuleException;
 use App\Core\Support\Contracts\StockService;
 use App\Modules\Hospital\Infrastructure\Persistence\Models\HospitalModel;
 use App\Modules\Inventory\Infrastructure\Persistence\Models\WarehouseModel;
+use App\Modules\Pharmacy\Application\Support\MedicinePack;
 use App\Modules\Pharmacy\Infrastructure\Persistence\Models\MedicationModel;
 use App\Modules\Pharmacy\Infrastructure\Persistence\Models\PharmacyCustomerModel;
 use App\Modules\Pharmacy\Infrastructure\Persistence\Models\PharmacySaleItemModel;
@@ -23,7 +24,7 @@ final class CreatePharmacySaleAction
     ) {}
 
     /**
-     * @param  array<int, array{medication_id: int, quantity: float|int|string}>  $lines
+     * @param  array<int, array{medication_id: int, quantity: float|int|string, unit?: string}>  $lines
      */
     public function execute(
         array $lines,
@@ -70,24 +71,37 @@ final class CreatePharmacySaleAction
                     throw BusinessRuleException::make('الدواء غير متاح في هذه الصيدلية');
                 }
 
+                $unit = MedicinePack::normalize((string) ($line['unit'] ?? MedicinePack::BOX));
+                $strips = (int) $medication->strips_per_box;
+                $tablets = (int) $medication->tablets_per_strip;
+                $base = MedicinePack::toBase($quantity, $unit, $strips, $tablets);
+                $unitPrice = MedicinePack::sellPrice(
+                    (float) $medication->price,
+                    (float) $medication->price_strip,
+                    (float) $medication->price_tablet,
+                    $unit,
+                    $strips,
+                    $tablets,
+                );
+
                 $linked = $medication->inventory_item_id !== null;
                 $warehouseId = $linked ? $this->pharmacyWarehouseId($hospitalId, (int) $medication->inventory_item_id) : null;
                 if ($linked) {
                     $onHand = $this->stock->availableQuantity((int) $medication->inventory_item_id, $warehouseId);
-                    if ($onHand + 1e-6 < $quantity) {
+                    if ($onHand + 1e-6 < $base) {
                         throw BusinessRuleException::make('الكمية غير كافية: '.$medication->name);
                     }
                 } else {
                     $onHand = round((float) $medication->quantity, 2);
-                    if ($onHand < $quantity) {
+                    if ($onHand < $base) {
                         throw BusinessRuleException::make('الكمية غير كافية: '.$medication->name);
                     }
 
-                    $medication->quantity = round($onHand - $quantity, 2);
+                    $medication->quantity = round($onHand - $base, 2);
                     $medication->save();
                 }
 
-                $lineTotal = round($quantity * (float) $medication->price, 2);
+                $lineTotal = round($quantity * $unitPrice, 2);
                 $total += $lineTotal;
 
                 $saleItem = PharmacySaleItemModel::query()->create([
@@ -96,19 +110,31 @@ final class CreatePharmacySaleAction
                     'name' => $medication->name,
                     'barcode' => $medication->barcode,
                     'quantity' => $quantity,
-                    'unit_price' => $medication->price,
+                    'unit' => $unit,
+                    'base_quantity' => $base,
+                    'unit_price' => $unitPrice,
+                    'unit_cost' => 0,
                     'line_total' => $lineTotal,
+                    'cost_total' => 0,
                 ]);
 
                 if ($linked) {
-                    $this->stock->issue(
+                    $drawn = $this->stock->issue(
                         inventoryItemId: (int) $medication->inventory_item_id,
                         warehouseId: (int) $warehouseId,
-                        quantity: $quantity,
+                        quantity: $base,
                         movementType: 'sale',
                         referenceType: 'pharmacy_sale_item',
                         referenceId: (int) $saleItem->getKey(),
                     );
+                    $costTotal = 0.0;
+                    foreach ($drawn as $batch) {
+                        $costTotal += $batch->quantity * $batch->unitCost;
+                    }
+                    $costTotal = round($costTotal, 2);
+                    $saleItem->cost_total = $costTotal;
+                    $saleItem->unit_cost = $quantity > 0 ? round($costTotal / $quantity, 2) : 0;
+                    $saleItem->save();
                 }
             }
 
@@ -137,7 +163,7 @@ final class CreatePharmacySaleAction
             $sale->pharmacy_customer_id = $customer?->getKey();
             $sale->save();
 
-            return $sale->load(['items', 'customer']);
+            return $sale->load(['items', 'customer', 'hospital']);
         });
     }
 

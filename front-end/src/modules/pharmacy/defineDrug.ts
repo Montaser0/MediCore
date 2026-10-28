@@ -1,4 +1,5 @@
 import { apiGet, apiPost } from "@/lib/api/client";
+import type { SaleUnit } from "./pack";
 
 export function earliestExpiry(): string {
   const date = new Date();
@@ -32,6 +33,11 @@ export async function defineDrug(input: {
   dosageForm?: string;
   strength?: string;
   price: number;
+  priceStrip?: number;
+  priceTablet?: number;
+  stripsPerBox?: number;
+  tabletsPerStrip?: number;
+  purchaseUnit?: SaleUnit;
   cost: number;
   quantity: number;
   expiry: string;
@@ -70,10 +76,15 @@ export async function defineDrug(input: {
   await apiPost(`/pharmacy/medications/${medicationId}/receive`, {
     warehouse_id: warehouseId,
     quantity: input.quantity,
+    purchase_unit: input.purchaseUnit ?? "علبة",
+    strips_per_box: Math.max(1, input.stripsPerBox ?? 1),
+    tablets_per_strip: Math.max(1, input.tabletsPerStrip ?? 1),
     batch_number: input.expiry,
     expiry_date: input.expiry,
     unit_cost: input.cost,
     price: input.price,
+    price_strip: input.priceStrip ?? 0,
+    price_tablet: input.priceTablet ?? 0,
     ...(input.barcode?.trim() ? { barcode: input.barcode.trim() } : {}),
   });
 

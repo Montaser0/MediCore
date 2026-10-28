@@ -6,6 +6,8 @@ namespace App\Modules\Pharmacy\Presentation\Requests;
 
 use App\Core\Authorization\Permissions;
 use App\Core\Http\Requests\ApiFormRequest;
+use App\Modules\Pharmacy\Application\Support\MedicinePack;
+use Illuminate\Validation\Rule;
 
 final class ReceiveMedicationStockRequest extends ApiFormRequest
 {
@@ -32,6 +34,11 @@ final class ReceiveMedicationStockRequest extends ApiFormRequest
             'expiry_date' => ['required', 'date', 'after:today'],
             'unit_cost' => ['nullable', 'numeric', 'min:0'],
             'unit' => ['nullable', 'string', 'max:50'],
+            'purchase_unit' => ['nullable', 'string', Rule::in([MedicinePack::BOX, MedicinePack::STRIP, MedicinePack::TABLET])],
+            'strips_per_box' => ['nullable', 'integer', 'min:1', 'max:500'],
+            'tablets_per_strip' => ['nullable', 'integer', 'min:1', 'max:500'],
+            'price_strip' => ['nullable', 'numeric', 'min:0'],
+            'price_tablet' => ['nullable', 'numeric', 'min:0'],
             'barcode' => ['nullable', 'string', 'max:100'],
             'price' => ['nullable', 'numeric', 'min:0'],
             'notes' => ['nullable', 'string', 'max:1000'],
